@@ -2,11 +2,13 @@ import sqlite3
 conn = sqlite3.connect('comics.db')
 cursor = conn.cursor()
 
+cursor.execute('DROP TABLE comics')
 
 cursor.execute(''' 
                 CREATE TABLE IF NOT EXISTS comics (
                     id INTEGER PRIMARY KEY,
                     title TEXT NOT NULL,
+                    series TEXT,
                     volume_id INTEGER,
                     publisher_id INTEGER,
                     release_date TEXT,
@@ -16,7 +18,8 @@ cursor.execute('''
                     description TEXT,
                     type_id INTEGER,
                     FOREIGN KEY (type_id) REFERENCES comic_types(id),
-                    FOREIGN KEY (publisher_id) REFERENCES publishers(id)
+                    FOREIGN KEY (publisher_id) REFERENCES publishers(id),
+                    FOREIGN KEY (series) REFERENCES series(id)
                 )
 ''')
 
@@ -58,6 +61,7 @@ cursor.execute('''
                     name TEXT NOT NULL UNIQUE
                 )
 ''')
+
 
 conn.commit()
 conn.close()
