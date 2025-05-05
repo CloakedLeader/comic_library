@@ -3,7 +3,6 @@ conn = sqlite3.connect('comics.db')
 cursor = conn.cursor()
 
 
-
 cursor.execute(''' 
                 CREATE TABLE IF NOT EXISTS comics (
                     id INTEGER PRIMARY KEY,
@@ -60,24 +59,5 @@ cursor.execute('''
                 )
 ''')
 
-cursor.execute(
-    '''INSERT INTO creators (name)
-        VALUES(?)''',
-    ('Ram V',)
-)
-cursor.execute(
-    '''INSERT INTO creators (name)
-        VALUES(?)''',
-    ('John Byrne',)
-)
-
-
 conn.commit()
-
-
-cursor.execute("SELECT * FROM creators")
-names = cursor.fetchall()
-for name in names:
-    print(name)
-
 conn.close()
