@@ -2,4 +2,5 @@
 *.sqlite
 __pycache__/
 .env
+*.cbz
 

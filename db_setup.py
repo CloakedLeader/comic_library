@@ -2,7 +2,6 @@ import sqlite3
 conn = sqlite3.connect('comics.db')
 cursor = conn.cursor()
 
-cursor.execute('DROP TABLE comics')
 
 cursor.execute(''' 
                 CREATE TABLE IF NOT EXISTS comics (
