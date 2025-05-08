@@ -9,7 +9,8 @@ import sys
 import time
 import re
 from word2number import w2n
+from dotenv import load_dotenv
 
-api_key = "61d8fd6e7cc37cc177cd09f795e9c585999903ed"
+api_key = os.getenv("API_KEY")
 
 
