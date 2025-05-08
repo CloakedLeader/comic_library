@@ -2,7 +2,7 @@ import os
 import zipfile
 import xml.etree.ElementTree as ET
 import sqlite3
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Tuple, List
 from fuzzywuzzy import fuzz
 import sys
 import time
@@ -105,6 +105,12 @@ def parse_publisher(path) -> Optional[str]:
 def parse_title(path) -> Optional[str]:
     return easy_parse(path, "Title")
 
+def parse_creator(path, tag: str) -> Optional[List[str]]: #Returns a list of strings where each string is an indivdual name 
+    creators = easy_parse(path, tag)
+    return creators.split(", ")
+
+
+
 
 # More advanced parsing that requires extra logic or string matching
 
@@ -122,9 +128,11 @@ def match_publisher(a: str) -> Optional[int]:  # Takes a string from metadata an
     else:
         None
 
-#use Amazing Spider-Man Modern Era Epic Collection: Coming 
+#use Amazing Spider-Man Modern Era Epic Collection: Coming Home
 
-# Naming System: [Series_Name] [by_Surname][Start_Year] - [Collection_Type] [Volume_Number] ([date in month/year])
+# File Naming System: [Series_Name][Start_Year] - [Collection_Type] [Volume_Number] ([date in month/year])
+# User Visible Title: [Series] [star_year] - [collection type] Volume [volume_number]: [Title] [month] [year]
+
 
 series_overrides = [("tpb", 1), ("omnibus", 2), ("epic collection", 3), ("modern era epic collection", 4)]
 
@@ -154,6 +162,30 @@ def title_parsing(path) -> Optional[Tuple[str, int]]:
             print("No usuable title, need user input.") #Need to do something here to fix if no title can be found
 
 
+def build_dict(path) -> Optional[dict]:
+    dic = dict.fromkeys(["title", "series", "volume_id", "publisher_id", "release_date", "file_path", "front_cover_path", "description"])
+    dic["description"] = parse_desc(path)
+    dic["file_path"] = "{}".format(path)
+    dic["publisher_id"] = match_publisher(parse_publisher(path))
+    dic["release_date"] = "{}/{}".format(parse_month(path), parse_year(path))
+    return dic
+
+def dic_into_db(my_dic) -> None:
+    conn = sqlite3.connect("comics.db")
+    cursor = conn.cursor()
+    # ready_or_not = True
+    for value in my_dic:
+        if value is None:
+            print("Missing some information") #Need to trigger another function or re-tag to get appropriate data
+        else:
+            cursor.execute('''
+                   INSERT INTO comics (title, series, volume_id, publisher_id, release_date, file_path, front_cover_path, description)
+                   VALUES (:title, :series, :volume_id, :pubslisher_id, :release_date, :file_path, :front_cover_path, :description)
+                   ''', my_dic)
+    conn.commit()
+    conn.close()
+
+                                         
 
 
 
@@ -161,13 +193,7 @@ def title_parsing(path) -> Optional[Tuple[str, int]]:
 
 
 
-
-
-
-
-
-
-
+ 
 
 # Watchdog stuff:
 

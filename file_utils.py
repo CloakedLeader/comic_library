@@ -29,12 +29,6 @@ def move_file():
 #('Juggernaut - No Stopping Now TPB (March 2021).cbz')
       
 
-
-
-
-def title_parsing(path):
-    vague_titles = {'volume 1', 'volume one', 'book one', 'collection', 'tpb', 'omnibus'}
-    
     
 
     
