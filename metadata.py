@@ -165,9 +165,9 @@ def title_parsing(path) -> Optional[Tuple[str, int]]:
 def build_dict(path) -> Optional[dict]:
     dic = dict.fromkeys(["title", "series", "volume_id", "publisher_id", "release_date", "file_path", "front_cover_path", "description"])
     dic["description"] = parse_desc(path)
-    dic["file_path"] = "{}".format(path)
+    dic["file_path"] = f"{path}"
     dic["publisher_id"] = match_publisher(parse_publisher(path))
-    dic["release_date"] = "{}/{}".format(parse_month(path), parse_year(path))
+    dic["release_date"] = f"{parse_month(path)}/{parse_year(path)}"
     return dic
 
 def dic_into_db(my_dic) -> None:
@@ -188,14 +188,9 @@ def dic_into_db(my_dic) -> None:
                                          
 
 
-
-
-
-
-
- 
-
 # Watchdog stuff:
+
+path_to_obs = os.getenv("PATH_TO_WATCH")
 
 class DownloadsHandler(FileSystemEventHandler):
 
@@ -204,4 +199,38 @@ class DownloadsHandler(FileSystemEventHandler):
             file_path = event.src_path
             print(f"New file detected: {file_path}")
             self.handle_new_file(file_path)
+            
+    def on_moved(self, event):
+        if event.dest_path == path_to_obs:
+            if not event.is_directory:
+                file_path = event.src_path
+                print(f"New file detected: {file_path}")
+                self.handle_new_file(file_path)
+        else:
             pass
+    
+    def on_modified(self, event): #Need to do something here
+        pass
+
+    def on_deleted(self, event):
+        print(f"Detected a file deletion: {event.src_path}")
+
+    def handle_new_file(self, path): #Start the tagging
+        pass
+
+
+obs = Observer()
+obs.schedule(DownloadsHandler(), path_to_obs, recursive = False)
+obs.start()
+try: 
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    obs.stop()
+    obs.join()
+
+    
+
+
+
+
