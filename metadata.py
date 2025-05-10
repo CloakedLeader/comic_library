@@ -10,29 +10,60 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import re
 from word2number import w2n
-
+from file_utils import is_comic, get_ext, convert_cbz
 
 
 
 log_file = open("log.txt", "w")
 sys.stout = log_file
 
+def pad(n: int) -> str:
+    return f"{n:03}" if n < 100 else str(n)
 
-def find_cover(path): #This needs to be completely changed later. 
-    if zipfile.is_zipfile(path):
+def sort_imgs(filename: str) -> Optional[int]:
+    numbers = re.findall(r'\d+', filename)
+    return int(numbers[-1]) if numbers else -1
+
+def get_comicid_from_path(path: str) -> Optional[int]:
+    conn = sqlite3.connect("comics.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM comics WHERE path = {}".format(path))
+    result = cursor.fetchone()
+    conn.close()
+    if result:
+        return result[0]
+    else:
+        return None
+
+def save_cover(path, bytes, out_dir=os.getenv("DEST_FILE_PATH")):
+    filename = "{}_cover".format(pad(get_comicid_from_path(path)))
+    out_path = os.path.join(out_dir, filename)
+    with open(out_path, "wb") as f:
+        f.write(bytes)
+    return out_path
+
+
+def get_cover(path): #This needs to be completely changed later. Needs to be recursive so it searches in sub-directories!
+    if get_ext(path) == ".cbz":
         with zipfile.ZipFile(path, 'r') as zip_ref:
             image_files = [f for f in zip_ref.namelist() if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
             if not image_files:
                 print("Empty archive.")
                 return
+            image_files.sort(key=sort_imgs)
+            first_image = zip_ref.read(image_files[0])
+        out = save_cover(path, first_image)
+            #Now need to update database
+        conn = sqlite3.connect("comics.db")
+        cursor = conn.cursor()
+        cursor.execute("UPDATE comics SET front_cover_path = {} WHERE id = {}".format(out, get_comicid_from_path(path)))
+        conn.commit()
+        conn.close()
+
     else:
         print("Need to convert to cbz first!")
 
-    image_files.sort()
-    first_image = zip_ref.read(image_files[0])
-    return first_image
-
-
+    
 def find_metadata(path: str) -> ET.Element:
     try:
             with zipfile.ZipFile(path, 'r') as cbz:
@@ -126,7 +157,7 @@ def match_publisher(a: str) -> Optional[int]:  # Takes a string from metadata an
     if best_score >= 85:
         return best_match[0]
     else:
-        None
+        print("Publisher metadata not matched.")
 
 #use Amazing Spider-Man Modern Era Epic Collection: Coming Home
 
@@ -141,7 +172,7 @@ def title_parsing(path) -> Optional[Tuple[str, int]]:
     coll_type = None
     override = False
     title_raw = parse_title(path)
-    match = re.search(r'volume\s(\d+)|(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen)', title_raw)
+    match = re.fullmatch(r'^volume\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen)$', title_raw)
 
     if match:
         title = parse_series(path)
@@ -149,7 +180,7 @@ def title_parsing(path) -> Optional[Tuple[str, int]]:
         if vol.isdigit():
             vol_num = int(vol)
         else:
-            vol_num = w2n.word_to_num(vol) #need to deal with vol_num being None
+            vol_num = int(w2n.word_to_num(vol)) #need to deal with vol_num being None
 #need to deal with 'volume being in the title but other stuff around it' 
     for f in series_overrides:      
         if f[0] in title:
@@ -208,16 +239,19 @@ class DownloadsHandler(FileSystemEventHandler):
                 self.handle_new_file(file_path)
         else:
             pass
-    
-    def on_modified(self, event): #Need to do something here
-        pass
 
     def on_deleted(self, event):
         print(f"Detected a file deletion: {event.src_path}")
 
     def handle_new_file(self, path): #Start the tagging
-        pass
-
+        if is_comic(path):
+            if get_ext(path) == ".cbr":
+                path = convert_cbz(path)
+            elif get_ext(path) == ".cbz":
+                #this is where the tagging starts!
+                pass
+        else: 
+            print("Wrong file type.")
 
 obs = Observer()
 obs.schedule(DownloadsHandler(), path_to_obs, recursive = False)
