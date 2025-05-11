@@ -10,7 +10,8 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import re
 from word2number import w2n
-from file_utils import is_comic, get_ext, convert_cbz
+from file_utils import is_comic, get_ext, convert_cbz, get_name
+from pathlib import Path
 
 
 
@@ -18,7 +19,7 @@ log_file = open("log.txt", "w")
 sys.stout = log_file
 
 def pad(n: int) -> str:
-    return f"{n:03}" if n < 100 else str(n)
+    return f"{n:04}" if n < 1000 else str(n)
 
 def sort_imgs(filename: str) -> Optional[int]:
     numbers = re.findall(r'\d+', filename)
@@ -36,7 +37,7 @@ def get_comicid_from_path(path: str) -> Optional[int]:
         return None
 
 def save_cover(path, bytes, out_dir=os.getenv("DEST_FILE_PATH")):
-    filename = "{}_cover".format(pad(get_comicid_from_path(path)))
+    filename = "cover_{}".format(pad(get_comicid_from_path(path)))
     out_path = os.path.join(out_dir, filename)
     with open(out_path, "wb") as f:
         f.write(bytes)
@@ -248,8 +249,18 @@ class DownloadsHandler(FileSystemEventHandler):
             if get_ext(path) == ".cbr":
                 path = convert_cbz(path)
             elif get_ext(path) == ".cbz":
-                #this is where the tagging starts!
-                pass
+                conn = sqlite3.connect("comics.db")
+                cursor = conn.cursor()
+                cursor.execute(f''' 
+                    INSERT INTO comics (title, file_path)
+                    VALUES ({get_name(path)}, {path})      
+                               ''')
+                comic_id = cursor.lastrowid
+                conn.commit()
+                conn.close()
+            
+
+            
         else: 
             print("Wrong file type.")
 
