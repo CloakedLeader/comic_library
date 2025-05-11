@@ -6,7 +6,7 @@ import rarfile
 import xml.etree.ElementTree as ET
 import sqlite3
 from typing import Optional
-
+from pathlib import Path
 
 def convert_cbz(cbr_path, delete_original=False):
     if not get_ext(cbr_path) == ".cbr":
@@ -50,8 +50,6 @@ def move_file():
     pass
 
 def get_name(path) -> str:
-    name = os.path.basename(path)
-    if not isinstance(name, str):
-        raise TypeError("Return value must be a string")
-    return name
+    return Path(path).stem
+
 
