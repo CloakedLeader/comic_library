@@ -12,6 +12,8 @@ import re
 from word2number import w2n
 from file_utils import is_comic, get_ext, convert_cbz, get_name
 from pathlib import Path
+from PIL import Image
+from io import BytesIO
 
 
 
@@ -35,16 +37,47 @@ def get_comicid_from_path(path: str) -> Optional[int]:
         return result[0]
     else:
         return None
+    
+   
 
-def save_cover(path, bytes, out_dir=os.getenv("DEST_FILE_PATH")):
-    filename = "cover_{}".format(pad(get_comicid_from_path(path)))
-    out_path = os.path.join(out_dir, filename)
-    with open(out_path, "wb") as f:
-        f.write(bytes)
-    return out_path
+def save_cover(path: str, bytes: bytes, out_dir: str =os.getenv("DEST_FILE_PATH")) -> Tuple[str, str]:
+    t_height = 400
+    b_height = 800
+    variants = {}
+    with Image.open(BytesIO(bytes)) as img:
+        for name, height in [("thumbnail", t_height), ("browser", b_height)]:
+            w, h = img.size
+            new_w = int(w * (height / h))
+            resized_img = img.resize((new_w, height), Image.LANCZOS)
+
+            if name == "thumbnail":
+                quality = 90
+            else:
+                quality = 80
+
+            buffer = BytesIO()
+            resized_img.save(buffer, format="JPEG", quality=quality, optimize=True)
+            variants[name] = buffer.getvalue()
+
+    file_dic = {}
+    id_key = get_comicid_from_path(path)
+    for key, value in variants.items():
+        if key == "thumbnail":
+            out_path_t = os.path.join(out_dir, (f"{id_key}_cover_t.jpg"))
+            file_dic["thumbnail"] = (value, out_path_t)
+        elif key == "browser":
+            out_path_b = os.path.join(out_dir, (f"{id_key}_cover_b.jpg"))
+            file_dic["browser"] = (value, out_path_b)
+    
+    for key, value in file_dic.items():
+        with open(value[1], "wb") as f:
+            f.write(value[0])
+
+    return file_dic["thumbnail"][1], file_dic["browser"][1]
 
 
-def get_cover(path): #This needs to be completely changed later. Needs to be recursive so it searches in sub-directories!
+
+def find_cover(path): #This needs to be completely changed later. Needs to be recursive so it searches in sub-directories!
     if get_ext(path) == ".cbz":
         with zipfile.ZipFile(path, 'r') as zip_ref:
             image_files = [f for f in zip_ref.namelist() if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
@@ -54,12 +87,12 @@ def get_cover(path): #This needs to be completely changed later. Needs to be rec
             image_files.sort(key=sort_imgs)
             first_image = zip_ref.read(image_files[0])
         out = save_cover(path, first_image)
-            #Now need to update database
-        conn = sqlite3.connect("comics.db")
-        cursor = conn.cursor()
-        cursor.execute("UPDATE comics SET front_cover_path = {} WHERE id = {}".format(out, get_comicid_from_path(path)))
-        conn.commit()
-        conn.close()
+            #Now need to update database and need to make another column to store paths for both cover image sizes
+        #conn = sqlite3.connect("comics.db")
+        #cursor = conn.cursor()
+        #cursor.execute("UPDATE comics SET front_cover_path = {} WHERE id = {}".format(out, get_comicid_from_path(path)))
+        #conn.commit()
+        #conn.close()
 
     else:
         print("Need to convert to cbz first!")
@@ -95,8 +128,9 @@ def normalise_publisher(name: str) -> Optional[str]:
     tokens = name.replace("&", "and").split()
     return " ".join([t for t in tokens if t not in suffixes])
 
-
+#=================================================
 # Parsing the easy metadata which requires no logic
+#=================================================
 
 def easy_parse(path: str, field:str, as_type: type = str ) -> Union[str, int, None]: #Add messages to catch errors when this function returns None
     root, error = find_metadata(path)
@@ -256,6 +290,7 @@ class DownloadsHandler(FileSystemEventHandler):
                     VALUES ({get_name(path)}, {path})      
                                ''')
                 comic_id = cursor.lastrowid
+                
                 conn.commit()
                 conn.close()
             
