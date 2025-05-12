@@ -14,11 +14,13 @@ from file_utils import is_comic, get_ext, convert_cbz, get_name
 from pathlib import Path
 from PIL import Image
 from io import BytesIO
+import logging
+
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    handlers=[logging.StreamHandler(), logging.FileHandler('log.txt')])
 
 
-
-log_file = open("log.txt", "w")
-sys.stout = log_file
 
 def pad(n: int) -> str:
     return f"{n:04}" if n < 1000 else str(n)
@@ -27,7 +29,8 @@ def sort_imgs(filename: str) -> Optional[int]:
     numbers = re.findall(r'\d+', filename)
     return int(numbers[-1]) if numbers else -1
 
-def get_comicid_from_path(path: str) -> Optional[int]:
+def get_comicid_from_path(path: str) -> Optional[int]: #Takes a file path as an argument and returns the primary key id of the comic
+
     conn = sqlite3.connect("comics.db")
     cursor = conn.cursor()
     cursor.execute("SELECT id FROM comics WHERE path = {}".format(path))
@@ -36,11 +39,23 @@ def get_comicid_from_path(path: str) -> Optional[int]:
     if result:
         return result[0]
     else:
+        logging.error("Could not find reference to file path in database.")
         return None
     
    
 
-def save_cover(path: str, bytes: bytes, out_dir: str =os.getenv("DEST_FILE_PATH")) -> Tuple[str, str]:
+def save_cover(id: int, bytes: bytes, out_dir: str =os.getenv("DEST_FILE_PATH")) -> Tuple[str, str]: 
+    """
+    Saves two copies of the same image with different sizes.
+
+    Parameters:
+    id (int): The primary key id of the comic. 
+    bytes (bytes): The raw data of the cover image.
+    out_dir (str): The output directory, usually will be same but made it a variable for functionality.
+
+    Returns:
+    tuple: A tuple containing the file path of the two images (smaller, bigger).
+    """
     t_height = 400
     b_height = 800
     variants = {}
@@ -60,13 +75,12 @@ def save_cover(path: str, bytes: bytes, out_dir: str =os.getenv("DEST_FILE_PATH"
             variants[name] = buffer.getvalue()
 
     file_dic = {}
-    id_key = get_comicid_from_path(path)
     for key, value in variants.items():
         if key == "thumbnail":
-            out_path_t = os.path.join(out_dir, (f"{id_key}_cover_t.jpg"))
+            out_path_t = os.path.join(out_dir, (f"{id}_cover_t.jpg"))
             file_dic["thumbnail"] = (value, out_path_t)
         elif key == "browser":
-            out_path_b = os.path.join(out_dir, (f"{id_key}_cover_b.jpg"))
+            out_path_b = os.path.join(out_dir, (f"{id}_cover_b.jpg"))
             file_dic["browser"] = (value, out_path_b)
     
     for key, value in file_dic.items():
@@ -77,25 +91,36 @@ def save_cover(path: str, bytes: bytes, out_dir: str =os.getenv("DEST_FILE_PATH"
 
 
 
-def find_cover(path): #This needs to be completely changed later. 
+def find_cover(path: str) -> Optional[None]:
+    """
+    Finds the cover image of a comic and saves two copies of it and puts their file paths to the database. 
+
+    Parameter:
+    path (str): The file path of the comic
+    """
     if get_ext(path) == ".cbz":
         with zipfile.ZipFile(path, 'r') as zip_ref:
             image_files = [f for f in zip_ref.namelist() if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
             if not image_files:
-                print("Empty archive.")
+                logging.error("Empty archive.")
                 return
             image_files.sort(key=sort_imgs)
             first_image = zip_ref.read(image_files[0])
         out = save_cover(path, first_image)
-            #Now need to update database and need to make another column to store paths for both cover image sizes
-        #conn = sqlite3.connect("comics.db")
-        #cursor = conn.cursor()
-        #cursor.execute("UPDATE comics SET front_cover_path = {} WHERE id = {}".format(out, get_comicid_from_path(path)))
-        #conn.commit()
-        #conn.close()
+            #Need to make another column to store paths for both cover image sizes
+        conn = sqlite3.connect("comics.db")
+        cursor = conn.cursor()
+        cursor.execute(f''' UPDATE comics 
+                            SET front_cover_path_t = {out[0]}, front_cover_path_b = {out[1]}
+                            WHERE id = {get_comicid_from_path(path)}
+                       ''')               
+        conn.commit()
+        conn.close()
 
     else:
-        print("Need to convert to cbz first!")
+        logging.error("Need to convert to cbz first!")
+        return
+
 
     
 def find_metadata(path: str) -> ET.Element:
@@ -120,13 +145,39 @@ def get_text(root, tag: str) -> Optional[str]:
     if element is not None and element.text:
         return element.text.strip().lower()
     else:
-        print("No metadata under {tag} tag.")
+        logging.error("No metadata under {tag} tag.")
 
 
 def normalise_publisher(name: str) -> Optional[str]:
     suffixes = ["comics", "publishing", "group", "press", "inc.", "inc", "llc"]
     tokens = name.replace("&", "and").split()
     return " ".join([t for t in tokens if t not in suffixes])
+
+required_fields = ['Title', 'Series', 'Year']
+
+def has_metadata(path: str, required: list = required_fields) -> bool:
+    try:
+        with zipfile.ZipFile(path, 'r') as cbz:
+            if 'ComicInfo.xml' not in cbz.namelist():
+                print(f"'ComicInfo.xml' not found in {path}")
+                return False
+        
+            with cbz.open('ComicInfo.xml') as file:
+                tree = ET.parse(file)
+                root = tree.getroot()
+
+                for field in required:
+                    element = root.find(field)
+                    if element is None or not element.text.strip():
+                        logging.error(f"Field '{field}' is missing or blank.")
+                        return False
+                    
+        logging.debug("All required fields are present and not blank")
+        return True
+    
+    except Exception as e:
+        logging.error(f"Error occurred: {e}")
+        return False
 
 #=================================================
 # Parsing the easy metadata which requires no logic
@@ -135,7 +186,7 @@ def normalise_publisher(name: str) -> Optional[str]:
 def easy_parse(path: str, field:str, as_type: type = str ) -> Union[str, int, None]: #Add messages to catch errors when this function returns None
     root, error = find_metadata(path)
     if error:
-        print("Error reading metadata:", error)
+        logging.error("Error reading metadata:", error)
     elif root is not None:
         text = get_text(root, field)
         if text is None:
@@ -143,10 +194,10 @@ def easy_parse(path: str, field:str, as_type: type = str ) -> Union[str, int, No
         try:
             return as_type(text)
         except ValueError:
-            print(f"Could not convert {field} to {as_type.__name__}")
+            logging.error(f"Could not convert {field} to {as_type.__name__}")
             return None
     else:
-        print("No ComicInfo.xml found")
+        logging.error("No ComicInfo.xml found")
         return None
 
 
@@ -192,7 +243,7 @@ def match_publisher(a: str) -> Optional[int]:  # Takes a string from metadata an
     if best_score >= 85:
         return best_match[0]
     else:
-        print("Publisher metadata not matched.")
+        logging.warning("Publisher metadata not matched.")
 
 #use Amazing Spider-Man Modern Era Epic Collection: Coming Home
 
@@ -225,7 +276,7 @@ def title_parsing(path) -> Optional[Tuple[str, int]]:
         if coll_type is None:
             pass #Need to add a function which will defintely find the type of collection
         elif override == False:
-            print("No usuable title, need user input.") #Need to do something here to fix if no title can be found
+            logging.error("No usuable title, need user input.") #Need to do something here to fix if no title can be found
 
 
 def build_dict(path) -> Optional[dict]:
@@ -242,7 +293,7 @@ def dic_into_db(my_dic) -> None:
     # ready_or_not = True
     for value in my_dic:
         if value is None:
-            print("Missing some information") #Need to trigger another function or re-tag to get appropriate data
+            logging.warning("Missing some information") #Need to trigger another function or re-tag to get appropriate data
         else:
             cursor.execute('''
                    INSERT INTO comics (title, series, volume_id, publisher_id, release_date, file_path, front_cover_path, description)
@@ -263,22 +314,22 @@ class DownloadsHandler(FileSystemEventHandler):
     def on_created(self, event):
         if not event.is_directory:
             file_path = event.src_path
-            print(f"New file detected: {file_path}")
+            logging.debug(f"New file detected: {file_path}")
             self.handle_new_file(file_path)
             
     def on_moved(self, event):
         if event.dest_path == path_to_obs:
             if not event.is_directory:
                 file_path = event.src_path
-                print(f"New file detected: {file_path}")
+                logging.debug(f"New file detected: {file_path}")
                 self.handle_new_file(file_path)
         else:
             pass
 
     def on_deleted(self, event):
-        print(f"Detected a file deletion: {event.src_path}")
+        logging.debug(f"Detected a file deletion: {event.src_path}")
 
-    def handle_new_file(self, path): #Start the tagging
+    def handle_new_file(self, path):
         if is_comic(path):
             if get_ext(path) == ".cbr":
                 path = convert_cbz(path)
@@ -288,16 +339,21 @@ class DownloadsHandler(FileSystemEventHandler):
             cursor.execute(f''' 
                 INSERT INTO comics (title, file_path)
                 VALUES ({get_name(path)}, {path})      
-                               ''')
+                            ''')
             comic_id = cursor.lastrowid
-                
+
+
             conn.commit()
             conn.close()
-            
+
+            if not has_metadata(path):
+                pass #This is where to call the tagging function
+
+            #files that make to here are downloaded already with metadata, if that is the case need to extract data so should call another function here
 
             
         else: 
-            print("Wrong file type.")
+            logging.critical("Wrong file type.")
 
 obs = Observer()
 obs.schedule(DownloadsHandler(), path_to_obs, recursive = False)
