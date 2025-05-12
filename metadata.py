@@ -77,7 +77,7 @@ def save_cover(path: str, bytes: bytes, out_dir: str =os.getenv("DEST_FILE_PATH"
 
 
 
-def find_cover(path): #This needs to be completely changed later. Needs to be recursive so it searches in sub-directories!
+def find_cover(path): #This needs to be completely changed later. 
     if get_ext(path) == ".cbz":
         with zipfile.ZipFile(path, 'r') as zip_ref:
             image_files = [f for f in zip_ref.namelist() if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
@@ -282,17 +282,17 @@ class DownloadsHandler(FileSystemEventHandler):
         if is_comic(path):
             if get_ext(path) == ".cbr":
                 path = convert_cbz(path)
-            elif get_ext(path) == ".cbz":
-                conn = sqlite3.connect("comics.db")
-                cursor = conn.cursor()
-                cursor.execute(f''' 
-                    INSERT INTO comics (title, file_path)
-                    VALUES ({get_name(path)}, {path})      
+        
+            conn = sqlite3.connect("comics.db")
+            cursor = conn.cursor()
+            cursor.execute(f''' 
+                INSERT INTO comics (title, file_path)
+                VALUES ({get_name(path)}, {path})      
                                ''')
-                comic_id = cursor.lastrowid
+            comic_id = cursor.lastrowid
                 
-                conn.commit()
-                conn.close()
+            conn.commit()
+            conn.close()
             
 
             
