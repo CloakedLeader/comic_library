@@ -4,4 +4,4 @@ __pycache__/
 .env
 *.cbz
 LICENSE
-
+test.py

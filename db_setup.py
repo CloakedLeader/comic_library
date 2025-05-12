@@ -21,6 +21,7 @@ cursor.execute('''
                     FOREIGN KEY (series) REFERENCES series(id)
                 )
 ''')
+#Add an is_processed column which can be the final check before moving file to final location
 
 cursor.execute(''' 
                 CREATE TABLE IF NOT EXISTS publishers (
