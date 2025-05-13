@@ -62,6 +62,16 @@ cursor.execute('''
                 )
 ''')
 
+cursor.execute('''
+                CREATE TABLE IF NOT EXISTS reviews (
+                    id INTEGER PRIMARY KEY,
+                    comic_id INTEGER NOT NULL,
+                    rating INTEGER CHECK (rating BETWEEN 1 AND 5),
+                    review TEXT,
+                    date_reviewed TEXT DEFAULT CURRENT_DATE,
+                    FOREIGN KEY (comic_id) REFERENCES comics(id) ON DELETE CASCADE
+                        )               
+               ''')
 
 conn.commit()
 conn.close()
