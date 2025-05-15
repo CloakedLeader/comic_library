@@ -15,11 +15,41 @@ from pathlib import Path
 from PIL import Image
 from io import BytesIO
 import logging
+import random
+import Levenshtein
+
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(message)s',
                     handlers=[logging.StreamHandler(), logging.FileHandler('log.txt')])
 
+
+
+def find_credit_pages(path: str) -> Tuple[ str, str] | None:
+    if get_ext(path) == ".cbz":
+        with zipfile.ZipFile(path, 'r') as arch:
+            image_files = [f for f in arch.namelist() if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+            if not image_files:
+                logging.error("Empty Archive.")
+                return None
+            image_files.sort(key=sort_imgs)
+            common_files_index = int(len(image_files) * 0.4)
+            early_files = image_files[:common_files_index]
+            file_paths_to_compare = random.sample(early_files, min(5, len(early_files)))
+            last_files = image_files[-3:]
+            not_matching_file = set()
+            for j in last_files:
+                for k in file_paths_to_compare:
+                    dist = Levenshtein.distance(j, k)
+                    if dist > 10:
+                        not_matching_file.add(j)
+            not_matching_file_list = list(not_matching_file)
+            if len(not_matching_file_list) == 1:
+                return path, not_matching_file_list[0]
+            else: 
+                logging.info("No credit pages found!")
+                return None
+            
 
 
 def pad(n: int) -> str:
@@ -44,7 +74,7 @@ def get_comicid_from_path(path: str) -> Optional[int]: #Takes a file path as an 
     
    
 
-def save_cover(id: int, bytes: bytes, out_dir: str =os.getenv("DEST_FILE_PATH")) -> Tuple[str, str]: 
+def save_cover(id: int, bytes: bytes, out_dir: str = os.getenv("DEST_FILE_PATH")) -> Tuple[str, str]: 
     """
     Saves two copies of the same image with different sizes.
 
@@ -63,7 +93,7 @@ def save_cover(id: int, bytes: bytes, out_dir: str =os.getenv("DEST_FILE_PATH"))
         for name, height in [("thumbnail", t_height), ("browser", b_height)]:
             w, h = img.size
             new_w = int(w * (height / h))
-            resized_img = img.resize((new_w, height), Image.LANCZOS)
+            resized_img = img.resize((new_w, height), Image.Resampling.LANCZOS)
 
             if name == "thumbnail":
                 quality = 90
