@@ -63,7 +63,7 @@ def save_cover(id: int, bytes: bytes, out_dir: str =os.getenv("DEST_FILE_PATH"))
         for name, height in [("thumbnail", t_height), ("browser", b_height)]:
             w, h = img.size
             new_w = int(w * (height / h))
-            resized_img = img.resize((new_w, height), Image.LANCZOS)
+            resized_img = img.resize((new_w, height), Image.Resampling.LANCZOS)
 
             if name == "thumbnail":
                 quality = 90
