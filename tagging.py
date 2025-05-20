@@ -140,7 +140,7 @@ class Lexer:
             return eof
         
         self.pos += 1
-        return self.input[self.pos]
+        return self.input[ self.pos ]
     
         
     def peek( self ) -> str:
@@ -231,7 +231,7 @@ class Lexer:
         return initial != self.pos
     
 
-    def scan_number(self) -> bool:
+    def scan_number( self ) -> bool:
         """
         Checks if a string is numeric and if it has a suffix of letters directly after, no whitespace.
         """
@@ -286,7 +286,7 @@ def lex_filename(lex: Lexer) -> LexerFunc | None:
             lex.emit(ItemType.Symbol)
         else:
             return lex_text
-    elif r.isnumeric():
+    elif r.isnumeric(): #if a token starts with a number -> lex_number
         lex.backup()
         return lex_number
     elif r == "#":
@@ -342,7 +342,6 @@ def lex_operator(lex: Lexer) -> LexerFunc:
 
 def lex_space(lex: Lexer) -> LexerFunc:
     lex.accept_run(is_space)
-
     lex.emit(ItemType.Space)
     return lex_filename
 
@@ -438,7 +437,7 @@ def lex_issue_number(lex: Lexer) -> LexerFunc:
 
 
 def is_space(character: str) -> bool:
-    return character in "_ \t"
+    return character.isspace() or character == "_"
 
 def is_alpha_numeric(character: str) -> bool:
     return character.isalpha() or character.isnumeric()
@@ -453,3 +452,6 @@ def Lex(filename: str, allow_issue_start_with_letter: bool = False) -> Lexer:
     lex = Lexer(os.path.basename(filename), allow_issue_start_with_letter)
     lex.run()
     return lex
+
+#trial = Lexer("wildcats v1 047 (1998) 22p [image]")
+#lex_filename(trial)
