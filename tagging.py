@@ -104,10 +104,11 @@ class Item:
     def __repr__( self ) -> str:
         return f"{ self.val }: index: { self.pos }: { self.typ }"
     
-
 class LexerFunc( Protocol ):
     
     def __call__( self, __origin: Lexer) -> LexerFunc | None: ... # type: ignore
+    
+
 
 
 class Lexer:
@@ -453,5 +454,7 @@ def Lex(filename: str, allow_issue_start_with_letter: bool = False) -> Lexer:
     lex.run()
     return lex
 
-#trial = Lexer("wildcats v1 047 (1998) 22p [image]")
-#lex_filename(trial)
+trial = Lexer("Journey Into Mystery by Kieron Gillen Complete Collection Vol. 1 (2021) (LokiCorps)")
+lex_filename(trial)
+print(trial.items)
+
