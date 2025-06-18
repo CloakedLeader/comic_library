@@ -114,7 +114,7 @@ class HttpRequest:
 
         else:
             print("Need to specify which database to search in.")
-        if data["error"] != "OK" or data["number_of_total_results"] == 0:
+        if data["error"] != "OK":
                 print("Error, please investigate")
                 return
         # Want to tell the user to manually tag the comic.
@@ -149,17 +149,20 @@ class ResponseValidator:
         return self.filter_results(check_year)
     
     @staticmethod
-    def fuzzy_match( a, b, threshold=60 ):
+    def fuzzy_match( a, b, threshold=55 ):
         return fuzz.token_sort_ratio( a, b ) >= threshold
 
     def title_checker( self ):
         def check_title(item):
+            ambig_names = ["tpb", "hc", "omnibus", "vol. 1"]
             title = item["name"]
+            if title.lower() in ambig_names:
+                title = item["volume"]["name"]
             return self.fuzzy_match(title, self.expected_info.unclean_title)
         return self.filter_results(check_title)
 
     
-    def pub_checker( self, results ):
+    def pub_checker( self, results: list ):
         foriegn_keywords = {"panini", "norma"}
         english_publishers = {
             "Marvel": 31,
@@ -223,28 +226,13 @@ class TaggingPipeline:
         results = self.http.get_request("search")
         self.validator = ResponseValidator( results, self.data )
 
-        print(f"There are {len(results)} results returned from HTTP query.")
-        results = self.validator.year_checker()
-        self.validator.results = results
+        print(f"There are {len(results["results"])} results returned from HTTP query.")
         results = self.validator.title_checker()
         self.validator.results = results
-        # some way to tell the user to manually tag, or give them options to choose from
-        
-        print(f"After filtering for title and year,there are {len(results)} remaining matches.")
-        if len(results) != 0:
-            self.validator.cover_img_url_getter(results)
-            images = []
-            with ThreadPoolExecutor(max_workers=5) as executor:
-                images = list(executor.map(self.http.download_img, self.validator.urls))
-            matches_indices = []
-            for index, i in enumerate(images):
-                result = self.validator.cover_img_comparison(self.cover, i)
-                print(f"Index {index}: match result = {result}")
-                if result:
-                    matches_indices.append(index)
-            final_results = []
-            final_results = [results[i] for i in matches_indices]
-        final_results = self.validator.pub_checker(final_results)
+        results = self.validator.pub_checker(results)
+        self.validator.results = results
+        print(f"After filtering for title and publisher, there are {len(results)} remaining matching volumes.")
+        final_results = results
 
         if len(final_results) == 1:
             print("BINGO - ONE RESULT")
@@ -253,29 +241,63 @@ class TaggingPipeline:
             self.vol_id = self.match["id"]
             print(f"Volume id is: {self.vol_id}")
             print(self.match)
+            return
         elif len(final_results) > 1:
             print(f"Too many matches, {len(final_results)} to be specific")
-            print(final_results)
-            # This is where the user needs to manually select.
+            vol_info = []
+            for i in final_results:
+                id = i["id"]
+                name = i["name"]
+                vol_info.append((id, name))
+            good_matches = []
+            for j, k in vol_info:
+                self.http.build_url_iss(j)
+                temp_results = self.http.get_request("iss")
+                self.temp_validator = ResponseValidator( temp_results, self.data )
+                print(f"There are {len(self.temp_validator.results)} issues in the matching volume: '{k}'.")
+                temp_results = self.temp_validator.year_checker()
+                self.temp_validator.results = temp_results
+                temp_results = self.temp_validator.title_checker()
+                self.temp_validator.results = temp_results
+                print(f"After filtering for title and year there are {len(temp_results)} results remaining.")
+                self.temp_validator.cover_img_url_getter(temp_results)
+                images =[]
+                with ThreadPoolExecutor(max_workers=5) as executor:
+                    images = list(executor.map(self.http.download_img, self.temp_validator.urls))
+                matches_indices = []
+                for index, i in enumerate(images):
+                    result = self.temp_validator.cover_img_comparison(self.cover, i)
+                    print(f"Index {index}: match result = {result}")
+                    if result:
+                        matches_indices.append(index)
+                final_results = []
+                final_results = [temp_results[i] for i in matches_indices]
+                good_matches.extend(final_results)
+
+            print(good_matches)
+            print(f"FINAL COUNT: There are {len(good_matches)} remaining matches.")
             return
         elif len(final_results) == 0:
             print("No matches")
             #No matches, need to implement logic here to deal with that.
             return 
         
-        self.http.build_url_iss(self.vol_id)
-        results2 = self.http.get_request("iss")
-        self.validator2 = ResponseValidator( results2, self.data )
-        print(f"There are {len(self.validator2.results)} results matching the id.")
-        if len(self.validator2.results) == 1 and self.validator2.results["cover_date"][:4] == self.data.pub_year:
-            print("Bingo - Only one collection in this volume, must be the correct one.")
-            self.iss_id = self.validator2.results["id"]
 
 
-        elif len(self.validator2.results) == 0:
-            pass
-        elif len(self.validator2.results) > 1:
-            pass
+        
+        # self.http.build_url_iss(self.vol_id)
+        # results2 = self.http.get_request("iss")
+        # self.validator2 = ResponseValidator( results2, self.data )
+        # print(f"There are {len(self.validator2.results)} results matching the id.")
+        # if len(self.validator2.results) == 1 and self.validator2.results["cover_date"][:4] == self.data.pub_year:
+        #     print("Bingo - Only one collection in this volume, must be the correct one.")
+        #     self.iss_id = self.validator2.results["id"]
+
+
+        # elif len(self.validator2.results) == 0:
+        #     pass
+        # elif len(self.validator2.results) > 1:
+        #     pass
 
         
 
@@ -292,6 +314,6 @@ ad = da.run()
 
         
 
-# with open("comicvine_results2.json", "w", encoding="utf-8") as f:
+# with open("comicvine_results3.json", "w", encoding="utf-8") as f:
 #     json.dump( ad, f, indent=2)
 
