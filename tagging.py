@@ -17,7 +17,9 @@ import re
 from pathlib import Path
 from io import BytesIO
 import json
+import time
 
+start_time = time.time()
 
 load_dotenv()
 
@@ -55,8 +57,6 @@ class HttpRequest:
     def __init__( self, data: RequestData ):
         self.data = data
         self.payload = self.create_info_dict()
-        
-
 
     def create_info_dict( self ):
         payload = {}
@@ -130,7 +130,6 @@ class HttpRequest:
             print(f"Failed to process {url}: {e}")
             return None
 
-    
 
 class ResponseValidator:
 
@@ -149,15 +148,17 @@ class ResponseValidator:
         return self.filter_results(check_year)
     
     @staticmethod
-    def fuzzy_match( a, b, threshold=55 ):
+    def fuzzy_match( a, b, threshold=60 ):
         return fuzz.token_sort_ratio( a, b ) >= threshold
 
     def title_checker( self ):
         def check_title(item):
             ambig_names = ["tpb", "hc", "omnibus", "vol. 1"]
             title = item["name"]
-            if title.lower() in ambig_names:
+            if title is None or title.lower() in ambig_names:
                 title = item["volume"]["name"]
+                if title is None:
+                    return False
             return self.fuzzy_match(title, self.expected_info.unclean_title)
         return self.filter_results(check_title)
 
@@ -179,28 +180,47 @@ class ResponseValidator:
             pub_name = pub_dict["name"]
             if pub_id in english_publishers.values():
                 filtered.append(result)
-            elif pub_name.split() in foriegn_keywords:
+            elif any(word.lower() in foriegn_keywords for word in pub_name.split()):
                 print(f"Filtered out {pub_name} due to foreign publisher.")
             else:
                 filtered.append(result)
                 print(f"Accepted '{pub_name}' but please check to see if they need adding to foriegn publishers.")
         return filtered
 
-           
     
     def cover_img_url_getter( self, filtered_results ):
         self.urls = []
         for i in filtered_results:
             self.urls.append(i["image"]["thumb_url"])
 
-    def cover_img_comparison( self, known_image_bytes, unsure_image_bytes, threshold=6) -> bool: # Returns true if it finds match.
-        known_image = Image.open(known_image_bytes)
+
+    def cover_img_comparison( self, known_image_hash, unsure_image_bytes, threshold=8) -> bool: # Returns true if it finds match.
         unsure_image = Image.open(unsure_image_bytes)
-        hash1 = imagehash.phash(known_image)
+        hash1 = known_image_hash
         hash2 = imagehash.phash(unsure_image)
         hash_diff = hash1 - hash2
         print(f"[DEBUG] Hashing distance = {hash_diff}, threshold = {threshold}")
         return hash_diff <= threshold
+    
+    def cover_img_comp_w_weight( self, known_image_hashes, unsure_image_bytes, max_dist=64):
+        weights = {
+            "phash" : 0.5,
+            "dhash" : 0.25,
+            "ahash" : 0.25
+        }
+        unsure_hashes = {
+            "phash" : imagehash.phash(unsure_image_bytes),
+            "dhash" : imagehash.dhash(unsure_image_bytes),
+            "ahash" : imagehash.average_hash(unsure_image_bytes)
+        }
+        score = 0.0
+        for key in weights:
+            dist = known_image_hashes[key] - unsure_hashes[key]
+            normalised = 1 - (dist / max_dist)
+            score += weights[key] * normalised
+        return score
+    
+
 
 class TaggingPipeline:
     def __init__( self, data: RequestData, path: str, size: float ):
@@ -210,6 +230,7 @@ class TaggingPipeline:
         self.http = HttpRequest(data)
         self.validator = None
         self.cover = self.cover_getter()
+        self.coverhashes = self.cover_hasher() # dictionary of (phash, dhash, ahash)
 
     def cover_getter( self ):
         with zipfile.ZipFile(self.path, 'r') as zip_ref:
@@ -217,9 +238,24 @@ class TaggingPipeline:
             if not image_files:
                 print("Empty archive.")
                 return
-            image_files.sort(key=sort_imgs)
+            image_files.sort()
             cover = zip_ref.read(image_files[0])
+            deb = Image.open(BytesIO(cover))
+            deb.show()
             return BytesIO(cover)
+    
+    def cover_hasher( self ):
+        image = Image.open(self.cover)
+        return {
+            "phash" : imagehash.phash(image),
+            "dhash" : imagehash.dhash(image),
+            "ahash" : imagehash.average_hash(image)
+        }
+
+        
+    def ask_user(self, results: list):
+        pass
+    
 
     def run( self ):
         self.http.build_url_search()
@@ -234,86 +270,78 @@ class TaggingPipeline:
         print(f"After filtering for title and publisher, there are {len(results)} remaining matching volumes.")
         final_results = results
 
-        if len(final_results) == 1:
-            print("BINGO - ONE RESULT")
-            self.match_bool = True
-            self.match = final_results[0]
-            self.vol_id = self.match["id"]
-            print(f"Volume id is: {self.vol_id}")
-            print(self.match)
-            return
-        elif len(final_results) > 1:
-            print(f"Too many matches, {len(final_results)} to be specific")
-            vol_info = []
-            for i in final_results:
-                id = i["id"]
-                name = i["name"]
-                vol_info.append((id, name))
-            good_matches = []
-            for j, k in vol_info:
-                self.http.build_url_iss(j)
-                temp_results = self.http.get_request("iss")
-                self.temp_validator = ResponseValidator( temp_results, self.data )
-                print(f"There are {len(self.temp_validator.results)} issues in the matching volume: '{k}'.")
-                temp_results = self.temp_validator.year_checker()
-                self.temp_validator.results = temp_results
-                temp_results = self.temp_validator.title_checker()
-                self.temp_validator.results = temp_results
-                print(f"After filtering for title and year there are {len(temp_results)} results remaining.")
+        if len(final_results) == 0:
+            # No results - need to come up with logic/a solution here.
+            pass
+        
+        print(f"There are {len(final_results)} volumes to check")
+        vol_info = []
+        for i in final_results:
+            id = i["id"]
+            name = i["name"]
+            vol_info.append((id, name))
+        good_matches = []
+        skipped_vols = []
+        for j, k in vol_info:
+            self.http.build_url_iss(j)
+            temp_results = self.http.get_request("iss")
+            self.temp_validator = ResponseValidator( temp_results, self.data )
+            print(f"There are {len(self.temp_validator.results)} issues in the matching volume: '{k}'.")
+            temp_results = self.temp_validator.year_checker()
+            self.temp_validator.results = temp_results
+            temp_results = self.temp_validator.title_checker()
+            self.temp_validator.results = temp_results
+            print(f"After filtering for title and year there are {len(temp_results)} results remaining.")
+            if len(temp_results) != 0:
+                if len(temp_results) > 25:
+                    print(f"Too many issues to compare covers, skipping volume '{k}'.")
+                    skipped_vols.append((j, k, len(temp_results)))
+                    continue
                 self.temp_validator.cover_img_url_getter(temp_results)
                 images =[]
                 with ThreadPoolExecutor(max_workers=5) as executor:
                     images = list(executor.map(self.http.download_img, self.temp_validator.urls))
                 matches_indices = []
                 for index, i in enumerate(images):
-                    result = self.temp_validator.cover_img_comparison(self.cover, i)
-                    print(f"Index {index}: match result = {result}")
-                    if result:
-                        matches_indices.append(index)
-                final_results = []
+                    if i is None:
+                        continue
+                    try:
+                        img_pil = Image.open(i)
+                        score = self.temp_validator.cover_img_comp_w_weight(self.coverhashes, img_pil)
+                        print(f"Index {index}: similarity score = {score:.2f}")
+                        if score > 0.87:
+                            matches_indices.append(index)
+                    except Exception as e:
+                        print(f"Error comparing image at index {index}: {e}.")
                 final_results = [temp_results[i] for i in matches_indices]
                 good_matches.extend(final_results)
+            else:
+                continue
 
-            print(good_matches)
-            print(f"FINAL COUNT: There are {len(good_matches)} remaining matches.")
-            return
-        elif len(final_results) == 0:
-            print("No matches")
-            #No matches, need to implement logic here to deal with that.
-            return 
-        
-
-
-        
-        # self.http.build_url_iss(self.vol_id)
-        # results2 = self.http.get_request("iss")
-        # self.validator2 = ResponseValidator( results2, self.data )
-        # print(f"There are {len(self.validator2.results)} results matching the id.")
-        # if len(self.validator2.results) == 1 and self.validator2.results["cover_date"][:4] == self.data.pub_year:
-        #     print("Bingo - Only one collection in this volume, must be the correct one.")
-        #     self.iss_id = self.validator2.results["id"]
-
-
-        # elif len(self.validator2.results) == 0:
-        #     pass
-        # elif len(self.validator2.results) > 1:
-        #     pass
+        if len(good_matches) == 1:
+            print(good_matches[0]["volume"]["name"])
+            print("There is ONE match!!!")
+            return good_matches
+        elif len(good_matches) == 0:
+            print("There are no matches.")
+            #If there is no matches need to do something. Perhaps the comic is new and hasnt been uploaded onto comicvine properly.
+        elif len(good_matches) > 1:
+            for i in good_matches:
+                print(good_matches[i]["volume"]["name"])
+            print(f"FINAL COUNT: There are {len(good_matches)} remaining matches.")    
+            #Need to use scoring or sorting or closest title match etc.
+            #If that cant decide then we need to flag the comic and ask the user for input.
 
         
-
-
-
     
-    
-    
-
-        
-hu = RequestData("Juggernaut - No Stopping Now", 1, 2021)
-da = TaggingPipeline(hu, r"D:\comic_library\Juggernaut - No Stopping Now TPB (March 2021).cbz", 500)
+hu = RequestData("Absolute Power - Origins", 1, 2024)
+da = TaggingPipeline(hu, r"D:\Comics\To Be Sorted\Absolute Power - Origins (2024) (digital) (Son of Ultron-Empire).cbz", 500)
 ad = da.run()
 
+for i in range(1000000):
+    pass
+end_time = time.time()
+print(f"Execution time: {end_time - start_time:.4f} seconds")
         
-
 # with open("comicvine_results3.json", "w", encoding="utf-8") as f:
 #     json.dump( ad, f, indent=2)
-
