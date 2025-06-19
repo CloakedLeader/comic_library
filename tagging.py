@@ -133,6 +133,9 @@ class HttpRequest:
 
 class ResponseValidator:
 
+    issue_threshold = 80
+    volume_threshold = 65
+
 
     def __init__( self, response: dict, expected_data: RequestData ):
         self.results = response["results"]
@@ -148,23 +151,44 @@ class ResponseValidator:
         return self.filter_results(check_year)
     
     @staticmethod
-    def fuzzy_match( a, b, threshold=60 ):
+    def fuzzy_match( a, b, threshold=65 ):
         return fuzz.token_sort_ratio( a, b ) >= threshold
 
     def title_checker( self ):
         def check_title(item):
-            ambig_names = ["tpb", "hc", "omnibus", "vol. 1"]
+            used_fallback = False
+            ambig_names = ["tpb", "hc", "omnibus"]
+            ambig_regexes = [
+                r"^vol(?:ume)?\.?\s*\d+$", # matches "vol. 1", "volume 2", "vol 3"
+                r"^#\d+$", # matches "#1", "#12" etc
+                r"^issue\s*\d+$" # matches "issue 3"
+            ]
             title = item["name"]
-            if title is None or title.lower() in ambig_names:
-                title = item["volume"]["name"]
-                if title is None:
-                    return False
-            return self.fuzzy_match(title, self.expected_info.unclean_title)
+            if title:
+                lowered_title = title.lower().strip()
+                is_ambig = (
+                    lowered_title in ambig_names or 
+                    any(re.match(p, lowered_title) for p in ambig_regexes) 
+                )
+                if is_ambig:
+                    title = item.get("volume", {}).get("name")
+                    used_fallback = True
+            else:
+                title = item.get("volume", {}).get("name")
+                used_fallback = True
+            if title is None:
+                return False
+            threshold = ResponseValidator.volume_threshold if used_fallback else ResponseValidator.issue_threshold
+            return self.fuzzy_match(title, self.expected_info.unclean_title, threshold=threshold)
         return self.filter_results(check_title)
+
+    def vol_title_checker( self ):
+        def check_title(item):
+            title = item["name"]
 
     
     def pub_checker( self, results: list ):
-        foriegn_keywords = {"panini", "norma"}
+        foriegn_keywords = {"panini", "verlag", "norma", "televisa", "planeta", "deagostini"}
         english_publishers = {
             "Marvel": 31,
             "DC Comics": 10,
@@ -204,9 +228,9 @@ class ResponseValidator:
     
     def cover_img_comp_w_weight( self, known_image_hashes, unsure_image_bytes, max_dist=64):
         weights = {
-            "phash" : 0.5,
-            "dhash" : 0.25,
-            "ahash" : 0.25
+            "phash" : 0.6,
+            "dhash" : 0.2,
+            "ahash" : 0.2
         }
         unsure_hashes = {
             "phash" : imagehash.phash(unsure_image_bytes),
@@ -285,12 +309,14 @@ class TaggingPipeline:
         for j, k in vol_info:
             self.http.build_url_iss(j)
             temp_results = self.http.get_request("iss")
+
             self.temp_validator = ResponseValidator( temp_results, self.data )
             print(f"There are {len(self.temp_validator.results)} issues in the matching volume: '{k}'.")
             temp_results = self.temp_validator.year_checker()
             self.temp_validator.results = temp_results
             temp_results = self.temp_validator.title_checker()
             self.temp_validator.results = temp_results
+
             print(f"After filtering for title and year there are {len(temp_results)} results remaining.")
             if len(temp_results) != 0:
                 if len(temp_results) > 25:
@@ -309,7 +335,7 @@ class TaggingPipeline:
                         img_pil = Image.open(i)
                         score = self.temp_validator.cover_img_comp_w_weight(self.coverhashes, img_pil)
                         print(f"Index {index}: similarity score = {score:.2f}")
-                        if score > 0.87:
+                        if score > 0.85:
                             matches_indices.append(index)
                     except Exception as e:
                         print(f"Error comparing image at index {index}: {e}.")
@@ -327,15 +353,15 @@ class TaggingPipeline:
             #If there is no matches need to do something. Perhaps the comic is new and hasnt been uploaded onto comicvine properly.
         elif len(good_matches) > 1:
             for i in good_matches:
-                print(good_matches[i]["volume"]["name"])
+                print(i["volume"]["name"])
             print(f"FINAL COUNT: There are {len(good_matches)} remaining matches.")    
             #Need to use scoring or sorting or closest title match etc.
             #If that cant decide then we need to flag the comic and ask the user for input.
 
         
     
-hu = RequestData("Absolute Power - Origins", 1, 2024)
-da = TaggingPipeline(hu, r"D:\Comics\To Be Sorted\Absolute Power - Origins (2024) (digital) (Son of Ultron-Empire).cbz", 500)
+hu = RequestData("East of West", 2, 2014)
+da = TaggingPipeline(hu, r"D:\Comics\Indie\Hickman\East of West\East of West TPB #02 We Are All One (2014).cbz", 500)
 ad = da.run()
 
 for i in range(1000000):
