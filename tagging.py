@@ -39,6 +39,7 @@ class RequestData:
         self.start_year = start_year
         self.pub_year = pub_year
         self.publisher = publisher
+    
 
 header = {
     "User-Agent": "AutoComicLibrary/1.0 (contact: adam.perrott@protonmail.com; github.com/CloakedLeader/comic_library)",
@@ -62,7 +63,7 @@ class HttpRequest:
         payload = {}
         payload["api_key"] = api_key
         payload["resources"] = "volume"
-        payload["field_list"] = "id,image,publisher,name,start_year,date_added"
+        payload["field_list"] = "id,image,publisher,name,start_year,date_added,count_of_issues,description,last_issue"
         payload["format"] = "json"
         payload["query"] = self.data.unclean_title
         payload["limit"] = 50
@@ -134,7 +135,7 @@ class HttpRequest:
 class ResponseValidator:
 
     issue_threshold = 80
-    volume_threshold = 65
+    volume_threshold = 60
 
 
     def __init__( self, response: dict, expected_data: RequestData ):
@@ -161,7 +162,8 @@ class ResponseValidator:
             ambig_regexes = [
                 r"^vol(?:ume)?\.?\s*\d+$", # matches "vol. 1", "volume 2", "vol 3"
                 r"^#\d+$", # matches "#1", "#12" etc
-                r"^issue\s*\d+$" # matches "issue 3"
+                r"^issue\s*\d+$", # matches "issue 3"
+                r"\bvol(?:ume)?\.?\s*(one|two|three|four|\d+|i{1,3}|iv|v)\b"
             ]
             title = item["name"]
             if title:
@@ -188,7 +190,7 @@ class ResponseValidator:
 
     
     def pub_checker( self, results: list ):
-        foriegn_keywords = {"panini", "verlag", "norma", "televisa", "planeta", "deagostini"}
+        foriegn_keywords = {"panini", "verlag", "norma", "televisa", "planeta", "deagostini", "urban"}
         english_publishers = {
             "Marvel": 31,
             "DC Comics": 10,
@@ -210,6 +212,12 @@ class ResponseValidator:
                 filtered.append(result)
                 print(f"Accepted '{pub_name}' but please check to see if they need adding to foriegn publishers.")
         return filtered
+
+    def issue_count_filter( self, limit: int = 12 ):
+        def is_collection(item):
+            issue_count = item["count_of_issues"]
+            return True if issue_count < limit else False
+        return self.filter_results(is_collection)
 
     
     def cover_img_url_getter( self, filtered_results ):
@@ -287,11 +295,13 @@ class TaggingPipeline:
         self.validator = ResponseValidator( results, self.data )
 
         print(f"There are {len(results["results"])} results returned from HTTP query.")
+        results = self.validator.issue_count_filter()
+        self.validator.results = results
         results = self.validator.title_checker()
         self.validator.results = results
         results = self.validator.pub_checker(results)
         self.validator.results = results
-        print(f"After filtering for title and publisher, there are {len(results)} remaining matching volumes.")
+        print(f"After filtering for title, publisher and issue count, there are {len(results)} remaining matching volumes.")
         final_results = results
 
         if len(final_results) == 0:
@@ -360,9 +370,9 @@ class TaggingPipeline:
 
         
     
-hu = RequestData("East of West", 2, 2014)
-da = TaggingPipeline(hu, r"D:\Comics\Indie\Hickman\East of West\East of West TPB #02 We Are All One (2014).cbz", 500)
-ad = da.run()
+hu = RequestData("Runaways the complete collection", 2, 2014)
+da = TaggingPipeline(hu, r"D:\Comics\Marvel\Runaways\Runaways Complete Collection\Runaways The Complete Collection #02 (November 2014).cbz", 30)
+da.run()
 
 for i in range(1000000):
     pass
