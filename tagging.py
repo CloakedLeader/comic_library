@@ -33,11 +33,12 @@ def sort_imgs(filename: str) -> Optional[int]:
 
 class RequestData:
     
-    def __init__( self, name: str, issue_num: int, pub_year: int, publisher: str = None, start_year: int = None ):
+    def __init__( self, name: str, issue_num: int, year: int, series: str, title: str, publisher: str = None ):
+        self.series = series
+        self.title = title
         self.unclean_title = name
         self.num = issue_num
-        self.start_year = start_year
-        self.pub_year = pub_year
+        self.pub_year = year
         self.publisher = publisher
     
 
