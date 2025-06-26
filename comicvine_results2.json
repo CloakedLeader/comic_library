@@ -1,0 +1,36 @@
+[
+  {
+    "aliases": null,
+    "api_detail_url": "https://comicvine.gamespot.com/api/issue/4000-839156/",
+    "cover_date": "2021-03-23",
+    "date_added": "2021-03-23 00:48:47",
+    "date_last_updated": "2021-03-23 00:52:15",
+    "deck": " ",
+    "description": "<p><em>Can\u2019t stop, won\u2019t stop! A mystic gem. An avatar of destruction. A force of overwhelming power. An embittered man with a life of regret. Nothing can stop the Juggernaut \u2014 except himself! Buildings fall, chaos reigns and the Juggernaut does what the mystical Cyttorak empowered him to do \u2014 but Cain Marko, the man beneath the helmet, is done letting others pick up the pieces of the things he\u2019s destroyed. It\u2019s time for the Juggernaut to take some responsibility! But when Cain stands trial, will justice catch up with him \u2014 or will he tear down the system? Plus: Who is D-Cel, and how will she change Cain\u2019s life? And what happens when Juggy decides the Immortal Hulk needs to answer for his own lifetime\u2019s worth of smashing? It\u2019s a bold new direction for the unstoppable Juggernaut!</em></p><p><em>Collects Juggernaut (2020) #1-5.</em></p>",
+    "has_staff_review": false,
+    "id": 839156,
+    "image": {
+      "icon_url": "https://comicvine.gamespot.com/a/uploads/square_avatar/6/67663/7874762-01.jpg",
+      "medium_url": "https://comicvine.gamespot.com/a/uploads/scale_medium/6/67663/7874762-01.jpg",
+      "screen_url": "https://comicvine.gamespot.com/a/uploads/screen_medium/6/67663/7874762-01.jpg",
+      "screen_large_url": "https://comicvine.gamespot.com/a/uploads/screen_kubrick/6/67663/7874762-01.jpg",
+      "small_url": "https://comicvine.gamespot.com/a/uploads/scale_small/6/67663/7874762-01.jpg",
+      "super_url": "https://comicvine.gamespot.com/a/uploads/scale_large/6/67663/7874762-01.jpg",
+      "thumb_url": "https://comicvine.gamespot.com/a/uploads/scale_avatar/6/67663/7874762-01.jpg",
+      "tiny_url": "https://comicvine.gamespot.com/a/uploads/square_mini/6/67663/7874762-01.jpg",
+      "original_url": "https://comicvine.gamespot.com/a/uploads/original/6/67663/7874762-01.jpg",
+      "image_tags": "All Images"
+    },
+    "associated_images": [],
+    "issue_number": "1",
+    "name": "TPB",
+    "site_detail_url": "https://comicvine.gamespot.com/juggernaut-no-stopping-now-1-tpb/4000-839156/",
+    "store_date": "2021-03-17",
+    "volume": {
+      "api_detail_url": "https://comicvine.gamespot.com/api/volume/4050-134650/",
+      "id": 134650,
+      "name": "Juggernaut: No Stopping Now",
+      "site_detail_url": "https://comicvine.gamespot.com/juggernaut-no-stopping-now/4050-134650/"
+    }
+  }
+]
