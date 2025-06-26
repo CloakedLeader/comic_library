@@ -52,6 +52,7 @@ class ItemType(Enum):
     FCBD = auto()
     ComicType = auto()
     C2C = auto()
+    Seperator = auto()
 
 braces = [
     ItemType.LeftBrace,
@@ -72,10 +73,6 @@ key = {
     "rar": ItemType.ArchiveType,
     "zip": ItemType.ArchiveType,
     "annual": ItemType.ComicType,
-    "volume": ItemType.InfoSpecifier,
-    "vol.": ItemType.InfoSpecifier,
-    "vol": ItemType.InfoSpecifier,
-    "v": ItemType.InfoSpecifier,
     "of": ItemType.InfoSpecifier,
     "dc": ItemType.Publisher,
     "marvel": ItemType.Publisher,
@@ -91,7 +88,7 @@ class Item:
         Creates a new item which has been found in the string.
 
         Parameters:
-        ty [ItemType] = The type defined above e.g. text or parenthesis.
+        typ [ItemType] = The type defined above e.g. text or parenthesis.
         pos [int] = The position of the first character in the item.
         val [str] = The string representation of the token extracted
         
@@ -106,7 +103,7 @@ class Item:
     
 class LexerFunc( Protocol ):
     
-    def __call__( self, __origin: Lexer) -> LexerFunc | None: ... # type: ignore
+    def __call__( self, __origin: 'Lexer') -> 'LexerFunc | None': ... # type: ignore
     
 
 
@@ -231,6 +228,26 @@ class Lexer:
         self.backup()
         return initial != self.pos
     
+    def match(self, s: str) -> bool:
+        """
+        If the upcoming characters match the given string 's', consume them and return True.
+        Otherwise, leave input untouched and return False.
+        """
+        end = self.pos + len(s)
+        if self.input[self.pos:end].lower() == s.lower():
+            self.pos = end
+            return True
+        return False
+    
+    def match_any(self, options: list[str]) -> str | None:
+        """
+        Tries to match any of the strings in 'options'. Returns the matched string if successful, else None.
+        """
+        for s in options:
+            if self.match(s):
+                return s
+        return None
+    
 
     def scan_number( self ) -> bool:
         """
@@ -245,7 +262,7 @@ class Lexer:
     
     def run(self) -> None:
         # Keeps the lexer process running
-        self.state = lex_filename
+        self.state = run_lexer
         while self.state is not None:
             self.state = self.state(self)
 
@@ -254,69 +271,69 @@ def errorf(lex: Lexer, message: str):
     lex.items.append(Item(ItemType.Error, lex.start, message))
     return None
 
-
-def lex_filename(lex: Lexer) -> LexerFunc | None:
+def run_lexer( lex: Lexer) -> LexerFunc:
     r = lex.get()
+
+
     if r == eof:
-        if lex.paren_depth != 0:
-            errorf(lex, "unclosed left paren")
-            return None
-        if lex.brace_depth != 0:
-            errorf(lex, "unclosed left paren")
-            return None
         lex.emit(ItemType.EOF)
         return None
-    elif is_space(r):
-        if r == "_" and lex.peek == "_":
-            lex.get()
-            lex.emit(ItemType.Skip)
-        else:
-            return lex_space
-    elif r == ".":
-        r = lex.peek()
-        if r.isnumeric() and lex.pos > 0 and is_space(lex.input[lex.pos - 1]):
-            return lex_number
-        lex.emit(ItemType.Dot)
-        return lex_filename
-    elif r == "'":
-        r = lex.peek()
-        if r.isdigit():
-            return lex_number
-        if is_symbol(r):
-            lex.accept_run(is_symbol)
-            lex.emit(ItemType.Symbol)
-        else:
-            return lex_text
-    elif r.isnumeric(): #if a token starts with a number -> lex_number
+    
+    elif r.isspace():
+        lex.ignore()
+        return run_lexer
+
+    elif r.isnumeric():
         lex.backup()
         return lex_number
+    
     elif r == "#":
-        if lex.allow_issue_start_with_letter and is_alpha_numeric(lex.peek()):
+        if lex.peek().isnumeric():
             return lex_issue_number
-        elif lex.peek().isnumeric() or lex.peek() in "-+.":
-            return lex_issue_number
-        lex.emit(ItemType.Symbol)
-    elif is_operator(r):
-        if r == "-" and lex.peek() == "-":
-            lex.get()
-            lex.emit(ItemType.Skip)
         else:
-            return lex_operator
+            return errorf(lex, "expected number after #")
+        
+    elif r.lower() == "v":
+        if lex.peek().isdigit():
+            return lex_volume_number
+        elif lex.match("ol.") or lex.match("ol") or lex.match("olume"):
+            return lex_volume_number_full
+
+    elif r.lower() == "b":
+        lex.backup()
+        if lex.match("by "):
+            lex.emit(ItemType.InfoSpecifier)
+            return lex_author  
+    
+    elif r.lower() in "tophc":
+        lex.backup()
+        return lex_collection_type
+
     elif is_alpha_numeric(r):
         lex.backup()
         return lex_text
+    
+    elif r == "-":
+        lex.emit(ItemType.Seperator)
+        return run_lexer
+    
     elif r == "(":
         lex.emit(ItemType.LeftParen)
         lex.paren_depth += 1
+        return run_lexer
+    
     elif r == ")":
         lex.emit(ItemType.RightParen)
         lex.paren_depth -= 1
         if lex.paren_depth < 0:
             errorf(lex, "unexpected right paren " + r)
             return None
+        
     elif r == "{":
         lex.emit(ItemType.LeftBrace)
         lex.brace_depth += 1
+        return run_lexer
+    
     elif r == "}":
         lex.emit(ItemType.RightBrace)
         lex.brace_depth -= 1
@@ -324,118 +341,157 @@ def lex_filename(lex: Lexer) -> LexerFunc | None:
             errorf(lex, "unexpected right brace " + r)
             return None
         
-
-def lex_currency(lex: Lexer) -> LexerFunc:
-    orig = lex.pos
-    lex.accept_run(is_space)
-    if lex.peek().isnumeric():
-        return lex_number
     else:
-        lex.pos = orig
-        lex.emit(ItemType.Symbol)
-        return lex_filename
-    
-def lex_operator(lex: Lexer) -> LexerFunc:
-    lex.accept_run("-|:;")
-    lex.emit(ItemType.Operator)
-    return lex_filename
-    
+        return errorf(lex, f"unexpected character: {r}")
+
+
+
 
 def lex_space(lex: Lexer) -> LexerFunc:
-    lex.accept_run(is_space)
-    lex.emit(ItemType.Space)
-    return lex_filename
-
+    if lex.accept_run(is_space):
+        lex.emit(ItemType.Space)
+    return run_lexer
+    
 
 def lex_text(lex: Lexer) -> LexerFunc:
     while True:
         r = lex.get()
-        if is_alpha_numeric(r) or r in "'":
-            if r.isnumeric():  # E.g. v1
-                word = lex.input[lex.start : lex.pos]
-                if key.get(word.casefold(), None) == ItemType.InfoSpecifier:
-                    lex.backup()
-                    lex.emit(key[word.casefold()])
-                    return lex_filename
+
+        if is_alpha_numeric(r) or r == "'":
+            continue
         else:
             lex.backup()
-            word = lex.input[lex.start : lex.pos + 1]
-
-            if word.casefold() in key:
-                if key[word.casefold()] in (ItemType.Honorific, ItemType.InfoSpecifier):
-                    lex.accept(".")
-                lex.emit(key[word.casefold()])
-            elif cal(word):
-                lex.emit(ItemType.Calendar)
-            else:
-                lex.emit(ItemType.Text)
             break
+    word = lex.input[lex.start : lex.pos]
 
-    return lex_filename
+    lower_word = word.casefold()
+    if lower_word in key:
+        token_type = key[lower_word]
+        if token_type in (ItemType.Honorific, ItemType.InfoSpecifier):
+            lex.accept(".")
+        lex.emit(token_type)
+    elif cal(word):
+            lex.emit(ItemType.Calendar)
+    else:
+            lex.emit(ItemType.Text)
+    return run_lexer
+    
 
-def cal(value: str) -> bool:
-    return value.title() in set(chain(calendar.month_abbr, calendar.month_name, calendar.day_abbr, calendar.day_name))
-
-
+            
 def lex_number(lex: Lexer) -> LexerFunc | None:
+    # Attempt to scan number from current position
     if not lex.scan_number():
         return errorf(lex, "bad number syntax: " + lex.input[lex.start : lex.pos])
-    # Complex number logic removed. Messes with math operations without space
 
-    if lex.input[lex.start] == "#":
-        lex.emit(ItemType.IssueNumber)
-    elif not lex.input[lex.pos].isnumeric():
-        # Assume that 80th is just text and not a number
+    # Handle ordinal or letter suffixes (e.g. '80th' or '20s')
+    if lex.pos < len(lex.input) and lex.input[lex.pos].isalpha():
+        lex.accept_run(str.isalpha)
         lex.emit(ItemType.Text)
-    else:
-        # Used to check for a '$'
-        endNumber = lex.pos
-
-        # Consume any spaces
-        lex.accept_run(is_space)
-
-        # This number starts with a '$' emit it as Text instead of a Number
-        if "Sc" == unicodedata.category(lex.input[lex.start]):
-            lex.pos = endNumber
-            lex.emit(ItemType.Text)
-
-        # This number ends in a '$' if there is a number on the other side we assume it belongs to the following number
-        elif "Sc" == unicodedata.category(lex.get()):
-            # Store the end of the number '$'. We still need to check to see if there is a number coming up
-            endCurrency = lex.pos
-            # Consume any spaces
-            lex.accept_run(is_space)
-
-            # This is a number
-            if lex.peek().isnumeric():
-                # We go back to the original number before the '$' and emit a number
-                lex.pos = endNumber
-                lex.emit(ItemType.Number)
-            else:
-                # There was no following number, reset to the '$' and emit a number
-                lex.pos = endCurrency
-                lex.emit(ItemType.Text)
-        else:
-            # We go back to the original number there is no '$'
-            lex.pos = endNumber
-            lex.emit(ItemType.Number)
-
-    return lex_filename
+        return 
+    lex.emit(ItemType.Number)
+    return run_lexer
 
 
 def lex_issue_number(lex: Lexer) -> LexerFunc:
     # Only called when lex.input[lex.start] == "#"
-    original_start = lex.pos
+    if not lex.peek().isnumeric():
+        lex.emit(ItemType.Symbol)
+        return run_lexer
+    
+    lex.accept_run(str.isdigit)
+
     lex.accept_run(str.isalpha)
 
-    if lex.peek().isnumeric():
-        return lex_number
+    lex.emit(ItemType.IssueNumber)
+    return run_lexer
+
+def lex_author(lex: Lexer):
+    lex.accept_run(str.isspace)
+    start = lex.pos
+    name_parts = 0
+
+    while name_parts < 3:
+        word_start = lex.pos
+        lex.accept_run(str.isalpha)
+
+        word = lex.input[word_start:lex.pos]
+
+        if lex.peek() == ".":
+            lex.get()
+            word += "."
+        if word and (word[0].isupper() or (len(word) == 2 and word[1] == ".")):
+            name_parts += 1
+        else:
+            lex.pos = word_start
+            break
+
+        if not lex.accept(" "):
+            break
+    
+    if name_parts >= 2:
+        lex.emit(ItemType.Author)
     else:
-        lex.pos = original_start
-        lex.emit(ItemType.Symbol)
+        lex.emit(ItemType.Text)
 
-    return lex_filename
+    return run_lexer
 
+# def lex_author(lex: Lexer) -> LexerFunc:
+#     # Consume one or more words (allowing initials)
+#     while True:
+#         lex.accept_run(str.isalpha)  # e.g., "Brian"
+#         if lex.accept(" "):
+#             peek = lex.peek()
+#             if peek.isalpha() or peek == ".":  # Accept middle initials or next name
+#                 continue
+#             else:
+#                 break
+#         else:
+#             break
+
+#     lex.emit(ItemType.Author)
+#     return run_lexer  # resume normal lexing
+
+
+
+def  lex_collection_type(lex: Lexer):
+    lex.accept_run(str.isalpha)
+    word = lex.input[lex.start:lex.pos].casefold()
+
+    known_collections = {
+        "tpb", "hc", "hardcover", "omnibus", "deluxe", "compendium", "digest"
+    }
+
+    if word in known_collections:
+        lex.emit(ItemType.CollectionType)
+    else:
+        lex.emit(ItemType.Text)
+
+    return run_lexer
+
+def lex_volume_number(lex: Lexer):
+    lex.accept_run(str.isdigit)
+
+    if lex.pos == lex.start:
+        lex.accept_run(is_space)
+        lex.accept_run(str.isdigit)
+    
+    if lex.pos > lex.start:
+        lex.emit(ItemType.VolumeNumber)
+    else:
+        lex.emit(ItemType.Text)
+
+    return run_lexer
+
+def lex_volume_number_full(lex: Lexer):
+    lex.accept_run(is_space)
+    lex.accept_run(str.isdigit)
+
+    if lex.pos > lex.start:
+        lex.emit(ItemType.VolumeNumber)
+    else:
+        lex.emit(ItemType.Text)
+
+    return run_lexer
 
 def is_space(character: str) -> bool:
     return character.isspace() or character == "_"
@@ -443,11 +499,17 @@ def is_space(character: str) -> bool:
 def is_alpha_numeric(character: str) -> bool:
     return character.isalpha() or character.isnumeric()
 
-def is_operator(character: str) -> bool:
-    return character in "-|:;/\\"
+def cal(word: str) -> bool:
+    word_lower = word.lower()
 
-def is_symbol(character: str) -> bool:
-    return unicodedata.category(character)[0] in "PS" and character != "."
+    months = [m.lower() for m in calendar.month_name if m] + [m.lower() for m in calendar.month_abbr if m]
+    if word_lower in months:
+        return True
+    
+    if re.fullmatch(r"\d{4}", word) or re.fullmatch(r"\d{4}s", word):
+        return True
+    return False
+
 
 def Lex(filename: str, allow_issue_start_with_letter: bool = False) -> Lexer:
     lex = Lexer(os.path.basename(filename), allow_issue_start_with_letter)
@@ -455,6 +517,9 @@ def Lex(filename: str, allow_issue_start_with_letter: bool = False) -> Lexer:
     return lex
 
 trial = Lexer("Journey Into Mystery by Kieron Gillen Complete Collection Vol. 1 (2021) (LokiCorps)")
-lex_filename(trial)
-print(trial.items)
-
+state = run_lexer
+while state is not None:
+    print(f"Next state: {state.__name__}")
+    state = state(trial)
+for item in trial.items:
+    print(item)
