@@ -77,6 +77,10 @@ class HomePage(QMainWindow):
 
     def create_continue_reading_area(self, list_of_comics_marked_as_read):
         return self.create_scroll_area(list_of_comics_marked_as_read)
+    
+    def create_recommended_reading_area(self, list_of_recommended_comics):
+        pass
+
 
     def create_stats_bar(self):
         files_num, storage_val = count_files_and_storage("D:\\Comics\\Marvel")
