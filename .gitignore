@@ -7,3 +7,4 @@ LICENSE
 test.py
 *.json
 thumbnails/
+*.png
