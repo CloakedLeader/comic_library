@@ -1,10 +1,17 @@
 from PySide6.QtWidgets import QMainWindow, QToolBar, QApplication, QHBoxLayout, QLineEdit, QWidget, QVBoxLayout, QSizePolicy, QScrollArea, QLabel
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QUrl, QByteArray
 from PySide6.QtGui import QPixmap
+from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
 import sys
 import os
 import os.path
+import requests
+import feedparser
+from io import BytesIO
+from bs4 import BeautifulSoup
 from typing import Tuple
+
+from rss import rss_scrape
 
 class HomePage(QMainWindow):
     def __init__(self):
@@ -37,13 +44,30 @@ class HomePage(QMainWindow):
         stats_bar = self.create_stats_bar()
         continue_reading = self.create_continue_reading_area(dummy_data)
         #recommended = self.create_recommended_reading_area()
-        #rss = self.create_rss_area()
+        rss = self.create_rss_area()
 
         content_layout.addWidget(stats_bar)
         content_layout.addWidget(continue_reading)
+        content_layout.addWidget(rss)
         self.setCentralWidget(content_area)
     
-    def create_scroll_area(self, list_of_dicts: list) -> QScrollArea:
+    def load_pixmap_from_url(self, url: str) -> QPixmap:
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            image_data = BytesIO(response.content)
+            pixmap = QPixmap()
+            if pixmap.loadFromData(image_data.read()):
+                return pixmap
+        except Exception as e:
+            print(f"Failed to load image from {url}: {e}")
+        fallback = QPixmap(120, 180)
+        fallback.fill(Qt.gray)
+        return fallback
+
+    def create_scroll_area(self, list_of_dicts: list, links=False) -> QScrollArea:
+        img_width, img_height = 120, 180
+
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
 
@@ -58,14 +82,19 @@ class HomePage(QMainWindow):
             comic_layout.setAlignment(Qt.AlignCenter)
             comic_widget.setLayout(comic_layout)
 
-            pixmap = QPixmap(comic["cover_path"])
-            cover_label = QLabel()
-            cover_label.setPixmap(pixmap.scaled(120, 180, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-            cover_label.setAlignment(Qt.AlignCenter)
-
             title_label = QLabel(comic["title"])
             title_label.setAlignment(Qt.AlignCenter)
             title_label.setWordWrap(True)
+
+            if links:
+                pixmap = self.load_pixmap_from_url(comic["cover_link"])
+
+            else:
+                pixmap = QPixmap(comic["cover_path"])
+
+            cover_label = QLabel()
+            cover_label.setPixmap(pixmap.scaled(img_width,img_height,Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            cover_label.setAlignment(Qt.AlignCenter)
 
             comic_layout.addWidget(cover_label)
             comic_layout.addWidget(title_label)
@@ -79,9 +108,12 @@ class HomePage(QMainWindow):
         return self.create_scroll_area(list_of_comics_marked_as_read)
     
     def create_recommended_reading_area(self, list_of_recommended_comics):
-        pass
-
-
+        return self.create_scroll_area(list_of_recommended_comics)
+    
+    def create_rss_area(self):
+        recent_comics_list = rss_scrape(num=10)
+        return self.create_scroll_area(recent_comics_list, links=True)
+        
     def create_stats_bar(self):
         files_num, storage_val = count_files_and_storage("D:\\Comics\\Marvel")
 
