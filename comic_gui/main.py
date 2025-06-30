@@ -1,6 +1,7 @@
-from PySide6.QtWidgets import QMainWindow, QToolBar, QApplication, QHBoxLayout, QLineEdit, QWidget, QVBoxLayout, QSizePolicy, QScrollArea, QLabel
+from PySide6.QtWidgets import QMainWindow, QToolBar, QApplication, QHBoxLayout, QLineEdit, QWidget, QVBoxLayout, QSizePolicy, QScrollArea, QLabel, QTreeView
 from PySide6.QtCore import Qt, QUrl, QByteArray
 from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import QFileSystemModel
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
 import sys
 import os
@@ -38,6 +39,24 @@ class HomePage(QMainWindow):
         self.search_bar.setFixedWidth(200)
         toolbar.addWidget(self.search_bar)
 
+        body_layout = QHBoxLayout()
+        body_widget = QWidget()
+        body_widget.setLayout(body_layout)
+
+
+        self.file_model = QFileSystemModel()
+        self.file_model.setRootPath(os.path.expanduser("D://Comics//Marvel"))
+        self.file_tree = QTreeView()
+        self.file_tree.setModel(self.file_model)
+        self.file_tree.setRootIndex(self.file_model.index(os.path.expanduser("D://Comics//Marvel")))
+        self.file_tree.setMaximumWidth(200)
+        self.file_tree.setHeaderHidden(True)
+
+        for i in range(1, self.file_model.columnCount()):
+            self.file_tree.hideColumn(i)
+
+        body_layout.addWidget(self.file_tree, stretch=1)
+        
         content_area = QWidget()
         content_layout = QVBoxLayout(content_area)
 
@@ -49,7 +68,10 @@ class HomePage(QMainWindow):
         content_layout.addWidget(stats_bar)
         content_layout.addWidget(continue_reading)
         content_layout.addWidget(rss)
-        self.setCentralWidget(content_area)
+
+        body_layout.addWidget(content_area)
+
+        self.setCentralWidget(body_widget)
     
     def load_pixmap_from_url(self, url: str) -> QPixmap:
         try:
@@ -65,7 +87,7 @@ class HomePage(QMainWindow):
         fallback.fill(Qt.gray)
         return fallback
 
-    def create_scroll_area(self, list_of_dicts: list, links=False) -> QScrollArea:
+    def create_scroll_area(self, list_of_dicts: list, header: str, links=False) -> QScrollArea:
         img_width, img_height = 120, 180
 
         scroll_area = QScrollArea()
@@ -76,13 +98,17 @@ class HomePage(QMainWindow):
         layout.setSpacing(16)
         container.setLayout(layout)
 
+        title = QLabel(f"{header}")
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet("font-size: 18px; font-weight: bold; padding: 10px;")
+
         for comic in list_of_dicts:
             comic_widget = QWidget()
             comic_layout = QVBoxLayout()
             comic_layout.setAlignment(Qt.AlignCenter)
             comic_widget.setLayout(comic_layout)
 
-            title_label = QLabel(comic["title"])
+            title_label = QLabel(comic.get("title"))
             title_label.setAlignment(Qt.AlignCenter)
             title_label.setWordWrap(True)
 
@@ -100,19 +126,24 @@ class HomePage(QMainWindow):
             comic_layout.addWidget(title_label)
 
             layout.addWidget(comic_widget)
-        
-        scroll_area.setWidget(container)
+        final_layout = QVBoxLayout()
+        final_widget = QWidget()
+        final_widget.setLayout(final_layout)
+        final_layout.addWidget(title)
+        final_layout.addWidget(container)    
+
+        scroll_area.setWidget(final_widget)
         return scroll_area
 
     def create_continue_reading_area(self, list_of_comics_marked_as_read):
-        return self.create_scroll_area(list_of_comics_marked_as_read)
+        return self.create_scroll_area(list_of_comics_marked_as_read, header="Continue Reading")
     
     def create_recommended_reading_area(self, list_of_recommended_comics):
-        return self.create_scroll_area(list_of_recommended_comics)
+        return self.create_scroll_area(list_of_recommended_comics, header="Recommended Next Read")
     
     def create_rss_area(self):
-        recent_comics_list = rss_scrape(num=10)
-        return self.create_scroll_area(recent_comics_list, links=True)
+        recent_comics_list = rss_scrape(num=6)
+        return self.create_scroll_area(recent_comics_list, links=True, header="GetComics RSS Feed")
         
     def create_stats_bar(self):
         files_num, storage_val = count_files_and_storage("D:\\Comics\\Marvel")
@@ -151,7 +182,16 @@ class HomePage(QMainWindow):
                                             "D:\\comic_library\\comic_gui\\storage.png",
                                             f"{round(storage_val, 2)} GB"))
 
-        return stats
+        final_widget = QWidget()
+        final_layout = QVBoxLayout()
+        final_widget.setLayout(final_layout)
+        title = QLabel("Your Statistics")
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet("font-size: 18px; font-weight: bold; padding: 10px;")
+        final_layout.addWidget(title)
+        final_layout.addWidget(stats)
+
+        return final_widget
 
 
 

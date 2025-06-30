@@ -8,21 +8,20 @@ def rss_scrape(base_url="https://getcomics.org/feed/", num=6):
     feed = feedparser.parse(base_url)
     entries = []
     entries = [{"title": e.title, "link": e.link, "summary": e.summary} for e in feed.entries]
-    return entries[0]
-    # entries = entries[:num]
-    # gui_ready_list = []
-    # for i in entries:
-    #     title = i["title"]
-    #     link = i["link"]
-    #     res = requests.get(link, headers={"User-Agent": "Mozilla/5.0"})
-    #     soup = BeautifulSoup(res.text, "html.parser")
-    #     meta_tag = soup.find("meta", property="og:image")
-    #     image_url = meta_tag.get("content") if meta_tag else None
-    #     if image_url:
-    #         gui_ready_list.append({"title": title, "cover_link": image_url})
-    #     else:
-    #         continue
-    # return gui_ready_list
+    entries = entries[:num]
+    gui_ready_list = []
+    for i in entries:
+        title = i["title"]
+        link = i["link"]
+        res = requests.get(link, headers={"User-Agent": "Mozilla/5.0"})
+        soup = BeautifulSoup(res.text, "html.parser")
+        meta_tag = soup.find("meta", property="og:image")
+        image_url = meta_tag.get("content") if meta_tag else None
+        if image_url:
+            gui_ready_list.append({"title": title, "cover_link": image_url})
+        else:
+            continue
+    return gui_ready_list
 
 def is_metadata_paragraph(paragraph):
     text = paragraph.get_text(strip=True).lower()
@@ -91,10 +90,10 @@ def download_third_party_links(url):
         browser.close()
         return final_url
     
-comic_info = rss_scrape()
-links = download_comic(comic_info)
-title, link = links[3]
-third_party_url = download_third_party_links(link)
-print(third_party_url)
+# comic_info = rss_scrape()
+# links = download_comic(comic_info)
+# title, link = links[3]
+# third_party_url = download_third_party_links(link)
+# print(third_party_url)
 
 
