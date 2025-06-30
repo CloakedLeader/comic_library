@@ -6,5 +6,6 @@ __pycache__/
 LICENSE
 test.py
 *.json
+*.html
 thumbnails/
 *.png
