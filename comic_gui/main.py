@@ -61,12 +61,16 @@ class HomePage(QMainWindow):
         content_layout = QVBoxLayout(content_area)
 
         stats_bar = self.create_stats_bar()
+        #stats_bar.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        #stats_bar.setMaximumHeight(70)
         continue_reading = self.create_continue_reading_area(dummy_data)
         #recommended = self.create_recommended_reading_area()
+        need_review = self.create_review_area(dummy_data)
         rss = self.create_rss_area()
 
         content_layout.addWidget(stats_bar)
         content_layout.addWidget(continue_reading)
+        content_layout.addWidget(need_review)
         content_layout.addWidget(rss)
 
         body_layout.addWidget(content_area)
@@ -141,6 +145,9 @@ class HomePage(QMainWindow):
     def create_recommended_reading_area(self, list_of_recommended_comics):
         return self.create_scroll_area(list_of_recommended_comics, header="Recommended Next Read")
     
+    def create_review_area(self, list_of_unreviewed_comics):
+        return self.create_scroll_area(list_of_unreviewed_comics, header="Write a review...")
+    
     def create_rss_area(self):
         recent_comics_list = rss_scrape(num=6)
         return self.create_scroll_area(recent_comics_list, links=True, header="GetComics RSS Feed")
@@ -151,6 +158,8 @@ class HomePage(QMainWindow):
         def create_stat_widget(title: str, image_path: str, value: str) -> QWidget:
             widget = QWidget()
             layout = QVBoxLayout()
+            #layout.setSpacing(2)
+            #layout.setContentsMargins(0,0,0,0)
             layout.setAlignment(Qt.AlignCenter)
             widget.setLayout(layout)
 
@@ -159,7 +168,7 @@ class HomePage(QMainWindow):
 
             pixmap = QPixmap(image_path)
             image_label = QLabel()
-            image_label.setPixmap(pixmap.scaled(80,120,Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            image_label.setPixmap(pixmap.scaled(50,50,Qt.KeepAspectRatio, Qt.SmoothTransformation))
             image_label.setAlignment(Qt.AlignCenter)
 
             value_label = QLabel(value)
@@ -184,10 +193,12 @@ class HomePage(QMainWindow):
 
         final_widget = QWidget()
         final_layout = QVBoxLayout()
+        #final_layout.setSpacing(3)
+        #final_layout.setContentsMargins(0,0,0,0)
         final_widget.setLayout(final_layout)
         title = QLabel("Your Statistics")
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("font-size: 18px; font-weight: bold; padding: 10px;")
+        title.setStyleSheet("font-size: 12px; font-weight: bold; padding: 2px;")
         final_layout.addWidget(title)
         final_layout.addWidget(stats)
 
