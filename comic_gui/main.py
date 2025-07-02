@@ -1,5 +1,5 @@
-from PySide6.QtWidgets import QMainWindow, QToolBar, QApplication, QHBoxLayout, QLineEdit, QWidget, QVBoxLayout, QSizePolicy, QScrollArea, QLabel, QTreeView
-from PySide6.QtCore import Qt, QUrl, QByteArray
+from PySide6.QtWidgets import QMainWindow, QToolBar, QApplication, QHBoxLayout, QLineEdit, QWidget, QVBoxLayout, QSizePolicy, QScrollArea, QLabel, QTreeView, QToolButton
+from PySide6.QtCore import Qt, QUrl, QByteArray, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QFileSystemModel
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
@@ -13,6 +13,44 @@ from bs4 import BeautifulSoup
 from typing import Tuple
 
 from rss import rss_scrape
+
+class ClickableWidget(QWidget):
+    clicked = Signal(dict)
+
+    def __init__(self, comic: dict, pixmap: QPixmap, img_width = 20, img_height=20, parent=None):
+        super().__init__(parent)
+        self.comic = comic
+        self.setCursor(Qt.PointingHandCursor)
+
+        layout = QVBoxLayout(self)
+        layout.setAlignment(Qt.AlignCenter)
+        layout.setContentsMargins
+
+        cover_label = QLabel()
+        cover_label.setPixmap(pixmap.scaled(img_width, img_height, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        cover_label.setAlignment(Qt.AlignCenter)
+
+        title_label = QLabel(comic.get("title"))
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setWordWrap(True)
+
+        layout.addWidget(cover_label)
+        layout.addWidget(title_label)
+
+        self.setStyleSheet("""
+            ComicButton {
+                border: 1px solid #aaa;
+                border-radius: 4px;
+                background-color: #f9f9f9;
+            }
+            ComicButton:hover {
+                background-color: #e6f7ff;
+            }
+        """)
+        def mousePressEvent(self, event):
+            if event.button() == Qt.LeftButton:
+                self.clicked.emit(self.comic)
+
 
 class HomePage(QMainWindow):
     def __init__(self):
@@ -72,7 +110,6 @@ class HomePage(QMainWindow):
         content_layout.addWidget(continue_reading)
         content_layout.addWidget(need_review)
         content_layout.addWidget(rss)
-
         body_layout.addWidget(content_area)
 
         self.setCentralWidget(body_widget)
@@ -91,7 +128,7 @@ class HomePage(QMainWindow):
         fallback.fill(Qt.gray)
         return fallback
 
-    def create_scroll_area(self, list_of_dicts: list, header: str, links=False) -> QScrollArea:
+    def create_scroll_area(self, list_of_dicts: list, header: str, upon_clicked: function, links=False) -> QScrollArea:
         img_width, img_height = 120, 180
 
         scroll_area = QScrollArea()
@@ -107,14 +144,6 @@ class HomePage(QMainWindow):
         title.setStyleSheet("font-size: 18px; font-weight: bold; padding: 10px;")
 
         for comic in list_of_dicts:
-            comic_widget = QWidget()
-            comic_layout = QVBoxLayout()
-            comic_layout.setAlignment(Qt.AlignCenter)
-            comic_widget.setLayout(comic_layout)
-
-            title_label = QLabel(comic.get("title"))
-            title_label.setAlignment(Qt.AlignCenter)
-            title_label.setWordWrap(True)
 
             if links:
                 pixmap = self.load_pixmap_from_url(comic["cover_link"])
@@ -122,14 +151,10 @@ class HomePage(QMainWindow):
             else:
                 pixmap = QPixmap(comic["cover_path"])
 
-            cover_label = QLabel()
-            cover_label.setPixmap(pixmap.scaled(img_width,img_height,Qt.KeepAspectRatio, Qt.SmoothTransformation))
-            cover_label.setAlignment(Qt.AlignCenter)
+            comic_button = ClickableWidget(comic, pixmap, img_width, img_height)
+            comic_button.clicked.connect(lambda c=comic: upon_clicked())
 
-            comic_layout.addWidget(cover_label)
-            comic_layout.addWidget(title_label)
-
-            layout.addWidget(comic_widget)
+            layout.addWidget(comic_button)
         final_layout = QVBoxLayout()
         final_widget = QWidget()
         final_widget.setLayout(final_layout)
@@ -138,6 +163,9 @@ class HomePage(QMainWindow):
 
         scroll_area.setWidget(final_widget)
         return scroll_area
+
+    def continue_reading(self, title):
+        print(f"Opening {title}.")
 
     def create_continue_reading_area(self, list_of_comics_marked_as_read):
         return self.create_scroll_area(list_of_comics_marked_as_read, header="Continue Reading")

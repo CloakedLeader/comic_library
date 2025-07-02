@@ -9,6 +9,7 @@ def rss_scrape(base_url="https://getcomics.org/feed/", num=6):
     entries = []
     entries = [{"title": e.title, "link": e.link, "summary": e.summary} for e in feed.entries]
     entries = entries[:num]
+    entries = [e for e in entries if is_comic_entry(e)]
     gui_ready_list = []
     for i in entries:
         title = i["title"]
@@ -90,10 +91,9 @@ def download_third_party_links(url):
         browser.close()
         return final_url
     
-# comic_info = rss_scrape()
-# links = download_comic(comic_info)
-# title, link = links[3]
-# third_party_url = download_third_party_links(link)
-# print(third_party_url)
-
-
+def is_comic_entry(entry):
+    return not any(
+        keyword in entry["link"].lower()
+        for keyword in ["/news/", "/announcement/", "/blog"]
+    )
+    
