@@ -1,5 +1,5 @@
 import zipfile
-from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QVBoxLayout, QMainWindow, QHBoxLayout,QHBoxLayout, QSpacerItem, QSizePolicy
+from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QVBoxLayout, QMainWindow, QHBoxLayout,QHBoxLayout, QMenuBar, QToolBar
 from PySide6.QtGui import QPixmap, QImage
 from PySide6.QtCore import Qt, QThread, Signal
 import os
@@ -88,7 +88,7 @@ tester_comic = Comic(r"comic_pwa/comic_folder/wildcats v1 047 (1998) 22p [image]
 
 
 class SimpleReader(QMainWindow):
-    def __init__(self, reader):
+    def __init__(self, reader: Comic):
         super().__init__()
         self.reader = reader
         self.current_index = 1
@@ -111,22 +111,39 @@ class SimpleReader(QMainWindow):
         self.prev_button.clicked.connect(self.prev_page)
         self.next_button.clicked.connect(self.next_page)
 
-        self.bookmark_button = QPushButton("Bookmark")
-        self.settings_button = QPushButton("Settings")
-        self.help_button = QPushButton("Help")
+        self.menu_bar = self.menuBar()
+        navigation_menu = self.menu_bar.addMenu("Navigation")
+        commenting_menu = self.menu_bar.addMenu("Comments")
+        metadata_menu = self.menu_bar.addMenu("View Metadata")
+        settings_menu = self.menu_bar.addMenu("Settings")
+        help_menu = self.menu_bar.addMenu("Help")
 
+        self.navigation_toolbar = QToolBar("Navigation")
+        self.navigation_toolbar.addAction("Prev")
+        self.navigation_toolbar.addAction("Next")
+        self.navigation_toolbar.addAction("Zoom")
+    
+        self.comments_toolbar = QToolBar("Comments")
+        self.comments_toolbar.addAction("Add Bookmark")
+        self.comments_toolbar.addAction("Comment")
+        self.comments_toolbar.addAction("Download Page")
+
+        self.addToolBar(self.navigation_toolbar)
+        self.addToolBar(self.comments_toolbar)
+
+        self.navigation_toolbar.show()
+        self.comments_toolbar.hide()
+        
+        self.current_toolbar = self.navigation_toolbar
+        
+        navigation_menu.aboutToShow.connect(self.show_navigation_toolbar)
+        commenting_menu.aboutToShow.connect(self.show_comments_toolbar)
+        
         top_button_layout = QHBoxLayout()
-        top_button_layout.addWidget(self.bookmark_button)
-        top_button_layout.addWidget(self.settings_button)
-        top_button_layout.addWidget(self.help_button)
         top_button_layout.addWidget(self.prev_button)
         top_button_layout.addWidget(self.next_button)
         top_button_layout.addStretch()
-
-        self.bookmark_button.setFocusPolicy(Qt.NoFocus)
-        self.settings_button.setFocusPolicy(Qt.NoFocus)
-        self.help_button.setFocusPolicy(Qt.NoFocus)
-
+        
         layout = QVBoxLayout()
         layout.addLayout(top_button_layout)
         layout.addWidget(self.image_label)
@@ -153,6 +170,19 @@ class SimpleReader(QMainWindow):
                 self._threads.append(thread)
                 thread.start()
 
+    def switch_toolbar(self, new_toolbar):
+        if self.current_toolbar == new_toolbar:
+            return
+        self.current_toolbar.hide()
+        new_toolbar.show()
+        self.current_toolbar = new_toolbar
+        
+    def show_navigation_toolbar(self):
+        self.switch_toolbar(self.navigation_toolbar)
+    
+    def show_comments_toolbar(self):
+        self.switch_toolbar(self.comments_toolbar)
+
     def resizeEvent(self, event):
         self.load_page(self.current_index)
 
@@ -171,58 +201,9 @@ class SimpleReader(QMainWindow):
         elif key == Qt.Key_Left:
             self.prev_page()
 
-
-
-
-    # def __init__(self):
-    #     super().__init__()
-    #     self.setWindowTitle("Image Viewer")
-
-    #     self.comic = tester_comic
-
-    #     # Main layout
-    #     main_widget = QWidget()
-    #     self.setCentralWidget(main_widget)
-
-    #     self.vbox = QVBoxLayout()
-    #     main_widget.setLayout(self.vbox)
-
-    #     # Image display
-    #     self.label = QLabel()
-    #     self.vbox.addWidget(self.label)
-
-    #     # Navigation buttons
-    #     hbox = QHBoxLayout()
-    #     self.prev_button = QPushButton("← Previous")
-    #     self.next_button = QPushButton("Next →")
-    #     hbox.addWidget(self.prev_button)
-    #     hbox.addWidget(self.next_button)
-    #     self.vbox.addLayout(hbox)
-
-    #     self.prev_button.clicked.connect(self.show_previous_page)
-    #     self.next_button.clicked.connect(self.show_next_page)
-
-    #     self.update_image()
-
-    # def update_image(self):
-    #     if 1 <= self.comic.page_counter:
-    #         pixmap = QPixmap()
-    #         pixmap.loadFromData(self.comic.get_page(self.comic.page_counter))
-    #         self.label.setPixmap(pixmap)
-    #         self.resize(pixmap.width(), pixmap.height() + 50)  # Extra space for buttons
-
-    # def show_next_page(self):
-    #     self.comic.page_counter += 1
-    #     self.update_image()
-
-    # def show_previous_page(self):
-    #     if self.comic.page_counter > 1:
-    #         self.comic.page_counter -= 1
-    #         self.update_image()
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    reader = Comic(r"D://comic_library//Juggernaut - No Stopping Now TPB (March 2021).cbz")
+    reader = Comic(r"D://comic_library//comic_examples//Juggernaut - No Stopping Now TPB (March 2021).cbz")
     window = SimpleReader(reader)
     window.showMaximized()
     sys.exit(app.exec())
