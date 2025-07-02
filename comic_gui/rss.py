@@ -10,19 +10,17 @@ def rss_scrape(base_url="https://getcomics.org/feed/", num=6):
     entries = [{"title": e.title, "link": e.link, "summary": e.summary} for e in feed.entries]
     entries = entries[:num]
     entries = [e for e in entries if is_comic_entry(e)]
-    gui_ready_list = []
     for i in entries:
         title = i["title"]
-        link = i["link"]
-        res = requests.get(link, headers={"User-Agent": "Mozilla/5.0"})
+        res = requests.get(i["link"], headers={"User-Agent": "Mozilla/5.0"})
         soup = BeautifulSoup(res.text, "html.parser")
         meta_tag = soup.find("meta", property="og:image")
         image_url = meta_tag.get("content") if meta_tag else None
         if image_url:
-            gui_ready_list.append({"title": title, "cover_link": image_url})
+            i["cover_link"] = image_url
         else:
             continue
-    return gui_ready_list
+    return entries
 
 def is_metadata_paragraph(paragraph):
     text = paragraph.get_text(strip=True).lower()
