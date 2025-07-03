@@ -1,18 +1,20 @@
 import zipfile
-from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QVBoxLayout, QMainWindow, QHBoxLayout,QHBoxLayout, QMenuBar, QToolBar
+from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QVBoxLayout, QMainWindow, QHBoxLayout,QHBoxLayout, QToolButton, QToolBar, QDialog
 from PySide6.QtGui import QPixmap, QImage
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import Qt, QThread, Signal, QTimer
 import os
 import sys
 import re
 from PIL import Image
 from io import BytesIO
 from collections import OrderedDict
+from functools import partial
+
+from metadata_gui_panel import MetadataDialog
 
 def sort_imgs(filename: str) -> int | None:
     numbers = re.findall(r'\d+', filename)
     return int(numbers[-1]) if numbers else -1 
-
 
 class ImagePreloader(QThread):
     image_ready = Signal(int, QPixmap)
@@ -30,6 +32,7 @@ class ImagePreloader(QThread):
 class Comic: 
     def __init__( self, filepath: str, max_cache=10 ):
         self.path = filepath
+        self.filename = os.path.basename(filepath)
         self.zip = zipfile.ZipFile(filepath, 'r')
         self.image_names = sorted(
             [name for name in self.zip.namelist() if name.lower().endswith((".jpg", ".jpeg", ".png"))]
@@ -97,60 +100,53 @@ class SimpleReader(QMainWindow):
         self.setStyleSheet("background-color: #9a9594; colour: white;")
 
         self.setWindowTitle("Comic Reader")
-        self.resize(800, 1000)
 
         self.image_label = QLabel("Loading...", alignment=Qt.AlignCenter)
         self.page_label = QLabel("Page 1", alignment=Qt.AlignCenter)
 
-        self.prev_button = QPushButton("Previous")
-        self.next_button = QPushButton("Next")
+        self.menu_bar_widget = QWidget()
+        self.menu_bar_layout = QHBoxLayout()
+        self.menu_bar_widget.setLayout(self.menu_bar_layout)
+        self.setMenuWidget(self.menu_bar_widget)
 
-        self.prev_button.setFocusPolicy(Qt.NoFocus)
-        self.next_button.setFocusPolicy(Qt.NoFocus)
+        self.add_menu_button("Navigation Toolbar", self.show_navigation_toolbar)
+        self.add_menu_button("Comments Toolbar", self.show_comments_toolbar)
+        self.add_menu_button("Metadata", self.open_metadata_panel)
+        #self.add_menu_button("Settings", self.open_settings_panel)
+        #self.add_menu_button("Help", self.open_help_panel)
 
-        self.prev_button.clicked.connect(self.prev_page)
-        self.next_button.clicked.connect(self.next_page)
+        self.menu_bar_widget.hide()
 
-        self.menu_bar = self.menuBar()
-        navigation_menu = self.menu_bar.addMenu("Navigation")
-        commenting_menu = self.menu_bar.addMenu("Comments")
-        metadata_menu = self.menu_bar.addMenu("View Metadata")
-        settings_menu = self.menu_bar.addMenu("Settings")
-        help_menu = self.menu_bar.addMenu("Help")
+        self.hide_menu_timer = QTimer()
+        self.hide_menu_timer.setSingleShot(True)
+        self.hide_menu_timer.timeout.connect(self.menu_bar_widget.hide)
 
-        self.navigation_toolbar = QToolBar("Navigation")
-        self.navigation_toolbar.addAction("Prev")
-        self.navigation_toolbar.addAction("Next")
-        self.navigation_toolbar.addAction("Zoom")
-    
-        self.comments_toolbar = QToolBar("Comments")
+        self.setMouseTracking(True)
+        
+        self.navigation_toolbar = QToolBar("Navigation Tools")
+        self.navigation_toolbar.addAction("Zoom In")
+        self.navigation_toolbar.addAction("Zoom Out")
+        self.navigation_toolbar.addAction("Prev Page", self.prev_page)
+        self.navigation_toolbar.addAction("Next Page", self.next_page)
+        
+
+        self.comments_toolbar = QToolBar("Commenting Tools")
         self.comments_toolbar.addAction("Add Bookmark")
-        self.comments_toolbar.addAction("Comment")
-        self.comments_toolbar.addAction("Download Page")
+        self.comments_toolbar.addAction("Add Comment")
+        
+        # self.toolbar_stack = QStackedWidget()
+        # self.toolbar_stack.addWidget(self.navigation_toolbar)
+        # self.toolbar_stack.addWidget(self.comments_toolbar)
 
         self.addToolBar(self.navigation_toolbar)
         self.addToolBar(self.comments_toolbar)
 
         self.navigation_toolbar.show()
         self.comments_toolbar.hide()
-        
         self.current_toolbar = self.navigation_toolbar
-        
-        navigation_menu.aboutToShow.connect(self.show_navigation_toolbar)
-        commenting_menu.aboutToShow.connect(self.show_comments_toolbar)
-        
-        top_button_layout = QHBoxLayout()
-        top_button_layout.addWidget(self.prev_button)
-        top_button_layout.addWidget(self.next_button)
-        top_button_layout.addStretch()
-        
-        layout = QVBoxLayout()
-        layout.addLayout(top_button_layout)
-        layout.addWidget(self.image_label)
 
-        container = QWidget()
-        container.setLayout(layout)
-        self.setCentralWidget(container)
+        self.setCentralWidget(self.image_label)
+        self.centralWidget().setMouseTracking(True)
 
         self.load_page(self.current_index)
 
@@ -170,18 +166,30 @@ class SimpleReader(QMainWindow):
                 self._threads.append(thread)
                 thread.start()
 
-    def switch_toolbar(self, new_toolbar):
-        if self.current_toolbar == new_toolbar:
+    def add_menu_button(self, name: str, callback, *args):
+        button = QToolButton()
+        button.setText(name)
+        button.setAutoRaise(True)
+        button.clicked.connect(partial(callback, *args))
+        self.menu_bar_layout.addWidget(button)
+
+    def switch_toolbar(self, toolbar: QToolBar):
+        if self.current_toolbar == toolbar:
             return
         self.current_toolbar.hide()
-        new_toolbar.show()
-        self.current_toolbar = new_toolbar
-        
+        toolbar.show()
+        self.current_toolbar = toolbar
+
     def show_navigation_toolbar(self):
         self.switch_toolbar(self.navigation_toolbar)
-    
+
     def show_comments_toolbar(self):
         self.switch_toolbar(self.comments_toolbar)
+    
+    def open_metadata_panel(self):
+        dialog = MetadataDialog(self.reader)
+        dialog.exec()
+
 
     def resizeEvent(self, event):
         self.load_page(self.current_index)
@@ -200,6 +208,19 @@ class SimpleReader(QMainWindow):
             self.next_page()
         elif key == Qt.Key_Left:
             self.prev_page()
+    
+    def mouseMoveEvent(self, event):
+        mouse_y = event.position().y()
+
+        if mouse_y <= 40:
+            if not self.menu_bar_widget.isVisible():
+                self.menu_bar_widget.show()
+            self.hide_menu_timer.stop()
+        
+        else:
+            if self.menu_bar_widget.isVisible() and not self.hide_menu_timer.isActive():
+                self.hide_menu_timer.start(1500)
+        super().mouseMoveEvent(event)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
