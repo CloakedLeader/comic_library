@@ -4,14 +4,27 @@ from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 
 
-def rss_scrape(base_url="https://getcomics.org/feed/", num=6):
+def rss_scrape():
+    base_url = "https://getcomics.org/feed/"
     feed = feedparser.parse(base_url)
     entries = []
-    entries = [{"title": e.title, "link": e.link, "summary": e.summary} for e in feed.entries]
-    entries = entries[:num]
+    entries = [{"title": e.title, "link": e.link, "pub_date": e.get("published", None), "summary": e.summary} for e in feed.entries]
     entries = [e for e in entries if is_comic_entry(e)]
+    for entry in entries:
+        total_summary = entry.get("summary")
+        comic_description = summary_scrape(total_summary)
+        entry["summary"] = comic_description
+        res = requests.get(entry.get("link"), headers={"User-Agent": "Mozilla/5.0"})
+        soup = BeautifulSoup(res.text, "html.parser")
+        meta_tag = soup.find("meta", property="og:image")
+        image_url = meta_tag.get("content") if meta_tag else None
+        if image_url:
+            entry["cover_link"] = image_url
+        
+    return entries
+
+def get_rss_cover_img_url(entries: list):
     for i in entries:
-        title = i["title"]
         res = requests.get(i["link"], headers={"User-Agent": "Mozilla/5.0"})
         soup = BeautifulSoup(res.text, "html.parser")
         meta_tag = soup.find("meta", property="og:image")
@@ -20,7 +33,6 @@ def rss_scrape(base_url="https://getcomics.org/feed/", num=6):
             i["cover_link"] = image_url
         else:
             continue
-    return entries
 
 def is_metadata_paragraph(paragraph):
     text = paragraph.get_text(strip=True).lower()
@@ -29,6 +41,7 @@ def is_metadata_paragraph(paragraph):
     if "year" in text and "size" in text:
         return True
     return False
+
   
 def summary_scrape(html_formatted_string) -> str:
     soup = BeautifulSoup(html_formatted_string, "html.parser")
@@ -90,8 +103,15 @@ def download_third_party_links(url):
         return final_url
     
 def is_comic_entry(entry):
-    return not any(
-        keyword in entry["link"].lower()
-        for keyword in ["/news/", "/announcement/", "/blog"]
-    )
-    
+    link_blacklist = ["/news/", "/announcement/", "/blog"]
+    title_blacklist = ["weekly pack"]
+    link_lower = entry["link"].lower()
+    title_lower = entry["title"].lower()
+
+    if any(keyword in link_lower for keyword in link_blacklist):
+        return False
+    if any(keyword in title_lower for keyword in title_blacklist):
+        return False
+    return True
+
+rss_scrape()

@@ -97,8 +97,6 @@ class SimpleReader(QMainWindow):
         self.current_index = 1
         self._threads = []
 
-        self.setStyleSheet("background-color: #9a9594; colour: white;")
-
         self.setWindowTitle("Comic Reader")
 
         self.image_label = QLabel("Loading...", alignment=Qt.AlignCenter)
