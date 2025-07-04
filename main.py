@@ -1,6 +1,6 @@
-from PySide6.QtWidgets import QMainWindow, QToolBar, QApplication, QHBoxLayout, QLineEdit, QWidget, QVBoxLayout, QSizePolicy, QScrollArea, QLabel, QTreeView, QStatusBar
-from PySide6.QtCore import Qt, QUrl, QByteArray, Signal
-from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import QMainWindow, QToolBar, QApplication, QHBoxLayout, QLineEdit, QWidget, QVBoxLayout, QSizePolicy, QScrollArea, QLabel, QTreeView, QStatusBar, QSplitter
+from PySide6.QtCore import Qt, QUrl, QByteArray, Signal, QPropertyAnimation, QEasingCurve
+from PySide6.QtGui import QPixmap, QAction
 from PySide6.QtWidgets import QFileSystemModel
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest
 import sys
@@ -69,6 +69,11 @@ class HomePage(QMainWindow):
         self.addToolBar(toolbar)
         toolbar.addAction("Edit")
         toolbar.addAction("Retag")
+        toggle_tree_action = QAction("☰", self)
+        toggle_tree_action.setToolTip("Toggle file tree")
+        toggle_tree_action.triggered.connect(self.toggle_file_tree)
+        toolbar.addAction(toggle_tree_action)
+
 
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -83,10 +88,7 @@ class HomePage(QMainWindow):
         self.setStatusBar(self.status)
 
 
-        body_layout = QHBoxLayout()
-        body_widget = QWidget()
-        body_widget.setLayout(body_layout)
-
+        self.splitter = QSplitter(Qt.Horizontal)
 
         self.file_model = QFileSystemModel()
         self.file_model.setRootPath(os.path.expanduser("D://Comics//Marvel"))
@@ -95,12 +97,12 @@ class HomePage(QMainWindow):
         self.file_tree.setRootIndex(self.file_model.index(os.path.expanduser("D://Comics//Marvel")))
         self.file_tree.setMaximumWidth(200)
         self.file_tree.setHeaderHidden(True)
-
+        self.file_tree_collapsed = False
         for i in range(1, self.file_model.columnCount()):
             self.file_tree.hideColumn(i)
-
-        body_layout.addWidget(self.file_tree, stretch=1)
         
+        self.splitter.addWidget(self.file_tree)
+
         content_area = QWidget()
         content_layout = QVBoxLayout(content_area)
 
@@ -116,9 +118,10 @@ class HomePage(QMainWindow):
         content_layout.addWidget(continue_reading)
         content_layout.addWidget(need_review)
         content_layout.addWidget(rss)
-        body_layout.addWidget(content_area)
 
-        self.setCentralWidget(body_widget)
+        self.splitter.addWidget(content_area)
+        self.splitter.setStretchFactor(1,1)
+        self.setCentralWidget(self.splitter)
     
     def load_pixmap_from_url(self, url: str) -> QPixmap:
         try:
@@ -176,7 +179,7 @@ class HomePage(QMainWindow):
         cont = ReadingController(comic)
         cont.read_comic()
         
-    def print_hi(self):
+    def print_hi(self, comic):
         print("Hi")
 
     def create_continue_reading_area(self, list_of_comics_marked_as_read):
@@ -248,6 +251,12 @@ class HomePage(QMainWindow):
         return final_widget
 
 
+    def toggle_file_tree(self):
+        if self.file_tree_collapsed:
+            self.splitter.setSizes([200,800])
+        else:
+            self.splitter.setSizes([0,1])
+        self.file_tree_collapsed = not self.file_tree_collapsed
 
     def update_status(self, message: str):
         self.status.showMessage(message, 4000)
