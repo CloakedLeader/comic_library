@@ -87,8 +87,6 @@ class Comic:
         self.page_counter += 1
         self.get_page( self.page_counter )
 
-tester_comic = Comic(r"comic_pwa/comic_folder/wildcats v1 047 (1998) 22p [image].cbz")
-
 
 class SimpleReader(QMainWindow):
     def __init__(self, reader: Comic):
@@ -142,6 +140,8 @@ class SimpleReader(QMainWindow):
         self.navigation_toolbar.show()
         self.comments_toolbar.hide()
         self.current_toolbar = self.navigation_toolbar
+
+        self.image_label.setFocusPolicy(Qt.StrongFocus)
 
         self.setCentralWidget(self.image_label)
         self.centralWidget().setMouseTracking(True)
