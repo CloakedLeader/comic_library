@@ -12,9 +12,10 @@ from io import BytesIO
 from bs4 import BeautifulSoup
 from typing import Tuple
 
-from rss import rss_scrape
 from download_controller import DownloadControllerAsync, DownloadServiceAsync
 from reader_controller import ReadingController
+from rss_controller import RSSController
+from rss_repository import RSSRepository
 
 class ClickableComicWidget(QWidget):
     clicked = Signal()
@@ -188,7 +189,9 @@ class HomePage(QMainWindow):
         return self.create_scroll_area(list_of_unreviewed_comics, header="Write a review...", upon_clicked=self.print_hi)
     
     def create_rss_area(self):
-        recent_comics_list = rss_scrape(num=6)
+        repository = RSSRepository("comics.db")
+        rss_cont = RSSController(repository)
+        recent_comics_list = rss_cont.run(6)
         self.rss_controller = DownloadControllerAsync(view=self, service=DownloadServiceAsync())
         return self.create_scroll_area(recent_comics_list, links=True, header="GetComics RSS Feed", upon_clicked=self.rss_controller.handle_rss_comic_clicked)
         
