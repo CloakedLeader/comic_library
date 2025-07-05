@@ -30,9 +30,7 @@ def rss_scrape() -> list[dict]:
         meta_tag = soup.find("meta", property="og:image")
         image_url = meta_tag.get("content") if meta_tag else None
         entry["cover_link"] = image_url if image_url else None
-      
     return entries
-
 
 def is_metadata_paragraph(paragraph: BeautifulSoup) -> bool:
     text = paragraph.get_text(strip=True).lower()

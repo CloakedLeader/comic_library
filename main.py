@@ -246,7 +246,7 @@ class HomePage(QMainWindow):
     def update_status(self, message: str):
         self.status.showMessage(message, 4000)
 
-def count_files_and_storage(directory: str) -> Tuple[int, float]:
+def count_files_and_storage(directory: str) -> tuple[int, float]:
     total_size = 0
     file_count = 0
     for dirpath, _, filenames in os.walk(directory):

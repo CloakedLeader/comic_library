@@ -1,9 +1,9 @@
 from email.utils import parsedate_to_datetime
 from rss import rss_scrape
 
-
+from rss_repository import RSSRepository
 class RSSController:
-    def __init__(self, repository: 'RSSRepository') -> None:
+    def __init__(self, repository: RSSRepository) -> None:
         self.repo = repository
         self.rss_results = rss_scrape()
 
