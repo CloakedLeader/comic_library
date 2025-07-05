@@ -1,6 +1,6 @@
 import sqlite3
 from datetime import datetime, timedelta, timezone
-from typing import Optional, List, Tuple, Any
+from typing import Optional, Any
 
 class RSSRepository:
     def __init__(self, db_file: str) -> None:
@@ -14,7 +14,7 @@ class RSSRepository:
         row = self.cursor.fetchone()
         return row[0] if row else None
     
-    def insert_entries(self, entries: List[dict[str, Any]]) -> None:
+    def insert_entries(self, entries: list[dict[str, Any]]) -> None:
         sql = """
             INSERT OR IGNORE INTO rss_entries (url, title, pub_date, summary, cover_url)
             VALUES (:link, :title, :pub_date, :summary, :cover_link )
@@ -30,7 +30,7 @@ class RSSRepository:
         )
         self.connection.commit()
 
-    def get_recent_entries(self, limit: int = 10) -> List[Tuple[str, str]]:
+    def get_recent_entries(self, limit: int = 10) -> list[Tuple[str, str]]:
         # Need to add extra data here eventually, maybe the download link
         self.cursor.execute("""
             SELECT title, cover_url

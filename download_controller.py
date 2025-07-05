@@ -1,8 +1,9 @@
 import os
+import re
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
-import re
+
 import aiohttp
 import aiofiles
 

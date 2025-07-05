@@ -34,12 +34,12 @@ def rss_scrape() -> list[dict]:
     return entries
 
 
-def is_metadata_paragraph(paragraph) -> bool:
+def is_metadata_paragraph(paragraph: BeautifulSoup) -> bool:
     text = paragraph.get_text(strip=True).lower()
     return text.startswith(("year", "size")) or ("year" in text and "size" in text)
 
   
-def summary_scrape(html_formatted_string) -> str:
+def summary_scrape(html_formatted_string: str) -> str:
     soup = BeautifulSoup(html_formatted_string, "html.parser")
     paragraphs = soup.find_all("p")
     description_paragraphs = []
@@ -64,7 +64,7 @@ def summary_scrape(html_formatted_string) -> str:
 
     return "\n\n".join(description_paragraphs)
 
-def is_comic_entry(entry):
+def is_comic_entry(entry: dict[str, str]) -> bool:
     link_blacklist = ["/news/", "/announcement/", "/blog"]
     title_blacklist = ["weekly pack"]
     link_lower = entry["link"].lower()

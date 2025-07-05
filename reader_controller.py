@@ -2,7 +2,7 @@ import zipfile
 from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QVBoxLayout, QMainWindow, QHBoxLayout,QHBoxLayout, QToolButton, QToolBar, QDialog
 from PySide6.QtGui import QPixmap, QImage
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
-from typing import Dict, List, Any
+from typing import Any
 import os
 import sys
 import re
@@ -15,9 +15,9 @@ from metadata_gui_panel import MetadataDialog
 from reader import Comic, SimpleReader
 
 class ReadingController:
-    def __init__(self, comic: Dict[str, Any]) -> None:
+    def __init__(self, comic: dict[str, Any]) -> None:
         self.filepath = comic.get("filepath")
-        self.open_windows: List[SimpleReader] =[]
+        self.open_windows: list[SimpleReader] = []
     
     def read_comic(self) -> None:
         comic_data = Comic(self.filepath)

@@ -1,6 +1,6 @@
-from typing import Optional
+from typing import Optional, Any
 
-Comic = dict[str, any]
+Comic = dict[str, Any]
 
 
 class ComicRecommender:

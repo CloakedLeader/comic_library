@@ -18,7 +18,7 @@ from rss_repository import RSSRepository
 class ClickableComicWidget(QWidget):
     clicked = Signal()
 
-    def __init__(self, title: str, pixmap: QPixmap, img_width=20, img_height=20, parent=None):
+    def __init__(self, title: str, pixmap: QPixmap, img_width=20, img_height=20, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
         layout = QVBoxLayout(self)
@@ -46,7 +46,7 @@ class ClickableComicWidget(QWidget):
             }
         """)
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event) -> None:
         if event.button() == Qt.LeftButton:
             self.clicked.emit()
 

@@ -183,7 +183,7 @@ class SimpleReader(QMainWindow):
         self.switch_toolbar(self.comments_toolbar)
     
     def open_metadata_panel(self):
-        dialog = MetadataDialog(self.reader)
+        dialog = MetadataDialog(self)
         dialog.exec()
 
 
