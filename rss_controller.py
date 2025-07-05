@@ -1,8 +1,3 @@
-import sqlite3
-from datetime import datetime, timedelta
-import feedparser
-import requests
-from bs4 import BeautifulSoup
 from email.utils import parsedate_to_datetime
 from rss import rss_scrape
 
@@ -37,11 +32,10 @@ class RSSController:
     
     def run(self, num):
         self.repo.delete_old_entries()
-        if self.is_new_update():
-            self.add_rss_to_db()
-        return self.get_recent_comic_info(num)
+        self.add_rss_to_db()
+        result = self.get_recent_comic_info(num)
+        self.close()
+        return result
 
     def close(self):
         self.repo.close()
-    
-    

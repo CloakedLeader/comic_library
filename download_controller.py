@@ -3,9 +3,8 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 import re
-import asyncio
 import aiohttp
-
+import aiofiles
 
 class DownloadControllerAsync:
     def __init__(self, view, service):
@@ -17,8 +16,8 @@ class DownloadControllerAsync:
         self.view.update_status(f"Starting download of: {comic_dict['title']}")
         try:
             download_link = self.download_service.get_download_links(comic_dict.get("link"))
-            filepath = self.download_service.download_comic(download_link)
-            self.view.update_status(f"Successfull downloaded: {comic_dict.get('title')}")
+            filepath = await self.download_service.download_comic(download_link)
+            self.view.update_status(f"Successfully downloaded: {comic_dict.get('title')} to {filepath}")
         except Exception as e:
             self.view.update_status(f"Failed: {e}") 
  
@@ -36,9 +35,9 @@ class DownloadServiceAsync:
         return fname[0]
 
     def get_download_links(self, comic_article_link: str) -> str:
-        headers = {"User-Agent": "Mozzilla/5.0"}
+        headers = {"User-Agent": "Mozilla/5.0"}
 
-        response = requests.get(comic_article_link, headers)
+        response = requests.get(comic_article_link, headers, timeout=30)
         soup = BeautifulSoup(response.content, "html.parser")
 
         download_links = []
@@ -58,12 +57,10 @@ class DownloadServiceAsync:
     async def download_comic(self, comic_download_link: str) -> str:
         async with aiohttp.ClientSession() as session:
             async with session.get(comic_download_link) as response:
-
-                response = requests.get(comic_download_link, stream=True)
                 if response.status_code != 200:
                     raise Exception(f"Download failed with status code {response.status_code}")
         
-                filename = self.get_filename_from_header(response.headers.get('content-disposition'))
+                filename = await self.get_filename_from_header(response.headers.get('content-disposition'))
                 if not filename:
                     filename = os.path.basename(urlparse(comic_download_link).path)
                 if not filename:
@@ -71,16 +68,7 @@ class DownloadServiceAsync:
         
                 filepath = os.path.join(self.download_folder, filename)
             
-                with open(filepath, "wb") as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
+                async with aiofiles.open(filepath, "wb") as f:
+                    async for chunk in response.content.iter_chunked(8192):
+                        await f.write(chunk)
                 return filepath
-
-        
-        
-        
-        
-
-
-

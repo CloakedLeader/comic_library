@@ -1,5 +1,5 @@
 import zipfile
-from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QVBoxLayout, QMainWindow, QHBoxLayout,QHBoxLayout, QToolButton, QToolBar, QDialog
+from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QVBoxLayout, QMainWindow,QHBoxLayout, QToolButton, QToolBar, QDialog
 from PySide6.QtGui import QPixmap, QImage
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
 import os
