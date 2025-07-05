@@ -1,21 +1,8 @@
-
-import os
-import xml.etree.ElementTree as ET
-from typing import Optional, Union, Tuple, List, Dict, Callable, Protocol
-from fuzzywuzzy import fuzz
-import sys
-import time
-import re
 import calendar
-from word2number import w2n
-from dotenv import load_dotenv
-from file_utils import get_name
+import os
+import re
 from enum import Enum, auto
-import unicodedata
-from itertools import chain
-
-
-api_key = os.getenv("API_KEY")
+from typing import Callable, Protocol
 
 #==================================
 #   Filname Lexing
@@ -31,8 +18,9 @@ class ItemType(Enum):
     EOF = auto()
     Text = auto()
     LeftParen = auto()
-    Number = auto()  
+    Number = auto()
     IssueNumber = auto()
+    VolumeNumber = auto()
     RightParen = auto()
     Space = auto() 
     Dot = auto()
@@ -49,10 +37,12 @@ class ItemType(Enum):
     ArchiveType = auto()
     Publisher = auto()
     Keywords = auto()
+    Author = auto()
     FCBD = auto()
     ComicType = auto()
+    CollectionType = auto()
     C2C = auto()
-    Seperator = auto()
+    Separator = auto()
 
 braces = [
     ItemType.LeftBrace,
@@ -267,9 +257,8 @@ class Lexer:
             self.state = self.state(self)
 
 
-def errorf(lex: Lexer, message: str):
+def errorf(lex: Lexer, message: str) -> None:
     lex.items.append(Item(ItemType.Error, lex.start, message))
-    return None
 
 def run_lexer( lex: Lexer) -> LexerFunc:
     r = lex.get()
@@ -314,7 +303,7 @@ def run_lexer( lex: Lexer) -> LexerFunc:
         return lex_text
     
     elif r == "-":
-        lex.emit(ItemType.Seperator)
+        lex.emit(ItemType.Separator)
         return run_lexer
     
     elif r == "(":
@@ -387,7 +376,7 @@ def lex_number(lex: Lexer) -> LexerFunc | None:
     if lex.pos < len(lex.input) and lex.input[lex.pos].isalpha():
         lex.accept_run(str.isalpha)
         lex.emit(ItemType.Text)
-        return 
+        return None
     lex.emit(ItemType.Number)
     return run_lexer
 
@@ -405,9 +394,8 @@ def lex_issue_number(lex: Lexer) -> LexerFunc:
     lex.emit(ItemType.IssueNumber)
     return run_lexer
 
-def lex_author(lex: Lexer):
+def lex_author(lex: Lexer) -> LexerFunc:
     lex.accept_run(str.isspace)
-    start = lex.pos
     name_parts = 0
 
     while name_parts < 3:
@@ -453,7 +441,7 @@ def lex_author(lex: Lexer):
 
 
 
-def  lex_collection_type(lex: Lexer):
+def  lex_collection_type(lex: Lexer) -> LexerFunc:
     lex.accept_run(str.isalpha)
     word = lex.input[lex.start:lex.pos].casefold()
 
@@ -468,7 +456,7 @@ def  lex_collection_type(lex: Lexer):
 
     return run_lexer
 
-def lex_volume_number(lex: Lexer):
+def lex_volume_number(lex: Lexer) -> LexerFunc:
     lex.accept_run(str.isdigit)
 
     if lex.pos == lex.start:
@@ -482,7 +470,7 @@ def lex_volume_number(lex: Lexer):
 
     return run_lexer
 
-def lex_volume_number_full(lex: Lexer):
+def lex_volume_number_full(lex: Lexer) -> LexerFunc:
     lex.accept_run(is_space)
     lex.accept_run(str.isdigit)
 
@@ -505,21 +493,11 @@ def cal(word: str) -> bool:
     months = [m.lower() for m in calendar.month_name if m] + [m.lower() for m in calendar.month_abbr if m]
     if word_lower in months:
         return True
-    
-    if re.fullmatch(r"\d{4}", word) or re.fullmatch(r"\d{4}s", word):
-        return True
-    return False
+
+    return bool(re.fullmatch(r"\d{4}", word) or re.fullmatch(r"\d{4}s", word))
 
 
 def Lex(filename: str, allow_issue_start_with_letter: bool = False) -> Lexer:
     lex = Lexer(os.path.basename(filename), allow_issue_start_with_letter)
     lex.run()
     return lex
-
-trial = Lexer("Journey Into Mystery by Kieron Gillen Complete Collection Vol. 1 (2021) (LokiCorps)")
-state = run_lexer
-while state is not None:
-    print(f"Next state: {state.__name__}")
-    state = state(trial)
-for item in trial.items:
-    print(item)
