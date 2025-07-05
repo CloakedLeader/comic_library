@@ -6,6 +6,5 @@ __pycache__/
 LICENSE
 test.py
 Main.java
-wars_db.py
 *.json
 thumbnails/
