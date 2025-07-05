@@ -4,7 +4,7 @@ Comic = dict[str, any]
 
 
 class ComicRecommender:
-    def __init__(self, comics_db: List[Comic]) -> None:
+    def __init__(self, comics_db: list[Comic]) -> None:
         self.comics = comics_db
 
     def get_next_in_series(self, current: Comic) -> Optional[Comic]:
@@ -13,5 +13,5 @@ class ComicRecommender:
             if c["series"] == current["series"]
         ]
         # TODO: Implement logic to find next comic based on issue number
-        # FOr now return None until implementation is complete
-        return None
+        # For now return None until implementation is complete
+        return None 

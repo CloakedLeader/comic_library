@@ -16,7 +16,10 @@ def rss_scrape() -> list[dict]:
     base_url = "https://getcomics.org/feed/"
     feed = feedparser.parse(base_url)
     entries = []
-    entries = [{"title": e.title, "link": e.link, "pub_date": e.get("published", None), "summary": e.summary} for e in feed.entries]
+    entries = [
+        {"title": e.title, "link": e.link, "pub_date": e.get("published", None), "summary": e.summary}
+        for e in feed.entries
+    ]
     entries = [e for e in entries if is_comic_entry(e)]
     for entry in entries:
         total_summary = entry.get("summary")
@@ -67,11 +70,8 @@ def is_comic_entry(entry):
     link_lower = entry["link"].lower()
     title_lower = entry["title"].lower()
 
-    if any(keyword in link_lower for keyword in link_blacklist):
-        return False
-    if any(keyword in title_lower for keyword in title_blacklist):
-        return False
-    return True
+    return not (any(keyword in link_lower for keyword in link_blacklist) or
+                any(keyword in title_lower for keyword in title_blacklist))
 
 def download_comic(comic_info: dict) -> list[tuple[str, str]]:
     url = comic_info.get("link")

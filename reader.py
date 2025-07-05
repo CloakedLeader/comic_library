@@ -116,15 +116,13 @@ class SimpleReader(QMainWindow):
         self.hide_menu_timer = QTimer()
         self.hide_menu_timer.setSingleShot(True)
         self.hide_menu_timer.timeout.connect(self.menu_bar_widget.hide)
-
-        self.setMouseTracking(True)
         
+        self.setMouseTracking(True)
         self.navigation_toolbar = QToolBar("Navigation Tools")
         self.navigation_toolbar.addAction("Zoom In")
         self.navigation_toolbar.addAction("Zoom Out")
         self.navigation_toolbar.addAction("Prev Page", self.prev_page)
         self.navigation_toolbar.addAction("Next Page", self.next_page)
-        
 
         self.comments_toolbar = QToolBar("Commenting Tools")
         self.comments_toolbar.addAction("Add Bookmark")

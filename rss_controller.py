@@ -3,11 +3,11 @@ from rss import rss_scrape
 
 
 class RSSController:
-    def __init__(self, repository):
+    def __init__(self, repository) -> None:
         self.repo = repository
         self.rss_results = rss_scrape()
 
-    def add_rss_to_db(self):
+    def add_rss_to_db(self) -> None:
         self.repo.delete_old_entries()
         if self.is_new_update():
             self.repo.insert_entries(self.rss_results)
@@ -22,16 +22,14 @@ class RSSController:
 
         return latest_feed_date > latest_db_date
     
-    def get_recent_comic_info(self, number_of_entries):
+    def get_recent_comic_info(self, number_of_entries) -> list[dict[str, str]]:
         entries = self.repo.get_recent_entries(limit=number_of_entries)
         output = []
         for title, cover_url in entries:
             output.append({"title": title, "cover_link": cover_url})
-        self.close()
         return output
     
-    def run(self, num):
-        self.repo.delete_old_entries()
+    def run(self, num) -> list[dict[str, str]]:
         self.add_rss_to_db()
         result = self.get_recent_comic_info(num)
         self.close()

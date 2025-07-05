@@ -24,8 +24,9 @@ class ReadingController:
         comic_reader = SimpleReader(comic_data)
         comic_reader.show()
         self.open_windows.append(comic_reader)
-        def close_all_windows(self) -> None:
-            for window in self.open_windows:
-                window.close()
-            self.open_windows.clear()
+        
+    def close_all_windows(self) -> None:
+        for window in self.open_windows:
+            window.close()
+        self.open_windows.clear()
         
