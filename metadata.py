@@ -105,7 +105,7 @@ def find_cover(path: str) -> Optional[None]:
                 logging.error("Empty archive.")
                 return
             cover_files = [
-                f for f in image_files 
+                f for f in image_files
                 if os.path.splitext(os.path.basename(f))[0].lower() == "cover"
             ]
             if cover_files:

@@ -243,7 +243,7 @@ class Lexer:
         """
         Checks if a string is numeric and if it has a suffix of letters directly after, no whitespace.
         """
-        if not self.accept_run(is_numeric_or_digit):
+        if not self.accept_run(is_numeric_or_number_punctuation):
             return False
         if self.input[self.pos] == ".":
             self.backup()
@@ -287,12 +287,14 @@ def run_lexer( lex: Lexer) -> LexerFunc:
             return lex_volume_number
         elif lex.match("ol.") or lex.match("ol") or lex.match("olume"):
             return lex_volume_number_full
+        return lex_text
 
     elif r.lower() == "b":
         lex.backup()
         if lex.match("by "):
             lex.emit(ItemType.InfoSpecifier)
             return lex_author  
+        return lex_text
     
     elif r.lower() in "tophc":
         lex.backup()
@@ -317,6 +319,7 @@ def run_lexer( lex: Lexer) -> LexerFunc:
         if lex.paren_depth < 0:
             errorf(lex, "unexpected right paren " + r)
             return None
+        return run_lexer
         
     elif r == "{":
         lex.emit(ItemType.LeftBrace)
@@ -329,11 +332,14 @@ def run_lexer( lex: Lexer) -> LexerFunc:
         if lex.brace_depth < 0:
             errorf(lex, "unexpected right brace " + r)
             return None
+        return run_lexer
+
     elif r == "[":
         lex.emit(ItemType.LeftSBrace)
         lex.sbrace_depth += 1
         return run_lexer
-    elif r =="]":
+
+    elif r == "]":
         lex.emit(ItemType.RightSBrace)
         lex.sbrace_depth -= 1
         if lex.sbrace_depth < 0:
@@ -450,7 +456,6 @@ def lex_author(lex: Lexer) -> LexerFunc:
 #     return run_lexer  # resume normal lexing
 
 
-
 def  lex_collection_type(lex: Lexer) -> LexerFunc:
     lex.accept_run(str.isalpha)
     word = lex.input[lex.start:lex.pos].casefold()
@@ -507,7 +512,7 @@ def cal(word: str) -> bool:
     return bool(re.fullmatch(r"\d{4}", word) or re.fullmatch(r"\d{4}s", word))
 
 
-def Lex(filename: str, allow_issue_start_with_letter: bool = False) -> Lexer:
+def lex(filename: str, allow_issue_start_with_letter: bool = False) -> Lexer:
     lex = Lexer(os.path.basename(filename), allow_issue_start_with_letter)
     lex.run()
     return lex
