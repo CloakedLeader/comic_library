@@ -54,35 +54,31 @@ class Lexer:
 
     def log( self, type: TokenType ) -> None:
         thing_to_log = self.input[ self.start : self.position + 1 ] #I'm not sure this captures the correct part of the string
-        self.items.append( Token ( TokenType ( type, thing_to_log, self.start ) ) )
+        self.items.append(Token( type, thing_to_log, self.start))
 
     def ignore( self ) -> None:
         self.start = self.position
 
     def accept_character( self, valid: str | Callable[ [ str ], bool ] ) -> bool:
-        if valid is str:
+        if isinstance(valid, str):
             if self.get() in valid:
                 return True
-        elif valid is Callable:
-            if valid( self.get() ):
+        elif callable(valid):
+            if valid(self.get()):
                 return True
-        else:
-            self.backup()
-            return False
+        self.backup()
+        return False
         
     def accept_run( self, valid: str | Callable[ [ str ], bool ] ) -> bool:
         start = self.position
-        if valid is str:
+        if isinstance(valid, str):
             while self.get() in valid:
                 continue
-        elif valid is Callable:
-            while valid( self.get() ):
+        elif callable(valid):
+            while valid(self.get()):
                 continue
         self.backup()
-        if self.position == start:
-            return False
-        else: 
-            return True
+        return self.position != start
         
     def run_lexer( self ) -> None:
         self.state = lex_start
