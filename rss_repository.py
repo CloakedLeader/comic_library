@@ -30,7 +30,7 @@ class RSSRepository:
         )
         self.connection.commit()
 
-    def get_recent_entries(self, limit: int = 10) -> list[Tuple[str, str]]:
+    def get_recent_entries(self, limit: int = 10) -> list[tuple[str, str]]:
         # Need to add extra data here eventually, maybe the download link
         self.cursor.execute("""
             SELECT title, cover_url

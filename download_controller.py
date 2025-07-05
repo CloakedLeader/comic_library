@@ -1,5 +1,6 @@
 import os
 import re
+from typing import Optional
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
@@ -8,18 +9,19 @@ import aiohttp
 import aiofiles
 
 class DownloadControllerAsync:
-    def __init__(self, view, service):
+    def __init__(self, view, service) -> None:
         self.view = view
         self.download_service = service
+        self.comic_dict = None
     
-    async def handle_rss_comic_clicked(self, comic_dict):
+    async def handle_rss_comic_clicked(self, comic_dict) -> None:
         self.comic_dict = comic_dict
         self.view.update_status(f"Starting download of: {comic_dict['title']}")
         try:
             download_link = self.download_service.get_download_links(comic_dict.get("link"))
             filepath = await self.download_service.download_comic(download_link)
             self.view.update_status(f"Successfully downloaded: {comic_dict.get('title')} to {filepath}")
-        except Exception as e:
+        except (requests.RequestException, aiohttp.ClientError, IOError) as e:
             self.view.update_status(f"Failed: {e}")
  
 class DownloadServiceAsync:
@@ -27,7 +29,7 @@ class DownloadServiceAsync:
         self.download_folder = download_folder
         os.makedirs(download_folder, exist_ok=True)
 
-    async def get_filename_from_header(self, content_disposition):
+    def get_filename_from_header(self, content_disposition: Optional[str]) -> Optional[str]:
         if not content_disposition:
             return None
         fname = re.findall('filename="?([^"]+)"?', content_disposition)
@@ -52,7 +54,8 @@ class DownloadServiceAsync:
 
         for title, link in download_links:
             print(f"{title}: {link}")
-
+        if not download_links:
+            raise ValueError("No download links found on the page")
         return download_links[0][1]
 
     async def download_comic(self, comic_download_link: str) -> str:
