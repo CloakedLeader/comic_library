@@ -1,13 +1,14 @@
+import sys
+import os
+import os.path
+from io import BytesIO
+from typing import Tuple
+
 from PySide6.QtWidgets import QMainWindow, QToolBar, QApplication, QHBoxLayout, QLineEdit, QWidget, QVBoxLayout, QSizePolicy, QScrollArea, QLabel, QTreeView, QStatusBar
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QFileSystemModel
-import sys
-import os
-import os.path
 import requests
-from io import BytesIO
-from typing import Tuple
 
 from download_controller import DownloadControllerAsync, DownloadServiceAsync
 from reader_controller import ReadingController
@@ -257,10 +258,8 @@ def count_files_and_storage(directory: str) -> Tuple[int, float]:
     total_size = total_size / (1024**3)
     return file_count, total_size
 
-
 dummy_data = [{"title": "Mr Miracle TPB", "cover_path" : "D:\\Comics\\.yacreaderlibrary\\covers\\1f7c63fb2bf06fcd4293fad5928354e591542fb9459630961.jpg", "filepath": "D://Comics//DC//Misc//Mister Miracle TPB (February 2019).cbz"}, 
               {"title" : "Daredevil: The Man Witout Fear", "cover_path" : "D:\\Comics\\.yacreaderlibrary\\covers\\051a70f024954f92e2b2c0699f00859ac772e865685497443.jpg"}]
-
 
 
 if __name__ == "__main__":

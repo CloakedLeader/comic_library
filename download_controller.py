@@ -19,7 +19,7 @@ class DownloadControllerAsync:
             filepath = await self.download_service.download_comic(download_link)
             self.view.update_status(f"Successfully downloaded: {comic_dict.get('title')} to {filepath}")
         except Exception as e:
-            self.view.update_status(f"Failed: {e}") 
+            self.view.update_status(f"Failed: {e}")
  
 class DownloadServiceAsync:
     def __init__(self, download_folder="D://Comics//To Be Sorted"):
@@ -58,16 +58,16 @@ class DownloadServiceAsync:
         async with aiohttp.ClientSession() as session:
             async with session.get(comic_download_link) as response:
                 if response.status_code != 200:
-                    raise Exception(f"Download failed with status code {response.status_code}")
-        
+                    raise Exception(f"Download failed with status code {response.status}")
+
                 filename = await self.get_filename_from_header(response.headers.get('content-disposition'))
                 if not filename:
                     filename = os.path.basename(urlparse(comic_download_link).path)
                 if not filename:
                     filename = "downloaded_comic.cbz"
-        
+
                 filepath = os.path.join(self.download_folder, filename)
-            
+
                 async with aiofiles.open(filepath, "wb") as f:
                     async for chunk in response.content.iter_chunked(8192):
                         await f.write(chunk)
