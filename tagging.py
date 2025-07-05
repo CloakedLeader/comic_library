@@ -4,11 +4,11 @@ import re
 from enum import Enum, auto
 from typing import Callable, Protocol
 
-#==================================
-#   Filname Lexing
-#==================================
+# ==================================
+#   Filename Lexing
+# ==================================
 
-def is_numeric_or_digit(x: str) -> bool:
+def is_numeric_or_number_punctuation(x: str) -> bool:
     digits = "0123456789.,"
     return x.isnumeric() or x in digits
 
@@ -100,12 +100,12 @@ class LexerFunc( Protocol ):
 
 class Lexer:
     
-    def __init__( self, string: str, allow_issue_start_with_letter: bool = False) -> None:
+    def __init__( self, string: str, *, allow_issue_start_with_letter: bool = False) -> None:
         self.input: str = string
         self.state: LexerFunc | None = None
         self.pos: int = -1
         self.start: int = 0
-        self.lastPos: int = 0 
+        self.last_pos: int = 0
         self.paren_depth: int = 0  
         self.brace_depth: int = 0  
         self.sbrace_depth: int = 0  
@@ -329,7 +329,17 @@ def run_lexer( lex: Lexer) -> LexerFunc:
         if lex.brace_depth < 0:
             errorf(lex, "unexpected right brace " + r)
             return None
-        
+    elif r == "[":
+        lex.emit(ItemType.LeftSBrace)
+        lex.sbrace_depth += 1
+        return run_lexer
+    elif r =="]":
+        lex.emit(ItemType.RightSBrace)
+        lex.sbrace_depth -= 1
+        if lex.sbrace_depth < 0:
+            errorf(lex, "unexpected right square brace")
+            return None
+        return run_lexer    
     else:
         return errorf(lex, f"unexpected character: {r}")
 
@@ -360,9 +370,9 @@ def lex_text(lex: Lexer) -> LexerFunc:
             lex.accept(".")
         lex.emit(token_type)
     elif cal(word):
-            lex.emit(ItemType.Calendar)
+        lex.emit(ItemType.Calendar)
     else:
-            lex.emit(ItemType.Text)
+        lex.emit(ItemType.Text)
     return run_lexer
     
 
@@ -376,7 +386,7 @@ def lex_number(lex: Lexer) -> LexerFunc | None:
     if lex.pos < len(lex.input) and lex.input[lex.pos].isalpha():
         lex.accept_run(str.isalpha)
         lex.emit(ItemType.Text)
-        return None
+        return run_lexer
     lex.emit(ItemType.Number)
     return run_lexer
 

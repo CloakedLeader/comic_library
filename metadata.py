@@ -104,10 +104,13 @@ def find_cover(path: str) -> Optional[None]:
             if not image_files:
                 logging.error("Empty archive.")
                 return
-            cover_files = [f for f in image_files if os.path.splitext(os.path.basename(f))[0].lower() == "cover"]
+            cover_files = [
+                f for f in image_files 
+                if os.path.splitext(os.path.basename(f))[0].lower() == "cover"
+            ]
             if cover_files:
                 first_image = zip_ref.read(cover_files[0])
-            else:  
+            else:
                 image_files.sort(key=sort_imgs)
                 first_image = zip_ref.read(image_files[0])
         out = save_cover(path, first_image)
