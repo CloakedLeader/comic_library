@@ -15,11 +15,41 @@ from pathlib import Path
 from PIL import Image
 from io import BytesIO
 import logging
+import random
+import Levenshtein
+import shutil
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s - %(levelname)s - %(message)s',
                     handlers=[logging.StreamHandler(), logging.FileHandler('log.txt')])
 
+
+
+def find_credit_pages(path: str) -> Tuple[ str, str] | None:
+    if get_ext(path) == ".cbz":
+        with zipfile.ZipFile(path, 'r') as arch:
+            image_files = [f for f in arch.namelist() if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+            if not image_files:
+                logging.error("Empty Archive.")
+                return None
+            image_files.sort(key=sort_imgs)
+            common_files_index = int(len(image_files) * 0.4)
+            early_files = image_files[:common_files_index]
+            file_paths_to_compare = random.sample(early_files, min(5, len(early_files)))
+            last_files = image_files[-3:]
+            not_matching_file = set()
+            for j in last_files:
+                for k in file_paths_to_compare:
+                    dist = Levenshtein.distance(j, k)
+                    if dist > 10:
+                        not_matching_file.add(j)
+            not_matching_file_list = list(not_matching_file)
+            if len(not_matching_file_list) == 1:
+                return path, not_matching_file_list[0]
+            else: 
+                logging.info("No credit pages found!")
+                return None
+            
 
 
 def pad(n: int) -> str:
@@ -44,7 +74,7 @@ def get_comicid_from_path(path: str) -> Optional[int]: #Takes a file path as an 
     
    
 
-def save_cover(id: int, bytes: bytes, out_dir: str =os.getenv("DEST_FILE_PATH")) -> Tuple[str, str]: 
+def save_cover(id: int, bytes: bytes, out_dir: str = os.getenv("DEST_FILE_PATH")) -> Tuple[str, str]: 
     """
     Saves two copies of the same image with different sizes.
 
@@ -320,11 +350,30 @@ path_to_obs = os.getenv("PATH_TO_WATCH")
 class DownloadsHandler(FileSystemEventHandler):
 
     def on_created(self, event):
-        if not event.is_directory:
-            file_path = event.src_path
-            logging.debug(f"New file detected: {file_path}")
-            self.handle_new_file(file_path)
-            
+        if event.is_directory:
+            return
+        
+        filepath = event.src_path
+        filename = os.path.basename(filepath)
+
+        if filename.endswith(".part"):
+            logging.info(f"Ignoring partial file: {filename}")
+            return
+        
+        logging.info(f"Detected new file: {filename}")
+
+        time.sleep(2)
+        
+        if not self.is_file_ready(filepath):
+            logging.warning(f"File not stable yet: {filename}")
+            return
+        
+        try:
+            self.process_file(filepath)
+        except Exception as e:
+            logging.error(f"Error processing file {filepath}: {e}")
+
+    
     def on_moved(self, event):
         if event.dest_path == path_to_obs:
             if not event.is_directory:
@@ -336,6 +385,42 @@ class DownloadsHandler(FileSystemEventHandler):
 
     def on_deleted(self, event):
         logging.debug(f"Detected a file deletion: {event.src_path}")
+
+    def is_file_ready(self, filepath, stable_time=5, check_interval=1):
+        prev_size = -1
+        stab_counter = 0
+        while stab_counter < stable_time:
+            try:
+                current_size = os.path.getsize(filepath)
+            except FileNotFoundError:
+                logging.warning(f"File {filepath} disappeared.")
+                return False
+
+            if current_size == prev_size:
+                stab_counter += 1
+            else:
+                stab_counter = 0
+                prev_size = current_size
+
+            time.sleep(check_interval)
+
+        return True
+    
+    def process_file( self, path):
+        filename = os.path.basename(path)
+        #dest_path = os.path.join(li) Want to move the file to a temporary directory where all the tagging and processing is done.
+
+        if os.path.exists(dest_path):
+            base, ext = os.path.splitext(filename)
+            timestamp = int(time.time())
+            new_filename = f"{base}_{timestamp}{ext}"
+            dest_path = os.path.join("dir", new_filename)
+            logging.warning(f"File exists, renaming to: {new_filename}")
+
+        shutil.move(path, dest_path)
+        logging.info(f"Moved file to library: {dest_path}")
+        
+
 
     def handle_new_file(self, path):
         if is_comic(path):

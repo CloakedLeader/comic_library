@@ -6,4 +6,5 @@ __pycache__/
 LICENSE
 test.py
 Main.java
-comic_gui/
+*.json
+thumbnails/
