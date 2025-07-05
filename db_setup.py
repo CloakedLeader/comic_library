@@ -47,12 +47,27 @@ cursor.execute('''
                     PRIMARY KEY (comic_id, creator_id, role)
                 )
 ''')
+cursor.execute('''
+                CREATE TABLE IF NOT EXISTS series (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT NOT NULL
+                )
+''')
 
 cursor.execute('''
                 CREATE TABLE IF NOT EXISTS characters (
                     id  PRIMARY KEY, 
                     name TEXT NOT NULL
                 )
+''')
+
+cursor.execute('''
+                CREATE TABLE IF NOT EXISTS comic_characters (
+                    comic_id INTEGER,
+                    character_id INTEGER,
+                    FOREIGN KEY (comic_id) REFERENCES comics(id),
+                    FOREIGN KEY (chatacter_id) REFERECNES characters(id)
+                    )
 ''')
 
 cursor.execute('''
