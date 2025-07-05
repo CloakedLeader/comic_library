@@ -111,8 +111,8 @@ def find_cover(path: str) -> Optional[None]:
                 image_files.sort(key=sort_imgs)
                 first_image = zip_ref.read(image_files[0])
         out = save_cover(path, first_image)
-            #Need to make another column to store paths for both cover image sizes
-            # Need to move the database logic elsewhere.
+        #Need to make another column to store paths for both cover image sizes
+        #Need to move the database logic elsewhere.
         conn = sqlite3.connect("comics.db")
         cursor = conn.cursor()
         cursor.execute(f''' UPDATE comics 
