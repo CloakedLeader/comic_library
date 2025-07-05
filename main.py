@@ -6,9 +6,7 @@ import sys
 import os
 import os.path
 import requests
-import feedparser
 from io import BytesIO
-from bs4 import BeautifulSoup
 from typing import Tuple
 
 from download_controller import DownloadControllerAsync, DownloadServiceAsync
@@ -19,12 +17,11 @@ from rss_repository import RSSRepository
 class ClickableComicWidget(QWidget):
     clicked = Signal()
 
-    def __init__(self, title: str, pixmap: QPixmap, img_width = 20, img_height=20, parent=None):
+    def __init__(self, title: str, pixmap: QPixmap, img_width=20, img_height=20, parent=None):
         super().__init__(parent)
 
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignCenter)
-        layout.setContentsMargins
 
         cover_label = QLabel()
         cover_label.setPixmap(pixmap.scaled(img_width, img_height, Qt.KeepAspectRatio, Qt.SmoothTransformation))
@@ -120,7 +117,7 @@ class HomePage(QMainWindow):
     
     def load_pixmap_from_url(self, url: str) -> QPixmap:
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=30)
             response.raise_for_status()
             image_data = BytesIO(response.content)
             pixmap = QPixmap()
@@ -181,7 +178,7 @@ class HomePage(QMainWindow):
         return self.create_scroll_area(list_of_comics_marked_as_read, header="Continue Reading", upon_clicked=self.open_reader)
     
     def create_recommended_reading_area(self, list_of_recommended_comics):
-        return self.create_scroll_area(list_of_recommended_comics, header="Recommended Next Read")
+        return self.create_scroll_area(list_of_recommended_comics, header="Recommended Next Read", upon_clicked=self.open_reader)
     
     def create_review_area(self, list_of_unreviewed_comics):
         return self.create_scroll_area(list_of_unreviewed_comics, header="Write a review...", upon_clicked=self.print_hi)
@@ -248,10 +245,10 @@ class HomePage(QMainWindow):
     def update_status(self, message: str):
         self.status.showMessage(message, 4000)
 
-def count_files_and_storage(dir: str) -> Tuple[int, float]:
+def count_files_and_storage(directory: str) -> Tuple[int, float]:
     total_size = 0
     file_count = 0
-    for dirpath, _, filenames in os.walk(dir):
+    for dirpath, _, filenames in os.walk(directory):
         for f in filenames:
             fp = os.path.join(dirpath, f)
             if not os.path.islink(fp):

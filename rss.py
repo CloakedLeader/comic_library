@@ -7,9 +7,9 @@ def rss_scrape() -> list[dict]:
     Scrapes the rss feed of GetComics and returns a list of dictionaries with the following structure:
     {
     title: The title of the page on GetComics.
-    link: Thee link of the article on GetComics.
+    link: The link of the article on GetComics.
     pub_date: The date the article was published on GetComics.
-    summary: The description (or blurb) of the comic, filtered out ofthe html summary.
+    summary: The description (or blurb) of the comic, filtered out of the html summary.
     cover_link: The link to the cover image for display purposes.
     }
     """
@@ -22,7 +22,7 @@ def rss_scrape() -> list[dict]:
         total_summary = entry.get("summary")
         comic_description = summary_scrape(total_summary)
         entry["summary"] = comic_description
-        res = requests.get(entry.get("link"), headers={"User-Agent": "Mozilla/5.0"})
+        res = requests.get(entry.get("link"), headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
         soup = BeautifulSoup(res.text, "html.parser")
         meta_tag = soup.find("meta", property="og:image")
         image_url = meta_tag.get("content") if meta_tag else None
@@ -31,13 +31,9 @@ def rss_scrape() -> list[dict]:
     return entries
 
 
-def is_metadata_paragraph(paragraph):
+def is_metadata_paragraph(paragraph) -> bool:
     text = paragraph.get_text(strip=True).lower()
-    if text.startswith("year") or text.startswith("size"):
-        return True
-    if "year" in text and "size" in text:
-        return True
-    return False
+    return text.startswith(("year", "size")) or ("year" in text and "size" in text)
 
   
 def summary_scrape(html_formatted_string) -> str:
@@ -53,7 +49,9 @@ def summary_scrape(html_formatted_string) -> str:
 
         if i == 0 and "getcomics" in lower_text:
             continue
-        if i == len(paragraphs) - 1 and ("the post" in lower_text or "appeared first on" in lower_text):
+        if i == len(paragraphs) - 1 and (
+            "the post" in lower_text or "appeared first on" in lower_text
+        ):
             continue
 
         if is_metadata_paragraph(p):
@@ -75,12 +73,12 @@ def is_comic_entry(entry):
         return False
     return True
 
-def download_comic(comic_info: dict) -> None:
+def download_comic(comic_info: dict) -> list[tuple[str, str]]:
     url = comic_info.get("link")
-    headers = {"User-Agent": "Mozzilla/5.0"}
+    headers = {"User-Agent": "Mozilla/5.0"}
 
-    reponse = requests.get(url, headers)
-    soup = BeautifulSoup(reponse.content, "html.parser")
+    response = requests.get(url, headers, timeout=30)
+    soup = BeautifulSoup(response.content, "html.parser")
 
     download_links = []
 
