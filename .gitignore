@@ -5,8 +5,8 @@ __pycache__/
 *.cbz
 LICENSE
 test.py
-*.json
 *.html
 thumbnails/
 *.png
 ipad_app/
+*.json
