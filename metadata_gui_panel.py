@@ -5,6 +5,16 @@ if TYPE_CHECKING:
     from reader import SimpleReader
 
 class MetadataDialog(QDialog):
+    """A dialog window for displaying comic metadata information.
+        """Initialize the metadata dialog.
+        
+        Args:
+            reader: A SimpleReader instance containing the comic data and filename
+        """
+    
+    This dialog shows metadata fields for a given comic reader instance
+    and provides a close button for user interaction.
+    """
     def __init__(self, reader: SimpleReader) -> None:
         super().__init__()
         self.setWindowTitle(f"Metadata for {reader.filename}")
