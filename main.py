@@ -16,7 +16,24 @@ from rss_controller import RSSController
 from rss_repository import RSSRepository
 
 class ClickableComicWidget(QWidget):
+    """A clickable widget for displaying comic information with cover and title.
+    
+    This widget displays a comic cover image and title in a vertical layout
+    and emits a clicked signal when the user clicks on it.
+    
+    Signals:
+        clicked: Emitted when the widget is clicked with the left mouse button
+    """
     clicked = Signal()
+        """Initialize the clickable comic widget.
+        
+        Args:
+            title: The comic title to display
+            pixmap: The cover image as a QPixmap
+            img_width: Width to scale the cover image (default: 20)
+            img_height: Height to scale the cover image (default: 20)
+            parent: Parent widget (optional)
+        """
 
     def __init__(self, title: str, pixmap: QPixmap, img_width=20, img_height=20, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -37,6 +54,29 @@ class ClickableComicWidget(QWidget):
 
         self.setStyleSheet("""
             ComicButton {
+        """Handle mouse press events to emit clicked signal.
+        
+        Args:
+            event: The mouse press event
+    """Main window for the Comic Library application.
+    
+    This class provides the primary user interface for browsing comics,
+    including file system navigation, RSS feed integration, reading recommendations,
+    and download management. Features include:
+    - File system tree view for comic browsing
+    - Multiple scrollable sections for different comic categories
+    - RSS feed integration for new comic discovery
+        """Initialize the HomePage main window.
+        
+        Sets up the complete UI including menu bar, toolbar, status bar,
+        file system view, content areas, and RSS integration.
+        """
+    - Statistics display for library information
+    - Download controller for RSS comics
+    """
+            
+        Emits the clicked signal when the left mouse button is pressed.
+        """
                 border: 1px solid #aaa;
                 border-radius: 4px;
                 background-color: #f9f9f9;
@@ -85,9 +125,35 @@ class HomePage(QMainWindow):
 
 
         self.file_model = QFileSystemModel()
+        """Load a QPixmap from a URL with error handling.
+        
+        Args:
+            url: The URL of the image to load
+            
+        Returns:
+            QPixmap: The loaded image, or a gray placeholder if loading fails
+            
+        Downloads the image from the given URL and converts it to a QPixmap.
+        Returns a 120x180 gray placeholder if the download fails.
+        """
         self.file_model.setRootPath(os.path.expanduser("D://Comics//Marvel"))
         self.file_tree = QTreeView()
         self.file_tree.setModel(self.file_model)
+        """Create a horizontal scroll area populated with comic widgets.
+        
+        Args:
+            list_of_dicts: List of dictionaries containing comic information
+            header: Header text for the scroll area section
+            upon_clicked: Callback function to execute when a comic is clicked
+            links: Whether the comics are from RSS links (default: False)
+            
+        Returns:
+            QScrollArea: A configured scroll area with comic widgets
+            
+        Creates a scroll area with comic widgets arranged horizontally.
+        Each comic displays a cover image and title, and connects to the
+        provided callback function when clicked.
+        """
         self.file_tree.setRootIndex(self.file_model.index(os.path.expanduser("D://Comics//Marvel")))
         self.file_tree.setMaximumWidth(200)
         self.file_tree.setHeaderHidden(True)
@@ -118,6 +184,67 @@ class HomePage(QMainWindow):
     
     def load_pixmap_from_url(self, url: str) -> QPixmap:
         try:
+        """Open a comic reader for the specified comic.
+        
+        Args:
+            comic: Dictionary containing comic information including filepath
+            
+        """Print a placeholder message.
+        
+        This is a placeholder method for future functionality.
+        """
+        """Create a scroll area for comics marked as continue reading.
+        
+        Args:
+            list_of_comics_marked_as_read: List of comics to display
+            
+        """Create a scroll area for recommended comics.
+        
+        Args:
+            list_of_recommended_comics: List of recommended comics to display
+            
+        """Create a scroll area for comics pending review.
+        
+        Args:
+            list_of_unreviewed_comics: List of unreviewed comics to display
+            
+        """Create a scroll area for RSS feed comics.
+        
+        Returns:
+            QScrollArea: Scroll area populated with recent comics from RSS feed
+            
+        Fetches recent comics from the RSS controller and creates a scroll area
+        with download functionality for each comic.
+        """Create and return a statistics bar widget.
+        
+        Returns:
+            QWidget: A widget containing comic library statistics
+            """Create a single statistic widget.
+            
+            Args:
+                title: The statistic title
+                image_path: Path to the icon image
+                value: The statistic value to display
+                
+            Returns:
+                QWidget: A widget displaying the statistic with title, icon, and value
+            """
+            
+        Creates a horizontal layout with statistics including number of comics
+        and total storage size displayed with icons and values.
+        """
+        """
+        Returns:
+            QScrollArea: Scroll area configured for comics needing review
+        """
+        Returns:
+            QScrollArea: Scroll area configured for recommended comics
+        """
+        Returns:
+            QScrollArea: Scroll area configured for continue reading comics
+        """
+        Creates a ReadingController instance and opens the comic reader.
+        """
             response = requests.get(url, timeout=30)
             response.raise_for_status()
             image_data = BytesIO(response.content)
@@ -141,6 +268,24 @@ class HomePage(QMainWindow):
         layout.setSpacing(16)
         container.setLayout(layout)
 
+        """Update the status bar with a message.
+        
+        Args:
+            message: The message to display in the status bar
+    """Count files and calculate total storage usage in a directory.
+    
+    Args:
+        directory: Path to the directory to analyze
+        
+    Returns:
+        tuple[int, float]: A tuple containing (file_count, total_size_in_gb)
+        
+    Recursively walks through the directory structure, counting all files
+    (excluding symbolic links) and calculating the total size in gigabytes.
+    """
+            
+        Displays the message for 4 seconds in the status bar.
+        """
         title = QLabel(f"{header}")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("font-size: 18px; font-weight: bold; padding: 10px;")

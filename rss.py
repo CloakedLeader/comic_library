@@ -3,15 +3,20 @@ import requests
 from bs4 import BeautifulSoup
 
 def rss_scrape() -> list[dict]:
-    """
-    Scrapes the rss feed of GetComics and returns a list of dictionaries with the following structure:
-    {
-    title: The title of the page on GetComics.
-    link: The link of the article on GetComics.
-    pub_date: The date the article was published on GetComics.
-    summary: The description (or blurb) of the comic, filtered out of the html summary.
-    cover_link: The link to the cover image for display purposes.
-    }
+    """Scrape and process RSS feed data from GetComics website.
+    
+    Fetches the RSS feed, filters comic entries, and extracts relevant
+    information including title, link, publication date, summary, and cover image.
+    
+    Returns:
+        list[dict]: A list of dictionaries containing comic information
+        
+    Each dictionary contains:
+        - title: Comic title
+        - link: Article link  
+        - pub_date: Publication date
+        - summary: Cleaned summary text
+        - cover_link: Cover image URL
     """
     base_url = "https://getcomics.org/feed/"
     feed = feedparser.parse(base_url)
@@ -28,6 +33,25 @@ def rss_scrape() -> list[dict]:
         res = requests.get(entry.get("link"), headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
         soup = BeautifulSoup(res.text, "html.parser")
         meta_tag = soup.find("meta", property="og:image")
+    """Check if a paragraph contains metadata keywords.
+    
+    Args:
+        paragraph: BeautifulSoup paragraph element to check
+        
+    """Clean and extract summary text from HTML formatted string.
+    
+    Removes metadata paragraphs and promotional content to extract
+    the core summary information.
+    
+    Args:
+        html_formatted_string: HTML formatted summary string
+        
+    Returns:
+        str: Cleaned summary text with metadata and promotional content removed
+    """
+    Returns:
+        bool: True if the paragraph contains metadata keywords like 'year' or 'size'
+    """
         image_url = meta_tag.get("content") if meta_tag else None
         entry["cover_link"] = image_url if image_url else None
     return entries
@@ -39,7 +63,29 @@ def is_metadata_paragraph(paragraph: BeautifulSoup) -> bool:
   
 def summary_scrape(html_formatted_string: str) -> str:
     soup = BeautifulSoup(html_formatted_string, "html.parser")
+    """Filter comic entries based on blacklists applied to links and titles.
+    
+    Args:
+        entry: Dictionary containing entry information with 'link' and 'title' keys
+        
+    Returns:
+        bool: True if the entry is a valid comic entry (not blacklisted)
+    """
     paragraphs = soup.find_all("p")
+    """Extract download links from a comic page.
+    
+    Fetches the comic page, parses HTML to find download buttons,
+    and extracts download links with their titles.
+    
+    Args:
+        comic_info: Dictionary containing comic information with 'link' key
+        
+    Returns:
+        list[tuple[str, str]]: List of tuples containing (title, download_url)
+        
+    The function looks for div elements with class "aio-button-center"
+    and extracts download links from anchor tags within them.
+    """
     description_paragraphs = []
     for i, p in enumerate(paragraphs):
         text = p.get_text(strip=True)
