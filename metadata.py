@@ -11,6 +11,7 @@ from io import BytesIO
 from typing import Optional, Tuple, Union
 
 import Levenshtein
+from word2number import w2n
 from fuzzywuzzy import fuzz
 from PIL import Image
 from watchdog.events import FileSystemEventHandler
@@ -343,9 +344,12 @@ def parse_creator(path: str, tag: str) -> list[str]:
     Returns a list of the creators where each entry is a single creator.
 
     Args:
-    path: The filepath of the comic archive to be parsed.
-    tag: The job title of the creator(s) for example:
-        'Writer' or 'Penciller'
+        path: The filepath of the comic archive to be parsed.
+        tag: The job title of the creator(s) for example:
+            'Writer' or 'Penciller'
+
+    Returns:
+        A list of names for all of the creators listed under a certain role.
     """
     creators = easy_parse(path, tag)
     return creators.split(", ")
@@ -358,14 +362,20 @@ def parse_creator(path: str, tag: str) -> list[str]:
 
 def match_publisher(
     a: str,
-) -> int:
+    ) -> int:
     """
     Matches the natural language name of a publisher from metadata
     to an entry in the list of known publishers with numbered keys from the sql table.
     This uses fuzzy matches due to alterations of publisher names.
 
     Args:
-    a: The string extracted from ComicInfo.xml to be matched.
+        a: The string extracted from ComicInfo.xml to be matched.
+
+    Returns:
+        The ID of the best-matching known publisher.
+
+    Raises:
+        KeyError: If no known publisher matches closely enough.
     """
     known_publishers = [
         (1, "Marvel Comics"),
@@ -378,14 +388,15 @@ def match_publisher(
     ]
     best_score = 0
     best_match = None
+    normalised_pub = normalise_publisher(a)
     for pub_id, pub_name in known_publishers:
         score = fuzz.token_set_ratio(
-            normalise_publisher(a), normalise_publisher(pub_name)
+            normalised_pub, normalise_publisher(pub_name)
         )
         if score > best_score:
             best_score = score
             best_match = (pub_id, pub_name)
-    if best_score >= 80:
+    if best_score >= 80 and best_match:
         return best_match[0]
     else:
         raise KeyError(f"Publisher {best_match[0]} not known.")
@@ -405,79 +416,136 @@ series_overrides = [
     ("epic collection", 3),
     ("modern era epic collection", 4),
 ]
+common_title_words = {"volume", "book", "collection"}
 
 
-def title_parsing(path) -> Optional[Tuple[str, int]]:
-    common_titles = {"volume", "book", "collection"}
-    coll_type = None
-    override = False
+def title_parsing(path: str) -> Tuple[str, int]:
+    """
+    Parses the title from the ComicInfo.xml to determine collection type and cleaned series title.
+
+    Args:
+        path: The filepath of the comic archive.
+
+    Returns:
+        A tuple off (clean_title, collection_type_id).
+
+    Raises:
+        ValueError: if the title or collection type cannot be determined.
+    """
     title_raw = parse_title(path)
-    match = re.fullmatch(
-        r"""^volume\s*(\d+|one|two|three|four|five|six|seven|eight|
-        nine|ten|eleven|twelve|thirteen|fourteen|fifteen)$""",
-        title_raw if title_raw is not None else "",
+    if not title_raw:
+        raise ValueError(f"Could not parse title from path: {path}")
+   
+    title_raw = title_raw.lower()
+    title = parse_series(path)
+    if not title:
+        raise ValueError(f"Could not parse series from path: {path}")
+ 
+    for keyword, type_id in series_overrides:
+        if keyword in title_raw:
+            cleaned_title = title_raw.replace(keyword, "").strip(" -:").title()
+            return cleaned_title or title.title(), type_id
+
+
+    match = re.search(
+        r"(volume|book)\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)",
+        title_raw
     )
-    if common_titles in path:
-        # Need logic here
-        return None
     if match:
-        title = parse_series(path)
-        # vol = match.group(1)
-        # if vol.isdigit():
-        #     vol_num = int(vol)
-        # else:
-        #     vol_num = int(w2n.word_to_num(vol))
-        # need to deal with vol_num being None
-    # need to deal with 'volume being in the title
-    if title is None:
-        logging.error("No title found.")
-        return None
-    for f in series_overrides:
-        if f[0] in title:
-            title = title.replace(f[0], "")
-            override = True
-            coll_type = f[1]
-        if coll_type is None:
-            pass
-        # Need to add a function to identify type
-        elif override is False:
-            logging.error("No usuable title, need user input.")
-        # Need to do something here to fix if no title can be found
+        try:
+            cleaned_title = title_raw.replace(match.group(0), "").strip(" -:").title()
+            return cleaned_title or title.title(), 1
+        except ValueError:
+            logging.warning("Volume number couldn't be parsed; falling back to basic title.")
+    return title.title(), 1
+ 
+# ======================
+# Database Inputting
+# =======================
 
 
-def build_dict(path) -> Optional[dict]:
-    dic = dict.fromkeys(
-        [
-            "title",
-            "series",
-            "volume_id",
-            "publisher_id",
-            "release_date",
-            "file_path",
-            "front_cover_path",
-            "description",
-        ]
-    )
+def build_dict(path: str) -> dict:
+    """
+    Builds a metadata dictionary for a comic archive from its ComicInfo.xml file.
+    This data will eventually be pushed to database.
+
+    Args:
+        path: The filepath of the comic archive.
+    
+    Returns:
+        A dictionary of metadata fields to be stored in the main comics table.
+
+    Raises:
+        ValueErrors: if parsing fails to find a corresponding match.
+        KeyErrors: if data cannot be read.
+        
+    """
+    dic = {
+        
+            "title": "",
+            "series": "",
+            "volume_id": "",
+            "publisher_id": "",
+            "release_date": "",
+            "file_path": path,
+            "front_cover_path": "",
+            "description": "",
+            "coll_type_id": "",
+    }
+
     dic["description"] = parse_desc(path)
-    dic["file_path"] = f"{path}"
+
     probable_pub = parse_publisher(path)
     if probable_pub:
-        dic["publisher_id"] = match_publisher(probable_pub)
+        try:
+            dic["publisher_id"] = match_publisher(probable_pub)
+        except KeyError as e:
+            logging.warning(f"Publisher not matched: {e}")
+            dic["publisher_id"] = 0
     else:
-        dic["publisher_id"] = None
-    dic["release_date"] = f"{parse_month(path)}/{parse_year(path)}"
+        dic["publisher_id"] = 0
+
+    try:
+        title, type_id = title_parsing(path)
+        dic["title"] = title
+        dic["series"] = title
+        dic["coll_type_id"] = type_id
+    except ValueError as e:
+        logging.error(f"Title parsing failed: {e}")
+        dic["title"] = "Unknown Title"
+        dic["series"] = "Unknown Series"
+        dic["coll_type_id"] = 0
+
+    try:
+        month = parse_month(path)
+        year = parse_year(path)
+        if month and year:
+            dic["release_date"] = f"{month}/year"   
+        else:
+            raise ValueError("Missing month/year")
+    except Exception as e:
+        logging.warning(f"Date parsing failed: {e}")
+        dic["release_date"] = "01/2000"
+
     return dic
 
 
-def dic_into_db(my_dic) -> None:
+def dic_into_db(my_dic: dict) -> None:
+    """
+    First checks to see if the input has any blank fields.
+    If not it inputs them into the database.
+
+    Args:
+    my_dic: A metadata dictionary following the structure layed out in
+    build_dic.
+    """
     conn = sqlite3.connect("comics.db")
     cursor = conn.cursor()
-    # ready_or_not = True
+
     for value in my_dic:
         if value is None:
-            logging.warning(
-                "Missing some information"
-            )  # Need to trigger another function or re-tag
+            raise ValueError("Dictionary not complete.")
+            # Need to trigger another function or re-tag
         else:
             cursor.execute(
                 """
@@ -490,16 +558,44 @@ def dic_into_db(my_dic) -> None:
             )
     conn.commit()
     conn.close()
+    return None
 
 
-# Watchdog stuff:
+# ===================
+# Watchdog Module
+# ===================
 
 path_to_obs = os.getenv("PATH_TO_WATCH")
 
 
 class DownloadsHandler(FileSystemEventHandler):
+    """
+    Watches a directory for new files and processes them when they appear.
 
-    def on_created(self, event):
+    Attributes:
+        None
+
+    Methods:
+        on_created(event): Triggered when a file is created. Waits until file
+    is stable then processes it.
+        on_moved(event): Triggered when a file is moved. Handles processing 
+    if moved to the watched folder.
+        on_deleted(event): Triggered when a file is deleted.
+        is_file_ready(filepath, stable_time, check_interval): Checks if a file has
+    stopped changing size to ensure it's fully written.
+        process_file(path, dest_path_temp): Moves a stable file to a destination, 
+    renaming if needed.
+        handle_new_file(path): Inserts a new comic into the database and converts
+    formats if necessary.
+    """
+
+    def on_created(self, event: FileSystemEventHandler) -> None:
+        """
+        Called when a new file is created in the watched directory.
+
+        Args:
+            event(FileSystemEvent): The file system event triggered.
+        """
         if event.is_directory:
             return
 
@@ -523,19 +619,45 @@ class DownloadsHandler(FileSystemEventHandler):
         except Exception as e:
             logging.error(f"Error processing file {filepath}: {e}")
 
-    def on_moved(self, event):
+    def on_moved(self, event: FileSystemEventHandler) -> None:
+        """
+        Called when a file is moved.
+
+        Args:
+            event(FileSystemEvent): The file system move event.
+        """
         if event.dest_path == path_to_obs:
             if not event.is_directory:
                 file_path = event.src_path
                 logging.debug(f"New file detected: {file_path}")
                 self.handle_new_file(file_path)
-        else:
-            pass
 
-    def on_deleted(self, event):
+    def on_deleted(self, event: FileSystemEventHandler) -> None:
+        """
+        Called when a file is deleted.
+
+        Args:
+            event (FileSystemEvent): The file system delete event.
+        """
         logging.debug(f"Detected a file deletion: {event.src_path}")
 
-    def is_file_ready(self, filepath, stable_time=5, check_interval=1):
+    def is_file_ready(
+        self, 
+        filepath: str, 
+        stable_time: int = 5, 
+        check_interval: int = 1
+        ) -> bool:
+        """
+        Checks to see if the file size has stabilised over time, indicating it's fully written.
+
+        Args:
+            filepath: Path to newly detected file.
+            stable_time: Number of consectutive stable intervals before confirming readiness.
+            check_interval: The number of seconds to wait between intervals.
+
+        Returns:
+            bool: True if file is stable and ready to be moved, False otherwise.
+        """
         prev_size = -1
         stab_counter = 0
         while stab_counter < stable_time:
@@ -555,7 +677,15 @@ class DownloadsHandler(FileSystemEventHandler):
 
         return True
 
-    def process_file(self, path, dest_path_temp):
+    def process_file(self, path: str, dest_path_temp: str) -> None:
+        """
+        Moves the processed file to a target directory, renaming it if the file
+        name is already taken.
+
+        Args:
+            path: Path to newly detected file to be moved.
+            dest_path_temp: Target destination directory. 
+        """
         filename = os.path.basename(path)
 
         if os.path.exists(dest_path_temp):
@@ -568,7 +698,14 @@ class DownloadsHandler(FileSystemEventHandler):
         shutil.move(path, dest_path)
         logging.info(f"Moved file to library: {dest_path}")
 
-    def handle_new_file(self, path):
+    def handle_new_file(self, path: str) -> Optional[Tuple[int]]:
+        """
+        Handles newly deteced files by inserting them into the database
+        and converting format if needed.
+
+        Args:
+            path: Path of the newly detected file.
+        """
         if is_comic(path):
             if get_ext(path) == ".cbr":
                 path = convert_cbz(path)
@@ -578,8 +715,8 @@ class DownloadsHandler(FileSystemEventHandler):
             cursor.execute(
                 f"""
                 INSERT INTO comics (title, file_path)
-                VALUES ({get_name(path)}, {path})
-                            """
+                VALUES (?, ?)
+            """, (get_name(path), path)
             )
             comic_id = cursor.lastrowid
             if comic_id:
