@@ -8,7 +8,7 @@ import time
 import xml.etree.ElementTree as ET
 import zipfile
 from io import BytesIO
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 import Levenshtein
 from fuzzywuzzy import fuzz
@@ -25,50 +25,70 @@ logging.basicConfig(
 )
 
 
-def find_credit_pages(path: str) -> Tuple[str, str] | None:
-    if get_ext(path) == ".cbz":
-        with zipfile.ZipFile(path, "r") as arch:
-            image_files = [
-                f
-                for f in arch.namelist()
-                if f.lower().endswith((".jpg", ".jpeg", ".png"))
-            ]
-            if not image_files:
-                logging.error("Empty Archive.")
-                return None
-            image_files.sort(key=sort_imgs)
-            common_files_index = int(len(image_files) * 0.4)
-            early_files = image_files[:common_files_index]
-            file_paths_to_compare = random.sample(early_files, min(5, len(early_files)))
-            last_files = image_files[-3:]
-            not_matching_file = set()
-            for j in last_files:
-                for k in file_paths_to_compare:
-                    dist = Levenshtein.distance(j, k)
-                    if dist > 10:
-                        not_matching_file.add(j)
-            not_matching_file_list = list(not_matching_file)
-            if len(not_matching_file_list) == 1:
-                return path, not_matching_file_list[0]
-            else:
-                logging.info("No credit pages found!")
-                return None
+def find_credit_pages(path: str) -> Tuple[str, str]:
+    """
+    Searches for comic ripper pages among the image files. 
+    Identifies comic ripper pages by filenames that are very different
+    from the names of the first 40% of files. 
+
+    Args:
+        path: The filepath of the comic archive.
+
+    Raises:
+        ValueError: if there are no images found in the archive on filepath.
+
+    Returns a tuple with first entry always the same path variable
+    and second is either the name of the credit page or an empty string.
+    """
+    with zipfile.ZipFile(path, "r") as arch:
+        image_files = [
+            f
+            for f in arch.namelist()
+            if f.lower().endswith((".jpg", ".jpeg", ".png"))
+        ]
+        if not image_files:
+            raise ValueError("Empty archive: no image files found.")
+        
+        image_files.sort()
+        common_files_index = int(len(image_files) * 0.4)
+        early_files = image_files[:common_files_index]
+        file_paths_to_compare = random.sample(early_files, min(5, len(early_files)))
+        last_files = image_files[-3:]
+        not_matching_file = {
+            j for j in last_files
+            for k in file_paths_to_compare
+            if Levenshtein.distance(j, k) > 10
+        }
+        if len(not_matching_file) == 1:
+            return path, list(not_matching_file)[0]
+        else:
+            logging.info("No credit pages found!")
+            return path, ""
 
 
 def pad(n: int) -> str:
     return f"{n:04}" if n < 1000 else str(n)
 
 
-def sort_imgs(filename: str) -> Optional[int]:
-    numbers = re.findall(r"\d+", filename)
-    return int(numbers[-1]) if numbers else -1
+# NEED TO WORK ON THIS FUNCTION
+
+# def sort_imgs(filename: str) -> int:
+#     numbers = re.findall(r"\d+", filename)
+#     return int(numbers[-1]) if numbers else -1
 
 
 def get_comicid_from_path(
     path: str,
-) -> Optional[int]:
-    # Takes a file path as an argument and returns the primary key id
+    ) -> int:
+    """
+    Finds the ID of the comic in the database from its filepath.
 
+    Args:
+        path: the filepath of the comic archive to be searched against.
+
+    Raises:
+        LookupError: if the comic is not found in the database.
+    """
     conn = sqlite3.connect("comics.db")
     cursor = conn.cursor()
     cursor.execute("SELECT id FROM comics WHERE path = {}".format(path))
@@ -77,24 +97,22 @@ def get_comicid_from_path(
     if result:
         return result[0]
     else:
-        logging.error("Could not find reference to file path in database.")
-        return None
-
+        raise LookupError(f"No comic found in database for path: {path}")
 
 download_path = os.getenv("DEST_FILE_PATH")
 
 
 def save_cover(id: int, bytes: bytes, out_dir: str = download_path) -> Tuple[str, str]:
     """
-    Saves two copies of the same image with different sizes.
+    Saves two copies of the same image with different sizes and suffixes to their filename.
 
-    Parameters:
-    id (int): The primary key id of the comic.
-    bytes (bytes): The raw data of the cover image.
-    out_dir (str): The output directory.
+    Args:
+        id: The primary key id of the comic from the database.
+        bytes: The raw data of the cover image.
+        out_dir: The output directory.
 
     Returns:
-    tuple: A tuple containing the file path of two images (smaller, bigger).
+        A tuple containing the file path of two images (smaller, bigger).
     """
     t_height = 400
     b_height = 800
@@ -130,76 +148,79 @@ def save_cover(id: int, bytes: bytes, out_dir: str = download_path) -> Tuple[str
     return file_dic["thumbnail"][1], file_dic["browser"][1]
 
 
-def find_cover(path: str) -> Optional[None]:
+def find_cover(path: str, out_dir: str) -> None:
     """
-    Finds the cover image of a comic and saves two copies
-    of it and puts their file paths to the database.
+    Finds the cover image of a comic and saves two copies of different sizes
+    of it to disk.
 
-    Parameter:
-    path (str): The file path of the comic
+    Args:
+        path: The filepath of the comic archive.
+        out_dir: The filepath of the directory containing all the thumbnail images.
     """
-    if get_ext(path) == ".cbz":
-        with zipfile.ZipFile(path, "r") as zip_ref:
-            image_files = [
-                f
-                for f in zip_ref.namelist()
-                if f.lower().endswith((".jpg", ".jpeg", ".png"))
-            ]
-            if not image_files:
-                logging.error("Empty archive.")
-                return
-            cover_files = [
-                f
-                for f in image_files
-                if os.path.splitext(os.path.basename(f))[0].lower() == "cover"
-            ]
-            if cover_files:
-                first_image = zip_ref.read(cover_files[0])
-            else:
-                image_files.sort(key=sort_imgs)
-                first_image = zip_ref.read(image_files[0])
-        out = save_cover(path, first_image)
-        # Need to make another column to store paths for both cover image sizes
-        # Need to move the database logic elsewhere.
-        conn = sqlite3.connect("comics.db")
-        cursor = conn.cursor()
-        cursor.execute(
-            f""" UPDATE comics
-                        SET front_cover_path_t = {out[0]},
-                        front_cover_path_b = {out[1]}
-                        WHERE id = {get_comicid_from_path(path)}
-                    """
-        )
-        conn.commit()
-        conn.close()
-
-    else:
-        logging.error("Need to convert to cbz first!")
-        return
+    comicid = get_comicid_from_path(path)
+    with zipfile.ZipFile(path, "r") as zip_ref:
+        image_files = [
+            f
+            for f in zip_ref.namelist()
+            if f.lower().endswith((".jpg", ".jpeg", ".png"))
+        ]
+        if not image_files:
+            raise ValueError("Empty archive: no image files found.")
+        cover_files = [
+            f
+            for f in image_files
+            if os.path.splitext(os.path.basename(f))[0].lower() == "cover"
+        ]
+        if cover_files:
+            first_image = zip_ref.read(cover_files[0])
+        else:
+            image_files.sort()
+            first_image = zip_ref.read(image_files[0])
+        save_cover(comicid, first_image, out_dir)
 
 
 def find_metadata(path: str) -> ET.Element:
-    try:
-        with zipfile.ZipFile(path, "r") as cbz:
-            cbz.getinfo("ComicInfo.xml")
-            with cbz.open("ComicInfo.xml") as xml_file:
-                tree = ET.parse(xml_file)
-                root = tree.getroot()
-                return (root, None)
-    except zipfile.BadZipFile:
-        return (None, "Not a valid CBZ/ZIP file.")
-    except FileNotFoundError:
-        return (None, "File not found.")
-    except Exception as e:
-        return (None, f"Unexpected error: {e}")
+    """
+    Extracts and parses the ComicInfo.xml metadata file from an archive.
+
+    Args:
+        path: The filepath of the comic archive file.
+
+    Returns:
+        The root element of the parsed ComicInfo.xml file.
+
+    Raises:
+        zipfile.BadZipFile: If the file is not a valid ZIP archive.
+        FileNotFoundError: If the file is not found.
+        KeyError: If ComicInfo.xml is not found in the archive.
+        ET.ParseError: If ComicInfo.xml is not valid XML.
+        Any other exceptions encountered during file access/parsing.
+    """
+    with zipfile.ZipFile(path, "r") as cbz:
+        with cbz.open("ComicInfo.xml") as xml_file:
+            tree = ET.parse(xml_file)
+            return tree.getroot()
 
 
-def get_text(root, tag: str) -> Optional[str]:
+def get_text(root: ET.Element, tag: str) -> str:
+    """
+    Searches for results under the tag given. Returns the stripped lowercase content.
+
+    Args:
+        root: The base of the xml tree (where pretty much all the data is).
+        tag: The section to search for (e.g. writer, summary etc).
+    
+    Returns:
+        The lowercase, stripped text from the tag.
+
+    Raises:
+        KeyError: If the tag is missing or has no text content.
+    """
     element = root.find(tag)
     if element is not None and element.text:
         return element.text.strip().lower()
     else:
-        logging.error("No metadata under {tag} tag.")
+        raise KeyError(f"No info inside tag: {tag}.")
 
 
 def normalise_publisher(name: str) -> str:
@@ -252,11 +273,7 @@ def has_metadata(path: str, required: list = required_fields) -> bool:
 # =================================================
 
 
-def easy_parse(
-    path: str, field: str, as_type: type = str
-    ) -> Union[
-    str, int
-    ]: 
+def easy_parse(path: str, field: str, as_type: type = str) -> Union[str, int]:
     """
     Returns metadata from the corresponding field by parsing an XML tree.
     Assumes ComicInfo.xml has already been verified to exist and be readable.
@@ -264,7 +281,7 @@ def easy_parse(
     Args:
     path: The filepath of the comic archive file.
     field: The name of the metadata field.
-    as_type: The type that the metadata must be returned as. 
+    as_type: The type that the metadata must be returned as.
             Required as all metadata fields are strings by default
             but some must be integers.
 
@@ -272,17 +289,19 @@ def easy_parse(
     The metadata inside that field, either a string or integer.
     Never type None.
     """
-    root, _ = find_metadata(path)
-    text = get_text(root, field)
+    root = find_metadata(path)
+
+    text = get_text(root, field) # Need to add try loop here.
     if text is None:
         raise KeyError(f"Field '{field}' not found in metadata.")
-    
+
     try:
         return as_type(text)
     except ValueError as e:
         raise TypeError(
             f"Could not convert field '{field}' to {as_type.__name__}"
         ) from e
+
 
 def parse_desc(path: str) -> str:
     # Returns the summary or raises errors.
@@ -319,9 +338,7 @@ def parse_title(path: str) -> str:
     return easy_parse(path, "Title")
 
 
-def parse_creator(
-    path: str, tag: str
-    ) -> list[str]:
+def parse_creator(path: str, tag: str) -> list[str]:
     """
     Returns a list of the creators where each entry is a single creator.
 
@@ -333,6 +350,7 @@ def parse_creator(
     creators = easy_parse(path, tag)
     return creators.split(", ")
 
+
 # ===========================================
 # Advanced parsing that requires extra logic
 # ===========================================
@@ -340,12 +358,12 @@ def parse_creator(
 
 def match_publisher(
     a: str,
-    ) -> int: 
+) -> int:
     """
     Matches the natural language name of a publisher from metadata
     to an entry in the list of known publishers with numbered keys from the sql table.
     This uses fuzzy matches due to alterations of publisher names.
-    
+
     Args:
     a: The string extracted from ComicInfo.xml to be matched.
     """
