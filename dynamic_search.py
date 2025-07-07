@@ -153,8 +153,8 @@ def parse_search_query(user_input: str) -> str:
         "#": "tags",
         "&": "publisher",
         "char:": "characters",
-        "cre::": "creators",
-        "ser::": "series",
+        "cre:": "creators",
+        "ser:": "series",
         "gen:": "genre"
     }
 
