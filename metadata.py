@@ -8,7 +8,7 @@ import time
 import xml.etree.ElementTree as ET
 import zipfile
 from io import BytesIO
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 import Levenshtein
 from fuzzywuzzy import fuzz
@@ -252,11 +252,7 @@ def has_metadata(path: str, required: list = required_fields) -> bool:
 # =================================================
 
 
-def easy_parse(
-    path: str, field: str, as_type: type = str
-    ) -> Union[
-    str, int
-    ]: 
+def easy_parse(path: str, field: str, as_type: type = str) -> Union[str, int]:
     """
     Returns metadata from the corresponding field by parsing an XML tree.
     Assumes ComicInfo.xml has already been verified to exist and be readable.
@@ -264,7 +260,7 @@ def easy_parse(
     Args:
     path: The filepath of the comic archive file.
     field: The name of the metadata field.
-    as_type: The type that the metadata must be returned as. 
+    as_type: The type that the metadata must be returned as.
             Required as all metadata fields are strings by default
             but some must be integers.
 
@@ -276,13 +272,14 @@ def easy_parse(
     text = get_text(root, field)
     if text is None:
         raise KeyError(f"Field '{field}' not found in metadata.")
-    
+
     try:
         return as_type(text)
     except ValueError as e:
         raise TypeError(
             f"Could not convert field '{field}' to {as_type.__name__}"
         ) from e
+
 
 def parse_desc(path: str) -> str:
     # Returns the summary or raises errors.
@@ -319,9 +316,7 @@ def parse_title(path: str) -> str:
     return easy_parse(path, "Title")
 
 
-def parse_creator(
-    path: str, tag: str
-    ) -> list[str]:
+def parse_creator(path: str, tag: str) -> list[str]:
     """
     Returns a list of the creators where each entry is a single creator.
 
@@ -333,6 +328,7 @@ def parse_creator(
     creators = easy_parse(path, tag)
     return creators.split(", ")
 
+
 # ===========================================
 # Advanced parsing that requires extra logic
 # ===========================================
@@ -340,12 +336,12 @@ def parse_creator(
 
 def match_publisher(
     a: str,
-    ) -> int: 
+) -> int:
     """
     Matches the natural language name of a publisher from metadata
     to an entry in the list of known publishers with numbered keys from the sql table.
     This uses fuzzy matches due to alterations of publisher names.
-    
+
     Args:
     a: The string extracted from ComicInfo.xml to be matched.
     """

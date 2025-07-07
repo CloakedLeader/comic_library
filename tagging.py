@@ -300,7 +300,9 @@ def run_lexer(lex: Lexer) -> Optional[LexerFunc]:
         if lex.peek().isnumeric():
             return lex_issue_number
         else:
-            return errorf(lex, "expected number after #")
+            errorf(lex, "expected number after #")
+            # Not sure what to return here either, probably run_lexer.
+            return
 
     elif r.lower() == "v":
         if lex.peek().isdigit():
@@ -368,7 +370,7 @@ def run_lexer(lex: Lexer) -> Optional[LexerFunc]:
         return run_lexer
     else:
         errorf(lex, f"unexpected character: {r}")
-        return
+        return run_lexer
 
 
 def lex_space(lex: Lexer) -> LexerFunc:
@@ -404,7 +406,9 @@ def lex_text(lex: Lexer) -> LexerFunc:
 def lex_number(lex: Lexer) -> LexerFunc | None:
     # Attempt to scan number from current position
     if not lex.scan_number():
-        return errorf(lex, "bad number syntax: " + lex.input[lex.start : lex.pos])
+        errorf(lex, "bad number syntax: " + lex.input[lex.start : lex.pos])
+        # Not sure what to return here.
+        return 
 
     # Handle ordinal or letter suffixes (e.g. '80th' or '20s')
     if lex.pos < len(lex.input) and lex.input[lex.pos].isalpha():
@@ -546,8 +550,8 @@ def cal(word: str) -> bool:
     return bool(re.fullmatch(r"\d{4}", word) or re.fullmatch(r"\d{4}s", word))
 
 
-def lex(filename: str, allow_issue_start_with_letter: bool = False) -> Lexer:
-    lex = Lexer(os.path.basename(filename), allow_issue_start_with_letter)
+def lex(filename: str) -> Lexer:
+    lex = Lexer(os.path.basename(filename))
     lex.run()
     return lex
 
@@ -566,7 +570,7 @@ class RequestData:
         year: int,
         series: str,
         title: str,
-        publisher: str = None,
+        publisher: str|None = None,
     ):
         self.series = series
         self.title = title
@@ -815,11 +819,11 @@ class ResponseValidator:
 
 
 class TaggingPipeline:
-    def __init__(self, data: RequestData, path: str, size: float) -> None:
+    def __init__(self, data: RequestData, path: str, size: float, api_key: str) -> None:
         self.data = data
         self.path = path
         self.size = size
-        self.http = HttpRequest(data)
+        self.http = HttpRequest(data, api_key)
         self.validator = None
         self.cover = self.cover_getter()
         self.coverhashes = self.cover_hasher()
