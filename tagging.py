@@ -303,7 +303,6 @@ def run_lexer(lex: Lexer) -> Optional[LexerFunc]:
             errorf(lex, "expected number after #")
             return run_lexer
 
-
     elif r.lower() == "v":
         if lex.peek().isdigit():
             return lex_volume_number
