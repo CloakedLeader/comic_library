@@ -301,8 +301,8 @@ def run_lexer(lex: Lexer) -> Optional[LexerFunc]:
             return lex_issue_number
         else:
             errorf(lex, "expected number after #")
-            # Not sure what to return here either, probably run_lexer.
-            return
+            return run_lexer
+
 
     elif r.lower() == "v":
         if lex.peek().isdigit():
@@ -407,8 +407,7 @@ def lex_number(lex: Lexer) -> LexerFunc | None:
     # Attempt to scan number from current position
     if not lex.scan_number():
         errorf(lex, "bad number syntax: " + lex.input[lex.start : lex.pos])
-        # Not sure what to return here.
-        return 
+        return run_lexer
 
     # Handle ordinal or letter suffixes (e.g. '80th' or '20s')
     if lex.pos < len(lex.input) and lex.input[lex.pos].isalpha():
@@ -570,7 +569,7 @@ class RequestData:
         year: int,
         series: str,
         title: str,
-        publisher: str|None = None,
+        publisher: str | None = None,
     ):
         self.series = series
         self.title = title
