@@ -17,14 +17,17 @@ class TestGetText(unittest.TestCase):
         )
 
     def test_missing_tag(self):
-        xml = """<ComicInfo><Writer>Alan Moore</Writer><EmptyTag></EmptyTag></ComicInfo>"""
-        self.dummy_root = ET.fromstring(xml)
+        xml = """<ComicInfo><Writer>Alan Moore</Writer>
+        <EmptyTag></EmptyTag></ComicInfo>"""
+        dummy_root = ET.fromstring(xml)
         with self.assertRaises(KeyError):
-            get_text(xml, "Penciller")
+            get_text(dummy_root, "Penciller")
 
     def test_empty_tag(self):
+        xml = """<ComicInfo><Writer>Alan Moore</Writer><EmptyTag></EmptyTag></ComicInfo>"""
+        dummy_root = ET.fromstring(xml)
         with self.assertRaises(KeyError):
-            get_text(self.dummy_root, "EmptyTag")
+            get_text(dummy_root, "EmptyTag")
 
 
 class TestFindMetadata(unittest.TestCase):
@@ -45,7 +48,7 @@ class TestFindMetadata(unittest.TestCase):
     def test_invalid_zip(self):
         with self.assertRaises(zipfile.BadZipFile):
             find_metadata(self.invalid_cbz)
- 
+
     def test_missing_file(self):
         with self.assertRaises(FileNotFoundError):
             find_metadata("missing.cbz")
@@ -54,6 +57,6 @@ class TestFindMetadata(unittest.TestCase):
         path = "noinfo.cbz"
         with zipfile.ZipFile(path, "w") as z:
             z.writestr("NotComicInfo.xml", "<root></root>")
-        with self.asserRaises(KeyError):
+        with self.assertRaises(KeyError):
             find_metadata(path)
         os.remove(path)

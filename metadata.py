@@ -11,7 +11,6 @@ from io import BytesIO
 from typing import Optional, Tuple, Union
 
 import Levenshtein
-from word2number import w2n
 from fuzzywuzzy import fuzz
 from PIL import Image
 from watchdog.events import FileSystemEventHandler
@@ -92,7 +91,7 @@ def get_comicid_from_path(
     """
     conn = sqlite3.connect("comics.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT id FROM comics WHERE path = {}".format(path))
+    cursor.execute("SELECT id FROM comics WHERE path = ?", (path,))
     result = cursor.fetchone()
     conn.close()
     if result:
@@ -292,9 +291,7 @@ def easy_parse(path: str, field: str, as_type: type = str) -> Union[str, int]:
     """
     root = find_metadata(path)
 
-    text = get_text(root, field) # Need to add try loop here.
-    if text is None:
-        raise KeyError(f"Field '{field}' not found in metadata.")
+    text = get_text(root, field)
 
     try:
         return as_type(text)
@@ -399,7 +396,7 @@ def match_publisher(
     if best_score >= 80 and best_match:
         return best_match[0]
     else:
-        raise KeyError(f"Publisher {best_match[0]} not known.")
+        raise KeyError(f"Publisher {a} not known.")
 
 
 # use Amazing Spider-Man Modern Era Epic Collection: Coming Home
@@ -542,9 +539,9 @@ def dic_into_db(my_dic: dict) -> None:
     conn = sqlite3.connect("comics.db")
     cursor = conn.cursor()
 
-    for value in my_dic:
+    for key, value in my_dic.items():
         if value is None:
-            raise ValueError("Dictionary not complete.")
+            raise ValueError(f"Dictionary field '{key}' is None.")
             # Need to trigger another function or re-tag
         else:
             cursor.execute(
