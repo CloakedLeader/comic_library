@@ -1,20 +1,20 @@
+import os
 import unittest
 import xml.etree.ElementTree as ET
-import os
 import zipfile
-from metadata import get_text, find_metadata
+
+from metadata import find_metadata, get_text
 
 
 class TestGetText(unittest.TestCase):
     def setUp(self):
-        self.root = find_metadata(r"D:\comic_library\comic_examples\Juggernaut "
-        "- No Stopping Now TPB (March 2021).cbz")
+        self.root = find_metadata(
+            r"D:\comic_library\comic_examples\Juggernaut "
+            "- No Stopping Now TPB (March 2021).cbz"
+        )
 
     def test_valid_tag(self):
-        self.assertEqual(
-            get_text(self.root, "Writer"),
-            "fabian nicieza"
-        )
+        self.assertEqual(get_text(self.root, "Writer"), "fabian nicieza")
 
     def test_missing_tag(self):
         xml = """<ComicInfo><Writer>Alan Moore</Writer>
@@ -32,8 +32,10 @@ class TestGetText(unittest.TestCase):
 
 class TestFindMetadata(unittest.TestCase):
     def setUp(self):
-        self.valid_cbz = r"D:\comic_library\comic_examples\Juggernaut" \
-        " - No Stopping Now TPB (March 2021).cbz"
+        self.valid_cbz = (
+            r"D:\comic_library\comic_examples\Juggernaut"
+            " - No Stopping Now TPB (March 2021).cbz"
+        )
         self.invalid_cbz = r"D:\comic_library\comic_examples\bad.cbz"
         with open(self.invalid_cbz, "w") as f:
             f.write("not a zip file")
