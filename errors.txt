@@ -1,0 +1,190 @@
+$ pre-commit run --all-files
+trim trailing whitespace.................................................Failed
+- hook id: trailing-whitespace
+- exit code: 1
+- files were modified by this hook
+
+Fixing metadata.py
+
+fix end of files.........................................................Passed
+check yaml...............................................................Passed
+check for added large files..............................................Passed
+check for merge conflicts................................................Passed
+black....................................................................Failed
+- hook id: black
+- files were modified by this hook
+
+reformatted reader.py
+reformatted main.py
+reformatted metadata.py
+
+All done! \u2728 \U0001f370 \u2728
+3 files reformatted, 10 files left unchanged.
+
+isort (python import sorter).............................................Failed
+- hook id: isort
+- files were modified by this hook
+
+Fixing D:\comic_library\main.py
+Fixing D:\comic_library\reader.py
+
+flake8...................................................................Failed
+- hook id: flake8
+- exit code: 1
+
+metadata.py:11:1: F401 'typing.List' imported but unused
+
+mypy.....................................................................Failed
+- hook id: mypy
+- exit code: 1
+
+rss.py:2: error: Library stubs not installed for "requests"  [import-untyped]
+download_controller.py:6: error: Library stubs not installed for "aiofiles"  [import-untyped]
+download_controller.py:6: note: Hint: "python3 -m pip install types-aiofiles"
+download_controller.py:6: note: (or run "mypy --install-types" to install all missing stub packages)
+download_controller.py:6: note: See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
+download_controller.py:8: error: Library stubs not installed for "requests"  [import-untyped]
+download_controller.py:8: note: Hint: "python3 -m pip install types-requests"
+metadata.py:28: error: Missing return statement  [return]
+metadata.py:39: error: Argument "key" to "sort" of "list" has incompatible type "Callable[[str], int | None]"; expected "Callable[[str], SupportsDunderLT[Any] | SupportsDunderGT[Any]]"  [arg-type]
+metadata.py:87: error: Incompatible default for argument "out_dir" (default has type "str | None", argument has type "str")  [assignment]
+metadata.py:126: error: Incompatible types in assignment (expression has type "tuple[bytes, str]", variable has type "bytes")  [assignment]
+metadata.py:128: error: Argument 1 to "write" of "BufferedWriter" has incompatible type "int"; expected "Buffer"  [arg-type]
+metadata.py:159: error: Argument "key" to "sort" of "list" has incompatible type "Callable[[str], int | None]"; expected "Callable[[str], SupportsDunderLT[Any] | SupportsDunderGT[Any]]"  [arg-type]
+metadata.py:161: error: Argument 1 to "save_cover" has incompatible type "str"; expected "int"  [arg-type]
+metadata.py:188: error: Incompatible return value type (got "tuple[Element | Any, None]", expected "Element")  [return-value]
+metadata.py:190: error: Incompatible return value type (got "tuple[None, str]", expected "Element")  [return-value]
+metadata.py:192: error: Incompatible return value type (got "tuple[None, str]", expected "Element")  [return-value]
+metadata.py:194: error: Incompatible return value type (got "tuple[None, str]", expected "Element")  [return-value]
+metadata.py:197: error: Missing return statement  [return]
+metadata.py:238: error: Item "None" of "str | Any | None" has no attribute "strip"  [union-attr]
+metadata.py:286: error: Incompatible return value type (got "str | int", expected "str")  [return-value]
+metadata.py:291: error: Incompatible return value type (got "str | int", expected "str")  [return-value]
+metadata.py:296: error: Incompatible return value type (got "str | int", expected "int")  [return-value]
+metadata.py:301: error: Incompatible return value type (got "str | int", expected "int")  [return-value]
+metadata.py:306: error: Incompatible return value type (got "str | int", expected "int")  [return-value]
+metadata.py:311: error: Incompatible return value type (got "str | int", expected "str")  [return-value]
+metadata.py:316: error: Incompatible return value type (got "str | int", expected "str")  [return-value]
+metadata.py:329: error: Item "int" of "str | int" has no attribute "split"  [union-attr]
+metadata.py:367: error: Value of type "tuple[int, str] | None" is not indexable  [index]
+metadata.py:369: error: Value of type "tuple[int, str] | None" is not indexable  [index]
+metadata.py:388: error: Missing return statement  [return]
+main.py:6: error: Library stubs not installed for "requests"  [import-untyped]
+tagging.py:11: error: Library stubs not installed for "requests"  [import-untyped]
+tagging.py:303: error: "errorf" does not return a value (it only ever returns None)  [func-returns-value]
+tagging.py:371: error: Return value expected  [return-value]
+tagging.py:407: error: "errorf" does not return a value (it only ever returns None)  [func-returns-value]
+tagging.py:550: error: Too many positional arguments for "Lexer"  [misc]
+tagging.py:569: error: Incompatible default for argument "publisher" (default has type "None", argument has type "str")  [assignment]
+tagging.py:569: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+tagging.py:569: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+tagging.py:822: error: Missing positional argument "api_key" in call to "HttpRequest"  [call-arg]
+Found 35 errors in 5 files (checked 13 source files)
+
+bandit...................................................................Failed
+- hook id: bandit
+- exit code: 1
+
+[main]  INFO    profile include tests: None
+[main]  INFO    profile exclude tests: None
+[main]  INFO    cli include tests: None
+[main]  INFO    cli exclude tests: None
+[main]  INFO    running on Python 3.13.3
+Run started:2025-07-07 14:27:00.782476
+
+Test results:
+>> Issue: [B405:blacklist] Using xml.etree.ElementTree to parse untrusted XML data is known to be vulnerable to XML attacks. Replace xml.etree.ElementTree with the equivalent defusedxml package, or make sure defusedxml.defuse_stdlib() is called.
+   Severity: Low   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/0.0.0/blacklists/blacklist_imports.html#b405-import-xml-etree
+   Location: .\metadata.py:8:0
+7       import time
+8       import xml.etree.ElementTree as ET
+9       import zipfile
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/0.0.0/plugins/b608_hardcoded_sql_expressions.html
+   Location: .\metadata.py:74:19
+73          cursor = conn.cursor()
+74          cursor.execute("SELECT id FROM comics WHERE path = {}".format(path))
+75          result = cursor.fetchone()
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/0.0.0/plugins/b608_hardcoded_sql_expressions.html
+   Location: .\metadata.py:167:16
+166             cursor.execute(
+167                 f""" UPDATE comics
+168                             SET front_cover_path_t = {out[0]},
+169                             front_cover_path_b = {out[1]}
+170                             WHERE id = {get_comicid_from_path(path)}
+171                         """
+172             )
+
+--------------------------------------------------
+>> Issue: [B314:blacklist] Using xml.etree.ElementTree.parse to parse untrusted XML data is known to be vulnerable to XML attacks. Replace xml.etree.ElementTree.parse with its defusedxml equivalent function or make sure defusedxml.defuse_stdlib() is called
+   Severity: Medium   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/0.0.0/blacklists/blacklist_calls.html#b313-b320-xml-bad-elementtree
+   Location: .\metadata.py:186:23
+185                 with cbz.open("ComicInfo.xml") as xml_file:
+186                     tree = ET.parse(xml_file)
+187                     root = tree.getroot()
+
+--------------------------------------------------
+>> Issue: [B314:blacklist] Using xml.etree.ElementTree.parse to parse untrusted XML data is known to be vulnerable to XML attacks. Replace xml.etree.ElementTree.parse with its defusedxml equivalent function or make sure defusedxml.defuse_stdlib() is called
+   Severity: Medium   Confidence: High
+   CWE: CWE-20 (https://cwe.mitre.org/data/definitions/20.html)
+   More Info: https://bandit.readthedocs.io/en/0.0.0/blacklists/blacklist_calls.html#b313-b320-xml-bad-elementtree
+   Location: .\metadata.py:233:23
+232                 with cbz.open("ComicInfo.xml") as file:
+233                     tree = ET.parse(file)
+234                     root = tree.getroot()
+
+--------------------------------------------------
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
+   Severity: Medium   Confidence: Medium
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/0.0.0/plugins/b608_hardcoded_sql_expressions.html
+   Location: .\metadata.py:557:20
+556                 cursor.execute(
+557                     f"""
+558                     INSERT INTO comics (title, file_path)
+559                     VALUES ({get_name(path)}, {path})
+560                                 """
+561                 )
+
+--------------------------------------------------
+>> Issue: [B113:request_without_timeout] Requests call without timeout
+   Severity: Medium   Confidence: Low
+   CWE: CWE-400 (https://cwe.mitre.org/data/definitions/400.html)
+   More Info: https://bandit.readthedocs.io/en/0.0.0/plugins/b113_request_without_timeout.html
+   Location: .\tagging.py:672:23
+671             try:
+672                 response = requests.get(url)
+673                 response.raise_for_status()
+
+--------------------------------------------------
+
+Code scanned:
+        Total lines of code: 2044
+        Total lines skipped (#nosec): 0
+        Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 0
+
+Run metrics:
+        Total issues (by severity):
+                Undefined: 0
+                Low: 1
+                Medium: 6
+                High: 0
+        Total issues (by confidence):
+                Undefined: 0
+                Low: 1
+                Medium: 3
+                High: 3
+Files skipped (0):

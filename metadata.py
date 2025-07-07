@@ -293,6 +293,9 @@ def easy_parse(path: str, field: str, as_type: type = str) -> Union[str, int]:
 
     text = get_text(root, field)
 
+    if text is None:
+        raise KeyError(f"Field '{field}' not found in metadata.")
+
     try:
         return as_type(text)
     except ValueError as e:
