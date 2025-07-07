@@ -1,20 +1,24 @@
-import zipfile
-from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QLabel, QVBoxLayout, QMainWindow,QHBoxLayout, QToolButton, QToolBar, QDialog
-from PySide6.QtGui import QPixmap, QImage
-from PySide6.QtCore import Qt, QThread, Signal, QTimer
 import os
-import sys
 import re
-from PIL import Image
-from io import BytesIO
+import sys
+import zipfile
 from collections import OrderedDict
 from functools import partial
+from io import BytesIO
+
+from PIL import Image
+from PySide6.QtCore import Qt, QThread, QTimer, Signal
+from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMainWindow,
+                               QToolBar, QToolButton, QWidget)
 
 from metadata_gui_panel import MetadataDialog
 
+
 def sort_imgs(filename: str) -> int | None:
-    numbers = re.findall(r'\d+', filename)
-    return int(numbers[-1]) if numbers else -1 
+    numbers = re.findall(r"\d+", filename)
+    return int(numbers[-1]) if numbers else -1
+
 
 class ImagePreloader(QThread):
     image_ready = Signal(int, QPixmap)
@@ -29,24 +33,28 @@ class ImagePreloader(QThread):
         if pixmap:
             self.image_ready.emit(self.index, pixmap)
 
-class Comic: 
-    def __init__( self, filepath: str, max_cache=10 ):
+
+class Comic:
+    def __init__(self, filepath: str, max_cache: int = 10):
         self.path = filepath
         self.filename = os.path.basename(filepath)
-        self.zip = zipfile.ZipFile(filepath, 'r')
+        self.zip = zipfile.ZipFile(filepath, "r")
         self.image_names = sorted(
-            [name for name in self.zip.namelist() if name.lower().endswith((".jpg", ".jpeg", ".png"))]
+            [
+                name
+                for name in self.zip.namelist()
+                if name.lower().endswith((".jpg", ".jpeg", ".png"))
+            ]
         )
         self.size = os.path.getsize(filepath)
         self.page_counter = 1
-        self.cache = OrderedDict()
+        self.cache: OrderedDict = OrderedDict()
         self.max_cache_size = max_cache
-
 
     def load_page(self, index):
         if index < 0 or index >= len(self.image_names):
             return None
-        name = self.image_names[index -1]
+        name = self.image_names[index - 1]
         if name in self.cache:
             self.cache.move_to_end(name)
             return self.cache[name]
@@ -69,9 +77,8 @@ class Comic:
 
     def total_pages(self):
         return len(self.image_names)
-    
 
-    def get_page( self, number: int):
+    def get_page(self, number: int):
         if number < 0 or number >= len(self.image_names):
             return None
         name = self.image_names[number - 1]
@@ -83,9 +90,9 @@ class Comic:
                 self.cache[name] = image
         return self.cache[name]
 
-    def next_page( self ):
+    def next_page(self):
         self.page_counter += 1
-        self.get_page( self.page_counter )
+        self.get_page(self.page_counter)
 
 
 class SimpleReader(QMainWindow):
@@ -93,7 +100,7 @@ class SimpleReader(QMainWindow):
         super().__init__()
         self.reader = reader
         self.current_index = 1
-        self._threads = []
+        self._threads: list = []
 
         self.setWindowTitle("Comic Reader")
 
@@ -108,15 +115,15 @@ class SimpleReader(QMainWindow):
         self.add_menu_button("Navigation Toolbar", self.show_navigation_toolbar)
         self.add_menu_button("Comments Toolbar", self.show_comments_toolbar)
         self.add_menu_button("Metadata", self.open_metadata_panel)
-        #self.add_menu_button("Settings", self.open_settings_panel)
-        #self.add_menu_button("Help", self.open_help_panel)
+        # self.add_menu_button("Settings", self.open_settings_panel)
+        # self.add_menu_button("Help", self.open_help_panel)
 
         self.menu_bar_widget.hide()
 
         self.hide_menu_timer = QTimer()
         self.hide_menu_timer.setSingleShot(True)
         self.hide_menu_timer.timeout.connect(self.menu_bar_widget.hide)
-        
+
         self.setMouseTracking(True)
         self.navigation_toolbar = QToolBar("Navigation Tools")
         self.navigation_toolbar.addAction("Zoom In")
@@ -127,7 +134,7 @@ class SimpleReader(QMainWindow):
         self.comments_toolbar = QToolBar("Commenting Tools")
         self.comments_toolbar.addAction("Add Bookmark")
         self.comments_toolbar.addAction("Add Comment")
-        
+
         # self.toolbar_stack = QStackedWidget()
         # self.toolbar_stack.addWidget(self.navigation_toolbar)
         # self.toolbar_stack.addWidget(self.comments_toolbar)
@@ -149,8 +156,10 @@ class SimpleReader(QMainWindow):
     def load_page(self, index):
         pixmap = self.reader.load_page(index)
         if pixmap:
-            
-            scaled = pixmap.scaledToHeight(self.image_label.height(), Qt.SmoothTransformation)
+
+            scaled = pixmap.scaledToHeight(
+                self.image_label.height(), Qt.SmoothTransformation
+            )
             self.image_label.setPixmap(scaled)
             self.page_label.setText(f"Page {index + 1} / {self.reader.total_pages()}")
             self.current_index = index
@@ -181,11 +190,10 @@ class SimpleReader(QMainWindow):
 
     def show_comments_toolbar(self):
         self.switch_toolbar(self.comments_toolbar)
-    
+
     def open_metadata_panel(self):
         dialog = MetadataDialog(self)
         dialog.exec()
-
 
     def resizeEvent(self, event):
         self.load_page(self.current_index)
@@ -204,7 +212,7 @@ class SimpleReader(QMainWindow):
             self.next_page()
         elif key == Qt.Key_Left:
             self.prev_page()
-    
+
     def mouseMoveEvent(self, event):
         mouse_y = event.position().y()
 
@@ -212,15 +220,19 @@ class SimpleReader(QMainWindow):
             if not self.menu_bar_widget.isVisible():
                 self.menu_bar_widget.show()
             self.hide_menu_timer.stop()
-        
+
         else:
             if self.menu_bar_widget.isVisible() and not self.hide_menu_timer.isActive():
                 self.hide_menu_timer.start(1500)
         super().mouseMoveEvent(event)
 
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    reader = Comic(r"D://comic_library//comic_examples//Juggernaut - No Stopping Now TPB (March 2021).cbz")
+    reader = Comic(
+        r"""D://comic_library//comic_examples//Juggernaut -
+    No Stopping Now TPB (March 2021).cbz"""
+    )
     window = SimpleReader(reader)
     window.showMaximized()
     sys.exit(app.exec())

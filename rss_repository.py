@@ -1,6 +1,7 @@
 import sqlite3
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Any
+from typing import Any, Optional
+
 
 class RSSRepository:
     def __init__(self, db_file: str) -> None:
@@ -9,14 +10,16 @@ class RSSRepository:
 
     def get_latest_pub_date(self) -> Optional[str]:
         self.cursor.execute(
-            "SELECT pub_date FROM rss_entries ORDER BY datetime(pub_date) DESC LIMIT 1"
+            "SELECT pub_date FROM rss_entries "
+            "ORDER BY datetime(pub_date) DESC LIMIT 1"
         )
         row = self.cursor.fetchone()
         return row[0] if row else None
-    
+
     def insert_entries(self, entries: list[dict[str, Any]]) -> None:
         sql = """
-            INSERT OR IGNORE INTO rss_entries (url, title, pub_date, summary, cover_url)
+            INSERT OR IGNORE INTO rss_entries (url, title,
+            pub_date, summary, cover_url)
             VALUES (:link, :title, :pub_date, :summary, :cover_link )
             """
         self.cursor.executemany(sql, entries)
@@ -26,29 +29,33 @@ class RSSRepository:
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=lifetime)
         self.cursor.execute(
             "DELETE FROM rss_entries WHERE datetime(pub_date) < ?",
-            (cutoff_date.strftime("%Y-%m-%d %H:%M:%S"),)
+            (cutoff_date.strftime("%Y-%m-%d %H:%M:%S"),),
         )
         self.connection.commit()
 
     def get_recent_entries(self, limit: int = 10) -> list[tuple[str, str]]:
         # Need to add extra data here eventually, maybe the download link
-        self.cursor.execute("""
+        self.cursor.execute(
+            """
             SELECT title, cover_url
             FROM rss_entries
             ORDER BY datetime(pub_date) DESC
             LIMIT ?
-        """, (limit,))
+        """,
+            (limit,),
+        )
         return self.cursor.fetchall()
 
     def close(self) -> None:
         self.connection.commit()
         self.connection.close()
-    
+
 
 def init_db() -> None:
     conn = sqlite3.connect("comics.db")
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS rss_entries (
             url TEXT PRIMARY KEY,
             title TEXT,
@@ -56,6 +63,7 @@ def init_db() -> None:
             summary TEXT,
             cover_url TEXT
             )
-                """)
+                """
+    )
     conn.commit()
     conn.close()

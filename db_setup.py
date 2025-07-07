@@ -1,9 +1,11 @@
 import sqlite3
-conn = sqlite3.connect('comics.db')
+
+conn = sqlite3.connect("comics.db")
 cursor = conn.cursor()
 
 
-cursor.execute(''' 
+cursor.execute(
+    """
                 CREATE TABLE IF NOT EXISTS comics (
                     id INTEGER PRIMARY KEY,
                     title TEXT NOT NULL,
@@ -20,24 +22,30 @@ cursor.execute('''
                     FOREIGN KEY (publisher_id) REFERENCES publishers(id),
                     FOREIGN KEY (series) REFERENCES series(id)
                 )
-''')
-#Add an is_processed column which can be the final check before moving file to final location
+"""
+)
+# Add an is_processed column
 
-cursor.execute(''' 
+cursor.execute(
+    """
                 CREATE TABLE IF NOT EXISTS publishers (
                     id INTEGER PRIMARY KEY,
                     name TEXT NOT NULL
                 )
-''')
+"""
+)
 
-cursor.execute(''' 
+cursor.execute(
+    """
                 CREATE TABLE IF NOT EXISTS creators (
                     id INTEGER PRIMARY KEY,
                     name TEXT NOT NULL UNIQUE
                 )
-''')
+"""
+)
 
-cursor.execute('''
+cursor.execute(
+    """
                 CREATE TABLE IF NOT EXISTS comic_creators (
                     comic_id INTEGER,
                     creator_id INTEGER,
@@ -46,32 +54,39 @@ cursor.execute('''
                     FOREIGN KEY (creator_id) REFERENCES creators(id),
                     PRIMARY KEY (comic_id, creator_id, role)
                 )
-''')
+"""
+)
 
-cursor.execute('''
+cursor.execute(
+    """
                 CREATE TABLE IF NOT EXISTS characters (
-                    id  PRIMARY KEY, 
+                    id  PRIMARY KEY,
                     name TEXT NOT NULL
                 )
-''')
+"""
+)
 
-cursor.execute('''
+cursor.execute(
+    """
                 CREATE TABLE IF NOT EXISTS comic_types (
                     id INTEGER PRIMARY KEY,
                     name TEXT NOT NULL UNIQUE
                 )
-''')
+"""
+)
 
-cursor.execute('''
+cursor.execute(
+    """
                 CREATE TABLE IF NOT EXISTS reviews (
                     id INTEGER PRIMARY KEY,
                     comic_id INTEGER NOT NULL,
                     rating INTEGER CHECK (rating BETWEEN 1 AND 5),
                     review TEXT,
                     date_reviewed TEXT DEFAULT CURRENT_DATE,
-                    FOREIGN KEY (comic_id) REFERENCES comics(id) ON DELETE CASCADE
-                        )               
-               ''')
+                    FOREIGN KEY (comic_id) REFERENCES comics(id)
+                        )
+               """
+)
 
 conn.commit()
 conn.close()

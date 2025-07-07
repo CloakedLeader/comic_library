@@ -1,31 +1,44 @@
-import sys
 import os
 import os.path
+import sys
 from io import BytesIO
-from typing import Tuple
 
-from PySide6.QtWidgets import QMainWindow, QToolBar, QApplication, QHBoxLayout, QLineEdit, QWidget, QVBoxLayout, QSizePolicy, QScrollArea, QLabel, QTreeView, QStatusBar
+import requests
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QFileSystemModel
-import requests
+from PySide6.QtWidgets import (QApplication, QFileSystemModel, QHBoxLayout,
+                               QLabel, QLineEdit, QMainWindow, QScrollArea,
+                               QSizePolicy, QStatusBar, QToolBar, QTreeView,
+                               QVBoxLayout, QWidget)
 
 from download_controller import DownloadControllerAsync, DownloadServiceAsync
 from reader_controller import ReadingController
 from rss_controller import RSSController
 from rss_repository import RSSRepository
 
+
 class ClickableComicWidget(QWidget):
     clicked = Signal()
 
-    def __init__(self, title: str, pixmap: QPixmap, img_width=20, img_height=20, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        title: str,
+        pixmap: QPixmap,
+        img_width=20,
+        img_height=20,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
 
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignCenter)
 
         cover_label = QLabel()
-        cover_label.setPixmap(pixmap.scaled(img_width, img_height, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        cover_label.setPixmap(
+            pixmap.scaled(
+                img_width, img_height, Qt.KeepAspectRatio, Qt.SmoothTransformation
+            )
+        )
         cover_label.setAlignment(Qt.AlignCenter)
 
         title_label = QLabel(title)
@@ -35,7 +48,8 @@ class ClickableComicWidget(QWidget):
         layout.addWidget(cover_label)
         layout.addWidget(title_label)
 
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             ComicButton {
                 border: 1px solid #aaa;
                 border-radius: 4px;
@@ -44,11 +58,13 @@ class ClickableComicWidget(QWidget):
             ComicButton:hover {
                 background-color: #e6f7ff;
             }
-        """)
+        """
+        )
 
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.LeftButton:
             self.clicked.emit()
+
 
 class HomePage(QMainWindow):
     def __init__(self):
@@ -78,17 +94,17 @@ class HomePage(QMainWindow):
         self.status = QStatusBar()
         self.setStatusBar(self.status)
 
-
         body_layout = QHBoxLayout()
         body_widget = QWidget()
         body_widget.setLayout(body_layout)
-
 
         self.file_model = QFileSystemModel()
         self.file_model.setRootPath(os.path.expanduser("D://Comics//Marvel"))
         self.file_tree = QTreeView()
         self.file_tree.setModel(self.file_model)
-        self.file_tree.setRootIndex(self.file_model.index(os.path.expanduser("D://Comics//Marvel")))
+        self.file_tree.setRootIndex(
+            self.file_model.index(os.path.expanduser("D://Comics//Marvel"))
+        )
         self.file_tree.setMaximumWidth(200)
         self.file_tree.setHeaderHidden(True)
 
@@ -96,16 +112,16 @@ class HomePage(QMainWindow):
             self.file_tree.hideColumn(i)
 
         body_layout.addWidget(self.file_tree, stretch=1)
-        
+
         content_area = QWidget()
         content_layout = QVBoxLayout(content_area)
 
         stats_bar = self.create_stats_bar()
-        #stats_bar.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
-        #stats_bar.setMaximumHeight(70)
-        continue_reading = self.create_continue_reading_area(dummy_data)
-        #recommended = self.create_recommended_reading_area()
-        need_review = self.create_review_area(dummy_data)
+        # stats_bar.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        # stats_bar.setMaximumHeight(70)
+        continue_reading = self.create_continue_reading_area()
+        # recommended = self.create_recommended_reading_area()
+        need_review = self.create_review_area()
         rss = self.create_rss_area()
 
         content_layout.addWidget(stats_bar)
@@ -115,7 +131,7 @@ class HomePage(QMainWindow):
         body_layout.addWidget(content_area)
 
         self.setCentralWidget(body_widget)
-    
+
     def load_pixmap_from_url(self, url: str) -> QPixmap:
         try:
             response = requests.get(url, timeout=30)
@@ -130,7 +146,9 @@ class HomePage(QMainWindow):
         fallback.fill(Qt.gray)
         return fallback
 
-    def create_scroll_area(self, list_of_dicts: list, header: str, upon_clicked, links=False) -> QScrollArea:
+    def create_scroll_area(
+        self, list_of_dicts: list, header: str, upon_clicked, links=False
+    ) -> QScrollArea:
         img_width, img_height = 120, 180
 
         scroll_area = QScrollArea()
@@ -143,7 +161,10 @@ class HomePage(QMainWindow):
 
         title = QLabel(f"{header}")
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("font-size: 18px; font-weight: bold; padding: 10px;")
+        title.setStyleSheet(
+            """font-size: 18px;
+                             font-weight: bold; padding: 10px;"""
+        )
 
         for comic in list_of_dicts:
 
@@ -154,7 +175,9 @@ class HomePage(QMainWindow):
                 pixmap = QPixmap(comic["cover_path"])
 
             title_name = comic.get("title")
-            comic_button = ClickableComicWidget(title_name, pixmap, img_width, img_height)
+            comic_button = ClickableComicWidget(
+                title_name, pixmap, img_width, img_height
+            )
             comic_button.clicked.connect(lambda c=comic: upon_clicked(c))
 
             layout.addWidget(comic_button)
@@ -163,7 +186,7 @@ class HomePage(QMainWindow):
         final_widget = QWidget()
         final_widget.setLayout(final_layout)
         final_layout.addWidget(title)
-        final_layout.addWidget(container)    
+        final_layout.addWidget(container)
 
         scroll_area.setWidget(final_widget)
         return scroll_area
@@ -171,34 +194,53 @@ class HomePage(QMainWindow):
     def open_reader(self, comic: dict):
         cont = ReadingController(comic)
         cont.read_comic()
-        
+
     def print_hi(self):
         print("Hi")
 
     def create_continue_reading_area(self, list_of_comics_marked_as_read):
-        return self.create_scroll_area(list_of_comics_marked_as_read, header="Continue Reading", upon_clicked=self.open_reader)
-    
+        return self.create_scroll_area(
+            list_of_comics_marked_as_read,
+            header="Continue Reading",
+            upon_clicked=self.open_reader,
+        )
+
     def create_recommended_reading_area(self, list_of_recommended_comics):
-        return self.create_scroll_area(list_of_recommended_comics, header="Recommended Next Read", upon_clicked=self.open_reader)
-    
+        return self.create_scroll_area(
+            list_of_recommended_comics,
+            header="Recommended Next Read",
+            upon_clicked=self.open_reader,
+        )
+
     def create_review_area(self, list_of_unreviewed_comics):
-        return self.create_scroll_area(list_of_unreviewed_comics, header="Write a review...", upon_clicked=self.print_hi)
-    
+        return self.create_scroll_area(
+            list_of_unreviewed_comics,
+            header="Write a review...",
+            upon_clicked=self.print_hi,
+        )
+
     def create_rss_area(self):
         repository = RSSRepository("comics.db")
         rss_cont = RSSController(repository)
         recent_comics_list = rss_cont.run(6)
-        self.rss_controller = DownloadControllerAsync(view=self, service=DownloadServiceAsync())
-        return self.create_scroll_area(recent_comics_list, links=True, header="GetComics RSS Feed", upon_clicked=self.rss_controller.handle_rss_comic_clicked)
-        
+        self.rss_controller = DownloadControllerAsync(
+            view=self, service=DownloadServiceAsync()
+        )
+        return self.create_scroll_area(
+            recent_comics_list,
+            links=True,
+            header="GetComics RSS Feed",
+            upon_clicked=self.rss_controller.handle_rss_comic_clicked,
+        )
+
     def create_stats_bar(self):
         files_num, storage_val = count_files_and_storage("D:\\Comics\\Marvel")
 
         def create_stat_widget(title: str, image_path: str, value: str) -> QWidget:
             widget = QWidget()
             layout = QVBoxLayout()
-            #layout.setSpacing(2)
-            #layout.setContentsMargins(0,0,0,0)
+            # layout.setSpacing(2)
+            # layout.setContentsMargins(0,0,0,0)
             layout.setAlignment(Qt.AlignCenter)
             widget.setLayout(layout)
 
@@ -207,7 +249,9 @@ class HomePage(QMainWindow):
 
             pixmap = QPixmap(image_path)
             image_label = QLabel()
-            image_label.setPixmap(pixmap.scaled(50,50,Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            image_label.setPixmap(
+                pixmap.scaled(50, 50, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            )
             image_label.setAlignment(Qt.AlignCenter)
 
             value_label = QLabel(value)
@@ -222,22 +266,33 @@ class HomePage(QMainWindow):
         stats = QWidget()
         layout = QHBoxLayout(stats)
 
-        layout.addWidget(create_stat_widget("Number of Comics",
-                                            "D:\\comic_library\\comic_gui\\comicbook.png",
-                                            str(files_num)))
-        
-        layout.addWidget(create_stat_widget("Storage", 
-                                            "D:\\comic_library\\comic_gui\\storage.png",
-                                            f"{round(storage_val, 2)} GB"))
+        layout.addWidget(
+            create_stat_widget(
+                "Number of Comics",
+                "D:\\comic_library\\comic_gui\\comicbook.png",
+                str(files_num),
+            )
+        )
+
+        layout.addWidget(
+            create_stat_widget(
+                "Storage",
+                "D:\\comic_library\\comic_gui\\storage.png",
+                f"{round(storage_val, 2)} GB",
+            )
+        )
 
         final_widget = QWidget()
         final_layout = QVBoxLayout()
-        #final_layout.setSpacing(3)
-        #final_layout.setContentsMargins(0,0,0,0)
+        # final_layout.setSpacing(3)
+        # final_layout.setContentsMargins(0,0,0,0)
         final_widget.setLayout(final_layout)
         title = QLabel("Your Statistics")
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("font-size: 12px; font-weight: bold; padding: 2px;")
+        title.setStyleSheet(
+            """font-size: 12px;
+                             font-weight: bold; padding: 2px;"""
+        )
         final_layout.addWidget(title)
         final_layout.addWidget(stats)
 
@@ -246,8 +301,9 @@ class HomePage(QMainWindow):
     def update_status(self, message: str):
         self.status.showMessage(message, 4000)
 
+
 def count_files_and_storage(directory: str) -> tuple[int, float]:
-    total_size = 0
+    total_size = 0.0
     file_count = 0
     for dirpath, _, filenames in os.walk(directory):
         for f in filenames:
@@ -257,9 +313,6 @@ def count_files_and_storage(directory: str) -> tuple[int, float]:
                 total_size += os.path.getsize(fp)
     total_size = total_size / (1024**3)
     return file_count, total_size
-
-dummy_data = [{"title": "Mr Miracle TPB", "cover_path" : "D:\\Comics\\.yacreaderlibrary\\covers\\1f7c63fb2bf06fcd4293fad5928354e591542fb9459630961.jpg", "filepath": "D://Comics//DC//Misc//Mister Miracle TPB (February 2019).cbz"}, 
-              {"title" : "Daredevil: The Man Witout Fear", "cover_path" : "D:\\Comics\\.yacreaderlibrary\\covers\\051a70f024954f92e2b2c0699f00859ac772e865685497443.jpg"}]
 
 
 if __name__ == "__main__":
