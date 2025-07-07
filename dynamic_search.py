@@ -1,6 +1,6 @@
 import sqlite3
-import re
 from typing import Optional
+
 
 def create_virtual_table() -> None:
     conn = sqlite3.connect("comics.db")
@@ -19,6 +19,7 @@ def create_virtual_table() -> None:
 """)
     conn.commit()
     conn.close()
+
 
 def flatten_comic_for_fts5(comic_id: int) -> Optional[dict]:
     conn = sqlite3.connect("comics.db")
@@ -83,6 +84,7 @@ def index_comic_for_search(comic_id: int) -> None:
     conn.close()
     return None
 
+
 def search_comics(user_input: str, limit: int = 20) -> Optional[dict[str, str | int]]:
     """
     Search the fts5 database for directly matching reslts.
@@ -94,7 +96,6 @@ def search_comics(user_input: str, limit: int = 20) -> Optional[dict[str, str | 
     Returns:
 
     """
-    
     query = parse_search_query(user_input)
     if not query:
         return None
@@ -124,8 +125,7 @@ def search_comics(user_input: str, limit: int = 20) -> Optional[dict[str, str | 
     results = []
     colomns = [col[0] for col in cursor.description]
     for row in cursor.fetchall():
-        results.append(ict(zip(colomns, row)))
-
+        results.append(dict(zip(colomns, row)))
 
     return results
 
