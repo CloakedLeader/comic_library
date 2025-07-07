@@ -202,16 +202,27 @@ def get_text(root, tag: str) -> Optional[str]:
         logging.error("No metadata under {tag} tag.")
 
 
-def normalise_publisher(name: str) -> Optional[str]:
+def normalise_publisher(name: str) -> str:
     suffixes = ["comics", "publishing", "group", "press", "inc.", "inc", "llc"]
     tokens = name.replace("&", "and").split()
     return " ".join([t for t in tokens if t not in suffixes])
 
 
-required_fields = ["Title", "Series", "Year"]
+required_fields = ["Title", "Series", "Year", "Number"]
 
 
 def has_metadata(path: str, required: list = required_fields) -> bool:
+    """
+    Checks that the required metadata fields are complete with some info
+    e.g. that they are not blank.
+
+    Args:
+    path: The file path of the comic archive file.
+    required: A list of the fields that must be present.
+
+    Note:
+    Will be used to remove None type option from easy_parse function
+    """
     try:
         with zipfile.ZipFile(path, "r") as cbz:
             if "ComicInfo.xml" not in cbz.namelist():
@@ -243,70 +254,101 @@ def has_metadata(path: str, required: list = required_fields) -> bool:
 
 def easy_parse(
     path: str, field: str, as_type: type = str
-) -> Union[
-    str, int, None
-]:  # Add messages to catch errors when this function returns None
-    root, error = find_metadata(path)
-    if error:
-        logging.error("Error reading metadata:", error)
-    elif root is not None:
-        text = get_text(root, field)
-        if text is None:
-            return None
-        try:
-            return as_type(text)
-        except ValueError:
-            logging.error(f"Could not convert {field} to {as_type.__name__}")
-            return None
-    else:
-        logging.error("No ComicInfo.xml found")
-        return None
+    ) -> Union[
+    str, int
+    ]: 
+    """
+    Returns metadata from the corresponding field by parsing an XML tree.
+    Assumes ComicInfo.xml has already been verified to exist and be readable.
 
+    Args:
+    path: The filepath of the comic archive file.
+    field: The name of the metadata field.
+    as_type: The type that the metadata must be returned as. 
+            Required as all metadata fields are strings by default
+            but some must be integers.
 
-def parse_desc(path) -> Optional[str]:
+    Returns:
+    The metadata inside that field, either a string or integer.
+    Never type None.
+    """
+    root, _ = find_metadata(path)
+    text = get_text(root, field)
+    if text is None:
+        raise KeyError(f"Field '{field}' not found in metadata.")
+    
+    try:
+        return as_type(text)
+    except ValueError as e:
+        raise TypeError(
+            f"Could not convert field '{field}' to {as_type.__name__}"
+        ) from e
+
+def parse_desc(path: str) -> str:
+    # Returns the summary or raises errors.
     return easy_parse(path, "Summary")
 
 
-def parse_series(path) -> Optional[str]:
+def parse_series(path: str) -> str:
+    # Returns the series or raises errors.
     return easy_parse(path, "Series")
 
 
-def parse_vol_num(path) -> Optional[int]:
+def parse_vol_num(path: str) -> int:
+    # Returns the volume number or raises errors.
     return easy_parse(path, "Number", int)
 
 
-def parse_year(path) -> Optional[int]:
+def parse_year(path: str) -> int:
+    # Returns the year or raises errors.
     return easy_parse(path, "Year", int)
 
 
-def parse_month(path) -> Optional[int]:
+def parse_month(path: str) -> int:
+    # Returns the month or raises errors.
     return easy_parse(path, "Month", int)
 
 
-def parse_publisher(path) -> Optional[str]:
+def parse_publisher(path: str) -> str:
+    # Returns the publisher or raises errors.
     return easy_parse(path, "Publisher")
 
 
-def parse_title(path) -> Optional[str]:
+def parse_title(path: str) -> str:
+    # Returns the title or raises errors.
     return easy_parse(path, "Title")
 
 
 def parse_creator(
-    path, tag: str
-) -> Optional[
-    List[str]
-]:  # Returns a list of strings where each string is an indivdual name
+    path: str, tag: str
+    ) -> list[str]:
+    """
+    Returns a list of the creators where each entry is a single creator.
+
+    Args:
+    path: The filepath of the comic archive to be parsed.
+    tag: The job title of the creator(s) for example:
+        'Writer' or 'Penciller'
+    """
     creators = easy_parse(path, tag)
     return creators.split(", ")
 
-
-# More advanced parsing that requires extra logic or string matching
+# ===========================================
+# Advanced parsing that requires extra logic
+# ===========================================
 
 
 def match_publisher(
     a: str,
-) -> Optional[int]:  # Takes a string from metadata and
-    # returns the publisher id that comes from sql table
+    ) -> int: 
+    """
+    Matches the natural language name of a publisher from metadata
+    to an entry in the list of known publishers with numbered keys from the sql table.
+    This uses fuzzy matches due to alterations of publisher names.
+    
+    Args:
+    a: The string extracted from ComicInfo.xml to be matched.
+    """
     known_publishers = [
         (1, "Marvel Comics"),
         (2, "DC Comics"),
@@ -325,10 +367,10 @@ def match_publisher(
         if score > best_score:
             best_score = score
             best_match = (pub_id, pub_name)
-    if best_score >= 85:
+    if best_score >= 80:
         return best_match[0]
     else:
-        logging.warning("Publisher metadata not matched.")
+        raise KeyError(f"Publisher {best_match[0]} not known.")
 
 
 # use Amazing Spider-Man Modern Era Epic Collection: Coming Home
