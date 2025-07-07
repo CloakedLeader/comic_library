@@ -1,35 +1,44 @@
 import os
 import re
 from typing import Optional
-import requests
-from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 
-import aiohttp
 import aiofiles
+import aiohttp
+import requests
+from bs4 import BeautifulSoup
+
 
 class DownloadControllerAsync:
     def __init__(self, view, service) -> None:
         self.view = view
         self.download_service = service
         self.comic_dict = None
-    
+
     async def handle_rss_comic_clicked(self, comic_dict) -> None:
         self.comic_dict = comic_dict
         self.view.update_status(f"Starting download of: {comic_dict['title']}")
         try:
-            download_link = self.download_service.get_download_links(comic_dict.get("link"))
+            download_link = self.download_service.get_download_links(
+                comic_dict.get("link")
+            )
             filepath = await self.download_service.download_comic(download_link)
-            self.view.update_status(f"Successfully downloaded: {comic_dict.get('title')} to {filepath}")
+            self.view.update_status(
+                f"""Successfully downloaded:
+                {comic_dict.get('title')} to {filepath}"""
+            )
         except (requests.RequestException, aiohttp.ClientError, IOError) as e:
             self.view.update_status(f"Failed: {e}")
- 
+
+
 class DownloadServiceAsync:
     def __init__(self, download_folder="D://Comics//To Be Sorted"):
         self.download_folder = download_folder
         os.makedirs(download_folder, exist_ok=True)
 
-    def get_filename_from_header(self, content_disposition: Optional[str]) -> Optional[str]:
+    def get_filename_from_header(
+        self, content_disposition: Optional[str]
+    ) -> Optional[str]:
         if not content_disposition:
             return None
         fname = re.findall('filename="?([^"]+)"?', content_disposition)
@@ -62,9 +71,13 @@ class DownloadServiceAsync:
         async with aiohttp.ClientSession() as session:
             async with session.get(comic_download_link) as response:
                 if response.status_code != 200:
-                    raise Exception(f"Download failed with status code {response.status}")
+                    raise Exception(
+                        f"Download failed with status code {response.status}"
+                    )
 
-                filename = await self.get_filename_from_header(response.headers.get('content-disposition'))
+                filename = self.get_filename_from_header(
+                    response.headers.get("content-disposition")
+                )
                 if not filename:
                     filename = os.path.basename(urlparse(comic_download_link).path)
                 if not filename:

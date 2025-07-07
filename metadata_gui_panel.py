@@ -1,8 +1,10 @@
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton
 from typing import TYPE_CHECKING
+
+from PySide6.QtWidgets import QDialog, QLabel, QPushButton, QVBoxLayout
 
 if TYPE_CHECKING:
     from reader import SimpleReader
+
 
 class MetadataDialog(QDialog):
     def __init__(self, reader: SimpleReader) -> None:
