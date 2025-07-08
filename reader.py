@@ -111,11 +111,11 @@ class ImagePreloader(QThread):
 
 
 class SimpleReader(QMainWindow):
-    def __init__(self, reader: Comic):
+    def __init__(self, comic: Comic):
         super().__init__()
-        self.reader = reader
-        self.current_index = 1
-        self._threads: list = []
+        self.comic = comic
+        self.current_index = 0
+        self._threads: list[ImagePreloader] = []
 
         self.setWindowTitle("Comic Reader")
 
@@ -134,12 +134,12 @@ class SimpleReader(QMainWindow):
         # self.add_menu_button("Help", self.open_help_panel)
 
         self.menu_bar_widget.hide()
-
         self.hide_menu_timer = QTimer()
         self.hide_menu_timer.setSingleShot(True)
         self.hide_menu_timer.timeout.connect(self.menu_bar_widget.hide)
 
         self.setMouseTracking(True)
+
         self.navigation_toolbar = QToolBar("Navigation Tools")
         self.navigation_toolbar.addAction("Zoom In")
         self.navigation_toolbar.addAction("Zoom Out")
@@ -149,10 +149,6 @@ class SimpleReader(QMainWindow):
         self.comments_toolbar = QToolBar("Commenting Tools")
         self.comments_toolbar.addAction("Add Bookmark")
         self.comments_toolbar.addAction("Add Comment")
-
-        # self.toolbar_stack = QStackedWidget()
-        # self.toolbar_stack.addWidget(self.navigation_toolbar)
-        # self.toolbar_stack.addWidget(self.comments_toolbar)
 
         self.addToolBar(self.navigation_toolbar)
         self.addToolBar(self.comments_toolbar)
@@ -164,27 +160,35 @@ class SimpleReader(QMainWindow):
         self.image_label.setFocusPolicy(Qt.StrongFocus)
 
         self.setCentralWidget(self.image_label)
-        self.centralWidget().setMouseTracking(True)
+        self.image_label.setFocusPolicy(Qt.StrongFocus)
 
-        self.load_page(self.current_index)
+        self.preload_page(self.current_index)
 
-    def load_page(self, index):
-        pixmap = self.reader.load_page(index)
-        if pixmap:
+    def preload_page(self, index: int) -> None:
+        try:
+            thread = ImagePreloader(self.comic, index)
+            thread.image_ready.connect(self.display_page)
+            thread.finished.connect(lambda: self.cleanup_thread(thread))
+            self._threads.append(threads)
+            thread.run()
+        except PageIndexError as e:
+            print(f"Invalid page index: {e}")
+        
+    def display_page(self, index: int, pixmap: QPixmap) -> None:
+        if index != self.current_index:
+            raise PageIndexError(f"Reader and page loader not in sync")
+        
+        scaled = pixmap.scaledToHeight(self.image_label.height(), Qt.SmoothTransformation)
+        self.image_label.setPixmap(scaled)
+        self.page_label.setText(f"Page {index + 1} / {self.comic.total_pages}")
 
-            scaled = pixmap.scaledToHeight(
-                self.image_label.height(), Qt.SmoothTransformation
-            )
-            self.image_label.setPixmap(scaled)
-            self.page_label.setText(f"Page {index + 1} / {self.reader.total_pages()}")
-            self.current_index = index
+        if index + 1 < self.comic.total_pages:
+            self.preload_page(index + 1)
 
-            # Preload next page
-            if index + 1 < self.reader.total_pages():
-                thread = ImagePreloader(self.reader, index + 1)
-                thread.image_ready.connect(lambda i, p: print(f"Preloaded page {i}"))
-                self._threads.append(thread)
-                thread.start()
+    def cleanup_thread(self, thread):
+        if thread in self._threads:
+            self._threads.remove(thread)
+            thread.deleteLater()
 
     def add_menu_button(self, name: str, callback, *args):
         button = QToolButton()
@@ -207,7 +211,7 @@ class SimpleReader(QMainWindow):
         self.switch_toolbar(self.comments_toolbar)
 
     def open_metadata_panel(self):
-        print("lol")
+        print("Not yet implemented.")
         # dialog = MetadataDialog(self)
         # dialog.exec()
 
@@ -215,12 +219,14 @@ class SimpleReader(QMainWindow):
         self.load_page(self.current_index)
 
     def next_page(self):
-        if self.current_index + 1 < self.reader.total_pages():
-            self.load_page(self.current_index + 1)
+        if self.current_index + 1 < self.reader.total_pages:
+            self.current_index += 1
+            self.preload_page(self.current_index)
 
     def prev_page(self):
         if self.current_index > 0:
-            self.load_page(self.current_index - 1)
+            self.current_index -= 1
+            self.preload_pageload_page(self.current_index)
 
     def keyPressEvent(self, event):
         key = event.key()
