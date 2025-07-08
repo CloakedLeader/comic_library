@@ -45,14 +45,11 @@ class Comic:
         )
         if not self.image_names:
             raise ComicError("No images found in the file.")
-        self.total_pages = self.total_pages()
+        self.total_pages = len(self.image_names)
         self.size = os.path.getsize(filepath)
         self.cache: OrderedDict[str, bytes] = OrderedDict()
         self.max_cache = max_cache
         self.current_index = 0
-
-    def total_pages(self) -> int:
-        return len(self.image_names)
 
     def get_image_data(self, index: int) -> bytes:
         if index < 0 or index >= self.total_pages:
@@ -62,7 +59,7 @@ class Comic:
         if name in self.cache:
             self.cache.move_to_end(name)
             return self.cache[name]
-    
+   
         try:
             with self.zip.open(name) as file:
                 data = file.read()
@@ -70,7 +67,7 @@ class Comic:
             raise ImageLoadError(f"Failed to read image {name}: {e}") from e
 
         self.cache[name] = data
-        if len(self.cache) > self.max_cache_size:
+        if len(self.cache) > self.max_cache:
             self.cache.popitem(last=False)
 
         return data
@@ -82,14 +79,19 @@ class Comic:
 
 class ImagePreloader(QThread):
     image_ready = Signal(int, QPixmap)
+    error_occurred = Signal(int, str)
 
-    def __init__(self, comic: Comic, index: int):
+    def __init__(self, comic: Comic, index: int) -> None:
         super().__init__()
         self.comic = comic
         self.index = index
 
     def run(self):
-        data = self.comic.get_image_data(self.index)
+        try:
+            data = self.comic.get_image_data(self.index)
+        except Exception as e:
+            self.error_occurred.emit(self.index, str(e))
+            return None
 
         try:
             image = Image.open(BytesIO(data))
@@ -105,9 +107,9 @@ class ImagePreloader(QThread):
             pixmap = QPixmap.fromImage(qimage)
 
             self.image_ready.emit(self.index, pixmap)
-       
+     
         except Exception as e:
-            raise ImageLoadError(f"Error converting image at index {self.index}: {e}")
+            self.error_occurred.emit(self.index, f"Error converting image at index {self.index}: {e}")
 
 
 class SimpleReader(QMainWindow):
@@ -169,16 +171,17 @@ class SimpleReader(QMainWindow):
             thread = ImagePreloader(self.comic, index)
             thread.image_ready.connect(self.display_page)
             thread.finished.connect(lambda: self.cleanup_thread(thread))
-            self._threads.append(threads)
-            thread.run()
+            self._threads.append(thread)
+            thread.start()
         except PageIndexError as e:
             print(f"Invalid page index: {e}")
-        
+       
     def display_page(self, index: int, pixmap: QPixmap) -> None:
         if index != self.current_index:
-            raise PageIndexError(f"Reader and page loader not in sync")
-        
-        scaled = pixmap.scaledToHeight(self.image_label.height(), Qt.SmoothTransformation)
+            raise PageIndexError("Reader and page loader not in sync")
+       
+        scaled = pixmap.scaledToHeight(self.image_label.height(),
+                                        Qt.SmoothTransformation)
         self.image_label.setPixmap(scaled)
         self.page_label.setText(f"Page {index + 1} / {self.comic.total_pages}")
 
@@ -216,17 +219,17 @@ class SimpleReader(QMainWindow):
         # dialog.exec()
 
     def resizeEvent(self, event):
-        self.load_page(self.current_index)
+        self.preload_page(self.current_index)
 
     def next_page(self):
-        if self.current_index + 1 < self.reader.total_pages:
+        if self.current_index + 1 < self.comic.total_pages:
             self.current_index += 1
             self.preload_page(self.current_index)
 
     def prev_page(self):
         if self.current_index > 0:
             self.current_index -= 1
-            self.preload_pageload_page(self.current_index)
+            self.preload_page(self.current_index)
 
     def keyPressEvent(self, event):
         key = event.key()
