@@ -12,7 +12,7 @@ from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMainWindow,
                                QToolBar, QToolButton, QWidget)
 
-from metadata_gui_panel import MetadataDialog
+# from metadata_gui_panel import MetadataDialog
 from file_utils import get_name
 
 
@@ -62,7 +62,7 @@ class Comic:
         if name in self.cache:
             self.cache.move_to_end(name)
             return self.cache[name]
-        
+    
         try:
             with self.zip.open(name) as file:
                 data = file.read()
@@ -83,15 +83,31 @@ class Comic:
 class ImagePreloader(QThread):
     image_ready = Signal(int, QPixmap)
 
-    def __init__(self, reader, index):
+    def __init__(self, comic: Comic, index: int):
         super().__init__()
-        self.reader = reader
+        self.comic = comic
         self.index = index
 
     def run(self):
-        pixmap = self.reader.load_page(self.index)
-        if pixmap:
+        data = self.comic.get_image_data(self.index)
+
+        try:
+            image = Image.open(BytesIO(data))
+            image.load()
+            image = image.convert("RGBA")
+
+            qimage = QImage(
+                image.tobytes("raw", "RGBA"),
+                image.width,
+                image.height,
+                QImage.Format_RGBA8888
+            )
+            pixmap = QPixmap.fromImage(qimage)
+
             self.image_ready.emit(self.index, pixmap)
+       
+        except Exception as e:
+            raise ImageLoadError(f"Error converting image at index {self.index}: {e}")
 
 
 class SimpleReader(QMainWindow):
@@ -191,8 +207,9 @@ class SimpleReader(QMainWindow):
         self.switch_toolbar(self.comments_toolbar)
 
     def open_metadata_panel(self):
-        dialog = MetadataDialog(self)
-        dialog.exec()
+        print("lol")
+        # dialog = MetadataDialog(self)
+        # dialog.exec()
 
     def resizeEvent(self, event):
         self.load_page(self.current_index)
