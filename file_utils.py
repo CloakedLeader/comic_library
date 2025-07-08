@@ -6,11 +6,30 @@ from pathlib import Path
 import rarfile
 
 
-def convert_cbz(cbr_path, delete_original=False):
+def convert_cbz(cbr_path: str, delete_original: bool = True) -> str:
+    """
+    Extracts files from a cbr archive and repackages them as a cbz.
+
+    Args:
+        cbr_path: The filepath of the cbr file/
+        delete_original: The user has the choice of whether to
+    delete the .cbr file or not.
+
+    Returns:
+        The filepath of the newly created .cbz file.
+
+    Raises:
+        ValueError: If the inputted filepath does not correspond
+    to a .cbr file.
+
+    Dumps the contents of the .cbr file to a temporary directory
+    and then zips that directory into the .cbz with the same 
+    filename.
+    """
     if not get_ext(cbr_path) == ".cbr":
         raise ValueError("Not a .cbr file!")
 
-    cbz_path = os.path.splitext(cbr_path)[0] + ".cbr"
+    cbz_path = os.path.splitext(cbr_path)[0] + ".cbz"
 
     with tempfile.TemporaryDirectory() as tempdir:
         with rarfile.RarFile(cbr_path) as rf:
@@ -30,22 +49,24 @@ def convert_cbz(cbr_path, delete_original=False):
     return cbz_path
 
 
-def get_ext(path):
-    # will eventually be used to intialise the cbz converter function
+def get_ext(path: str) -> str:
+    """
+    Gets the file extension of specified file.
+    """
     return os.path.splitext(path)[1].lower()
 
 
-def is_comic(path):
-    # extracts boolean for true or false, not sure this will be used
-    out = False
-    if get_ext(path) in (".cbz, .cbr"):
-        out = True
-    return out
+def is_comic(path: str) -> bool:
+    """
+    Tells whether a file is a comic archive or not.
+    """
+    comic_archives = [".cbz", ".cbr"]
+    return True if get_ext(path) in comic_archives \
+    else False
 
 
-def move_file():
-    pass
-
-
-def get_name(path) -> str:
+def get_name(path: str) -> str:
+    """
+    Returns the filename of the specified filepath.
+    """
     return Path(path).stem
