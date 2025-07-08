@@ -13,7 +13,7 @@ class MetadataDialog(QDialog):
         Initalise the metadata dialog.
 
         Args:
-            reader: A SimpleReader instance containing comic data and filename.
+            comic: A Comic instance containing comic data and filename.
 
         This dialog shows metadata fields for a given comic reader instance
         and provides a close button for user interaction.
