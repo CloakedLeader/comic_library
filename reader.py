@@ -13,11 +13,71 @@ from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMainWindow,
                                QToolBar, QToolButton, QWidget)
 
 from metadata_gui_panel import MetadataDialog
+from file_utils import get_name
 
 
 def sort_imgs(filename: str) -> int | None:
     numbers = re.findall(r"\d+", filename)
     return int(numbers[-1]) if numbers else -1
+
+
+class ComicError(Exception):
+    """Base exception for Comic-related issues."""
+
+
+class PageIndexError(ComicError):
+    """Raised when a page index is out of range."""
+
+
+class ImageLoadError(ComicError):
+    """Raised when an image fails to load."""
+
+
+class Comic:
+
+    def __init__(self, filepath: str, max_cache: int = 10) -> None:
+        self.path = filepath
+        self.filename = get_name(filepath)
+        self.zip = zipfile.ZipFile(filepath, "r")
+        self.image_names = sorted(
+            name for name in self.zip.namelist()
+            if name.lower().endswith((".jpg", ".jpeg", ".png"))
+        )
+        if not self.image_names:
+            raise ComicError("No images found in the file.")
+        self.total_pages = self.total_pages()
+        self.size = os.path.getsize(filepath)
+        self.cache: OrderedDict[str, bytes] = OrderedDict()
+        self.max_cache = max_cache
+        self.current_index = 0
+
+    def total_pages(self) -> int:
+        return len(self.image_names)
+
+    def get_image_data(self, index: int) -> bytes:
+        if index < 0 or index >= self.total_pages:
+            raise PageIndexError(f"Index {index} out of range.")
+
+        name = self.image_names[index]
+        if name in self.cache:
+            self.cache.move_to_end(name)
+            return self.cache[name]
+        
+        try:
+            with self.zip.open(name) as file:
+                data = file.read()
+        except Exception as e:
+            raise ImageLoadError(f"Failed to read image {name}: {e}") from e
+
+        self.cache[name] = data
+        if len(self.cache) > self.max_cache_size:
+            self.cache.popitem(last=False)
+
+        return data
+
+    def next_image_data(self) -> bytes:
+        self.current_index += 1
+        return self.get_image_data(self.current_index)
 
 
 class ImagePreloader(QThread):
@@ -32,67 +92,6 @@ class ImagePreloader(QThread):
         pixmap = self.reader.load_page(self.index)
         if pixmap:
             self.image_ready.emit(self.index, pixmap)
-
-
-class Comic:
-    def __init__(self, filepath: str, max_cache: int = 10):
-        self.path = filepath
-        self.filename = os.path.basename(filepath)
-        self.zip = zipfile.ZipFile(filepath, "r")
-        self.image_names = sorted(
-            [
-                name
-                for name in self.zip.namelist()
-                if name.lower().endswith((".jpg", ".jpeg", ".png"))
-            ]
-        )
-        self.size = os.path.getsize(filepath)
-        self.page_counter = 1
-        self.cache: OrderedDict = OrderedDict()
-        self.max_cache_size = max_cache
-
-    def load_page(self, index):
-        if index < 0 or index >= len(self.image_names):
-            return None
-        name = self.image_names[index - 1]
-        if name in self.cache:
-            self.cache.move_to_end(name)
-            return self.cache[name]
-        try:
-            with self.zip.open(name) as file:
-                image = Image.open(BytesIO(file.read()))
-                image.load()
-
-                data = image.convert("RGBA").tobytes("raw", "RGBA")
-                qimage = QImage(data, image.width, image.height, QImage.Format_RGBA8888)
-                pixmap = QPixmap.fromImage(qimage)
-
-                self.cache[name] = pixmap
-                if len(self.cache) > self.max_cache_size:
-                    self.cache.popitem(last=False)  # Remove LRU
-                return pixmap
-        except Exception as e:
-            print(f"Failed to load image {name}: {e}")
-            return None
-
-    def total_pages(self):
-        return len(self.image_names)
-
-    def get_page(self, number: int):
-        if number < 0 or number >= len(self.image_names):
-            return None
-        name = self.image_names[number - 1]
-        if name not in self.cache:
-            with self.zip.open(name) as file:
-                image_data = file.read()
-                image = Image.open(BytesIO(image_data))
-                image.load()
-                self.cache[name] = image
-        return self.cache[name]
-
-    def next_page(self):
-        self.page_counter += 1
-        self.get_page(self.page_counter)
 
 
 class SimpleReader(QMainWindow):
