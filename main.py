@@ -18,6 +18,16 @@ from rss_repository import RSSRepository
 
 
 class ClickableComicWidget(QWidget):
+    """
+    A clickable widget for displaying comic information with
+    cover and title.
+    
+    This widget displays a comic cover image and title in a vertical
+    layout and emits a clicked signal when the user clicks on it.
+
+    Signals:
+        clicked: Emitted when the widget is clicked with the left mouse button.
+    """
     clicked = Signal()
 
     def __init__(
@@ -28,6 +38,16 @@ class ClickableComicWidget(QWidget):
         img_height=20,
         parent: QWidget | None = None,
     ) -> None:
+        """
+        Intialise the clickable comic widget.
+
+        Args:
+            title: The comic title to display.
+            pixmap: The cover image as a QPixmap.
+            img_width: Width to scale the cover image to.
+            img_height: Height to scale the cover image to.
+            Parent: Parent widget to embed it in, optional.
+        """
         super().__init__(parent)
 
         layout = QVBoxLayout(self)
@@ -62,11 +82,28 @@ class ClickableComicWidget(QWidget):
         )
 
     def mousePressEvent(self, event) -> None:
+        """
+        Handle mouse press events to emit clicked signal.
+
+        Args:
+            event: The mouse press event.
+        """
         if event.button() == Qt.LeftButton:
             self.clicked.emit()
 
 
 class HomePage(QMainWindow):
+    """
+    Main window for the Comic Library application.
+
+    This class provides the primary user interface for browsing comics,
+    including file system navigation, RSS feed integration, reading
+    recommendations and download management.
+    Features include:
+        - File system tree view for comic browsing
+        - Multiple scrollable sections for different comic categories
+        - RSS feed integration for new comic discovery
+    """
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Comic Library Homepage")

@@ -15,9 +15,9 @@ from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMainWindow,
 from metadata_gui_panel import MetadataDialog
 
 
-def sort_imgs(filename: str) -> int | None:
-    numbers = re.findall(r"\d+", filename)
-    return int(numbers[-1]) if numbers else -1
+def sort_imgs(filename: str) -> int:
+    # TODO: Write this function, issue #7 on GitHub.
+    pass
 
 
 class ImagePreloader(QThread):
