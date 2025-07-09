@@ -104,7 +104,13 @@ class HomePage(QMainWindow):
         - Multiple scrollable sections for different comic categories
         - RSS feed integration for new comic discovery
     """
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Initalise the homepage main window.
+
+        Sets up a complete UI including menu bar, toolbar, status bar, file
+        system view, content area and RSS feed integration.
+        """
         super().__init__()
         self.setWindowTitle("Comic Library Homepage")
 
@@ -170,6 +176,19 @@ class HomePage(QMainWindow):
         self.setCentralWidget(body_widget)
 
     def load_pixmap_from_url(self, url: str) -> QPixmap:
+        """
+        Loads a QPixmap from a URL with error handling.
+
+        Args:
+            url: The URL image of the image to load.
+
+        Returns:
+            The loaded image or a gray placeholder if loading fails.
+
+        Downloads the image from the given URL and converts it to
+        a QPixamp. Returns a 120x180 gray placeholder if the 
+        download fails.
+        """
         try:
             response = requests.get(url, timeout=30)
             response.raise_for_status()
@@ -184,8 +203,30 @@ class HomePage(QMainWindow):
         return fallback
 
     def create_scroll_area(
-        self, list_of_dicts: list, header: str, upon_clicked, links=False
-    ) -> QScrollArea:
+        self,
+        list_of_dicts: list,
+        header: str,
+        upon_clicked: callable,
+        links=False
+        ) -> QScrollArea:
+        """
+        Create a horizontal scroll area populated with comic widgets.
+
+        Args:
+            list_of_dicts: List of dictionaries containing comic
+        information.
+            header: Text for the scroll area section title.
+            upon_clicked: Callback function to execute when a
+        comic is clicked.
+        links: Whether the comics are from the RSS links.
+
+        Returns:
+            A configured QScrollArea with clickable comic widgets.
+
+        Creates a scroll area with comic widgets arranged horizontally.
+        Each comic displays a cover image and title, and connects to the
+        provided callback function when clicked.
+        """    
         img_width, img_height = 120, 180
 
         scroll_area = QScrollArea()
@@ -228,35 +269,79 @@ class HomePage(QMainWindow):
         scroll_area.setWidget(final_widget)
         return scroll_area
 
-    def open_reader(self, comic: dict):
+    def open_reader(self, comic: dict) -> None:
+        """
+        Open a comic reader for the specified comic.
+        
+        Args:
+            Dictionary containing information about the comic
+            including filepath and database id.
+        """
         cont = ReadingController(comic)
         cont.read_comic()
 
     def print_hi(self):
         print("Hi")
 
-    def create_continue_reading_area(self, list_of_comics_marked_as_read):
+    def create_continue_reading_area(
+        self,
+        list_of_comics_marked_as_read: list[dict]
+        ) -> QScrollArea:
+        """
+        Creates a scroll area for comics marked as continue reading.
+
+        Args:
+            list_of_comics_marked_as_read: List of comics to display.
+        """
         return self.create_scroll_area(
             list_of_comics_marked_as_read,
             header="Continue Reading",
             upon_clicked=self.open_reader,
         )
 
-    def create_recommended_reading_area(self, list_of_recommended_comics):
+    def create_recommended_reading_area(
+        self,
+        list_of_recommended_comics: list[dict]
+        ) -> QScrollArea:
+        """
+        Creates a scroll area for comics marked as recommended.
+
+        Args:
+            list_of_recommended_comics: List of recommended
+        comics to display.
+        """
         return self.create_scroll_area(
             list_of_recommended_comics,
             header="Recommended Next Read",
             upon_clicked=self.open_reader,
         )
 
-    def create_review_area(self, list_of_unreviewed_comics):
+    def create_review_area(
+        self,
+        list_of_unreviewed_comics: list[dict]
+        ) -> QScrollArea:
+        """
+        Creates a scroll area for comics marked as requiring
+        review.
+
+        Args:
+            list_of_unreviewed_comics: List of unreviewec comics
+        to display.
+        """
         return self.create_scroll_area(
             list_of_unreviewed_comics,
             header="Write a review...",
             upon_clicked=self.print_hi,
         )
 
-    def create_rss_area(self):
+    def create_rss_area(self) -> QScrollArea:
+        """
+        Creates a scroll area for RSS feed comics.
+
+        Fetches recent comics from the RSS controller and 
+        creates a scroll area with download functionality
+        for each comic.
+        """
         repository = RSSRepository("comics.db")
         rss_cont = RSSController(repository)
         recent_comics_list = rss_cont.run(6)
@@ -270,10 +355,28 @@ class HomePage(QMainWindow):
             upon_clicked=self.rss_controller.handle_rss_comic_clicked,
         )
 
-    def create_stats_bar(self):
+    def create_stats_bar(self) -> QWidget:
+        """
+        Create and return a statistics bar widget.
+
+        Returns:
+            A QWidget containing comic library statistics.
+        """
         files_num, storage_val = count_files_and_storage("D:\\Comics\\Marvel")
 
         def create_stat_widget(title: str, image_path: str, value: str) -> QWidget:
+            """
+            Create a single statistic widget.
+
+            Args:
+                title: The statistic title.
+                image_path: Path to the icon image.
+                value: The statistic value to display.
+
+            Returns:
+                A QWidget displaying the statistic with title, icon
+            and value.
+            """
             widget = QWidget()
             layout = QVBoxLayout()
             # layout.setSpacing(2)
@@ -335,11 +438,31 @@ class HomePage(QMainWindow):
 
         return final_widget
 
-    def update_status(self, message: str):
+    def update_status(self, message: str) -> None:
+        """
+        Update the status bar with a message.
+
+        Args:
+            message: The message to display in the
+        status bar.
+        """
         self.status.showMessage(message, 4000)
 
 
 def count_files_and_storage(directory: str) -> tuple[int, float]:
+    """
+    Count files and calculate total storage usage in a directory.
+
+    Args:
+        directory: Path to the parent directory containing the comics.
+    
+    Returns:
+        A tuple containing (file_count, size_in_gb).
+
+    Recursively walks through the directory structure, counting all files
+    (excluding symbolic links) and calculating the total size in bytes. This
+    is then converted to gigabytes.
+    """
     total_size = 0.0
     file_count = 0
     for dirpath, _, filenames in os.walk(directory):
