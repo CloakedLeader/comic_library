@@ -182,7 +182,7 @@ def find_cover(path: str, out_dir: str) -> None:
         save_cover(comicid, first_image, out_dir)
 
 
-def find_metadata(path: str) -> ET.Element:
+def find_metadata(path: str):
     """
     Extracts and parses the ComicInfo.xml metadata file from an archive.
 
@@ -205,7 +205,7 @@ def find_metadata(path: str) -> ET.Element:
             return tree.getroot()
 
 
-def get_text(root: ET.Element, tag: str) -> str:
+def get_text(root, tag: str) -> str:
     """
     Searches for results under the tag given. Returns the stripped lowercase content.
 
@@ -474,21 +474,23 @@ def title_parsing(path: str) -> Tuple[str, int]:
     return title.title(), 1
 
 
-class MetadataCollection:
-    def __init__(self, path: str) -> None:
+class MetadataExtraction:
+    def __init__(self, path: str, temp_dir: str | None = None) -> None:
         self.filepath: str = path
-        self.temp_dir: str = tempfile.mkdtemp()
+        self.temp_dir: str = temp_dir if temp_dir else tempfile.mkdtemp()
         self.extracted: bool = False
-        self.metadata_root: ET.Element = None
- 
+        self.metadata_root = None
+
     def extract(self) -> None:
         if not self.extracted:
-            with zipfile.ZipFile(self.path, "r") as zip_ref:
+            with zipfile.ZipFile(self.filepath, "r") as zip_ref:
                 zip_ref.extractall(self.temp_dir)
             self.extracted = True
 
     def get_metadata(self) -> bool:
         self.extract()
+        if self.metadata_root is not None:
+            return True
         xml_path = os.path.join(self.temp_dir, "ComicInfo.xml")
         if os.path.exists(xml_path):
             tree = ET.parse(xml_path)
@@ -496,27 +498,27 @@ class MetadataCollection:
             return True
         else:
             return False
-        
+    
     def has_complete_metadata(self, required: list = required_fields) -> bool:
         for field in required:
             try:
                 self.get_text(field)
             except KeyError:
                 return False
-        return True            
-        
+        return True           
+    
     def get_text(self, tag: str) -> str:
         element = self.metadata_root.find(tag)
         if element is not None and element.text:
             return element.text.strip()
         else:
             raise KeyError(f"No info inside tag: {tag}.")
-        
+   
     def easy_parsing(self, field: str, as_type: type = str) -> str | int:
-        text = self.get_text(self.metadata_root, field)
+        text = self.get_text(field)
         if text is None:
             raise KeyError(f"Field '{field}' not found in metadata.")
-        
+
         try:
             return as_type(text)
         except ValueError as e:
@@ -524,8 +526,55 @@ class MetadataCollection:
                 f"Could not convert field '{field}' to {as_type.__name__}"
             ) from e
         
-        
+    def parse_characters_or_teams(self, field: str) -> list[str]:
+        seen = set()
+        out = []
+        list_string = self.easy_parsing(field)
+        items = [p.strip() for p in list_string.split(",")]
+        for item in items:
+            if item not in seen:
+                seen.add(item)
+                out.append(item)
+
+        return out
+
+    def parse_creators(self, fields: list) -> list[tuple]:
+        creator_role_list = []
+        seen_per_role = {field: set() for field in fields}
+        for field in fields:
+            list_string = self.easy_parsing(field)
+            people_raw = [p.strip() for p in list_string.split(",")]
+            for person in people_raw:
+                if person not in seen_per_role[field]:
+                    seen_per_role[field].add(person)
+                    creator_role_list.append((person, field))
+        return creator_role_list
     
+    def to_dict(self) -> dict[str, Any] | None:
+        roles = ["Writer", "Penciller", "CoverArtist", "Inker", "Colorist", "Letterer", "Editor"]
+        if self.has_complete_metadata():
+            return {
+                "title": self.easy_parsing("Title"),
+                "series": self.easy_parsing("Series"),
+                "volume_id": self.easy_parsing("Number", int),
+                "publisher": self.easy_parsing("Publisher"),
+                "month": self.easy_parsing("Month", int),
+                "year": self.easy_parsing("Year", int),
+                "file_path": self.filepath,
+                "description": self.easy_parsing("Summary"),
+                "creators": self.parse_creators(roles),
+                "characters": self.parse_characters_or_teams("Characters"),
+                "teams": self.parse_characters_or_teams("Teams")
+            }
+
+    @staticmethod
+    def normalise_publisher_name(name: str) -> str:
+        suffixes = ["comics", "publishing", "group", "press", "inc.", "inc", "llc"]
+        tokens = name.replace("&", "and").split()
+        return " ".join([t for t in tokens if t not in suffixes])
+
+
+# class MetadataProcessing:
 
 # ======================
 # Database Inputting
@@ -646,180 +695,180 @@ def dic_into_db(my_dic: dict) -> None:
 path_to_obs = os.getenv("PATH_TO_WATCH")
 
 
-class DownloadsHandler(FileSystemEventHandler):
-    """
-    Watches a directory for new files and processes them when they appear.
+# class DownloadsHandler(FileSystemEventHandler):
+#     """
+#     Watches a directory for new files and processes them when they appear.
 
-    Attributes:
-        None
+#     Attributes:
+#         None
 
-    Methods:
-        on_created(event): Triggered when a file is created. Waits until file
-    is stable then processes it.
-        on_moved(event): Triggered when a file is moved. Handles processing
-    if moved to the watched folder.
-        on_deleted(event): Triggered when a file is deleted.
-        is_file_ready(filepath, stable_time, check_interval): Checks if a file has
-    stopped changing size to ensure it's fully written.
-        process_file(path, dest_path_temp): Moves a stable file to a destination,
-    renaming if needed.
-        handle_new_file(path): Inserts a new comic into the database and converts
-    formats if necessary.
-    """
+#     Methods:
+#         on_created(event): Triggered when a file is created. Waits until file
+#     is stable then processes it.
+#         on_moved(event): Triggered when a file is moved. Handles processing
+#     if moved to the watched folder.
+#         on_deleted(event): Triggered when a file is deleted.
+#         is_file_ready(filepath, stable_time, check_interval): Checks if a file has
+#     stopped changing size to ensure it's fully written.
+#         process_file(path, dest_path_temp): Moves a stable file to a destination,
+#     renaming if needed.
+#         handle_new_file(path): Inserts a new comic into the database and converts
+#     formats if necessary.
+#     """
 
-    def on_created(self, event: FileSystemEventHandler) -> None:
-        """
-        Called when a new file is created in the watched directory.
+#     def on_created(self, event: FileSystemEventHandler) -> None:
+#         """
+#         Called when a new file is created in the watched directory.
 
-        Args:
-            event(FileSystemEvent): The file system event triggered.
-        """
-        if event.is_directory:
-            return
+#         Args:
+#             event(FileSystemEvent): The file system event triggered.
+#         """
+#         if event.is_directory:
+#             return
 
-        filepath = event.src_path
-        filename = os.path.basename(filepath)
+#         filepath = event.src_path
+#         filename = os.path.basename(filepath)
 
-        if filename.endswith(".part"):
-            logging.info(f"Ignoring partial file: {filename}")
-            return
+#         if filename.endswith(".part"):
+#             logging.info(f"Ignoring partial file: {filename}")
+#             return
 
-        logging.info(f"Detected new file: {filename}")
+#         logging.info(f"Detected new file: {filename}")
 
-        time.sleep(2)
+#         time.sleep(2)
 
-        if not self.is_file_ready(filepath):
-            logging.warning(f"File not stable yet: {filename}")
-            return
+#         if not self.is_file_ready(filepath):
+#             logging.warning(f"File not stable yet: {filename}")
+#             return
 
-        try:
-            self.process_file(filepath)
-        except Exception as e:
-            logging.error(f"Error processing file {filepath}: {e}")
+#         try:
+#             self.process_file(filepath)
+#         except Exception as e:
+#             logging.error(f"Error processing file {filepath}: {e}")
 
-    def on_moved(self, event: FileSystemEventHandler) -> None:
-        """
-        Called when a file is moved.
+#     def on_moved(self, event: FileSystemEventHandler) -> None:
+#         """
+#         Called when a file is moved.
 
-        Args:
-            event(FileSystemEvent): The file system move event.
-        """
-        if event.dest_path == path_to_obs:
-            if not event.is_directory:
-                file_path = event.src_path
-                logging.debug(f"New file detected: {file_path}")
-                self.handle_new_file(file_path)
+#         Args:
+#             event(FileSystemEvent): The file system move event.
+#         """
+#         if event.dest_path == path_to_obs:
+#             if not event.is_directory:
+#                 file_path = event.src_path
+#                 logging.debug(f"New file detected: {file_path}")
+#                 self.handle_new_file(file_path)
 
-    def on_deleted(self, event: FileSystemEventHandler) -> None:
-        """
-        Called when a file is deleted.
+#     def on_deleted(self, event: FileSystemEventHandler) -> None:
+#         """
+#         Called when a file is deleted.
 
-        Args:
-            event (FileSystemEvent): The file system delete event.
-        """
-        logging.debug(f"Detected a file deletion: {event.src_path}")
+#         Args:
+#             event (FileSystemEvent): The file system delete event.
+#         """
+#         logging.debug(f"Detected a file deletion: {event.src_path}")
 
-    def is_file_ready(
-        self, filepath: str, stable_time: int = 5, check_interval: int = 1
-    ) -> bool:
-        """
-        Checks to see if the file size has stabilised over time,
-        indicating it's fully written.
+#     def is_file_ready(
+#         self, filepath: str, stable_time: int = 5, check_interval: int = 1
+#     ) -> bool:
+#         """
+#         Checks to see if the file size has stabilised over time,
+#         indicating it's fully written.
 
-        Args:
-            filepath: Path to newly detected file.
-            stable_time: Number of consectutive stable intervals.
-        intervals before confirming readiness.
-            check_interval: The number of seconds to wait between intervals.
+#         Args:
+#             filepath: Path to newly detected file.
+#             stable_time: Number of consectutive stable intervals.
+#         intervals before confirming readiness.
+#             check_interval: The number of seconds to wait between intervals.
 
-        Returns:
-            bool: True if file is stable and ready to be moved, False otherwise.
-        """
-        prev_size = -1
-        stab_counter = 0
-        while stab_counter < stable_time:
-            try:
-                current_size = os.path.getsize(filepath)
-            except FileNotFoundError:
-                logging.warning(f"File {filepath} disappeared.")
-                return False
+#         Returns:
+#             bool: True if file is stable and ready to be moved, False otherwise.
+#         """
+#         prev_size = -1
+#         stab_counter = 0
+#         while stab_counter < stable_time:
+#             try:
+#                 current_size = os.path.getsize(filepath)
+#             except FileNotFoundError:
+#                 logging.warning(f"File {filepath} disappeared.")
+#                 return False
 
-            if current_size == prev_size:
-                stab_counter += 1
-            else:
-                stab_counter = 0
-                prev_size = current_size
+#             if current_size == prev_size:
+#                 stab_counter += 1
+#             else:
+#                 stab_counter = 0
+#                 prev_size = current_size
 
-            time.sleep(check_interval)
+#             time.sleep(check_interval)
 
-        return True
+#         return True
 
-    def process_file(self, path: str, dest_path_temp: str) -> None:
-        """
-        Moves the processed file to a target directory, renaming it if the file
-        name is already taken.
+#     def process_file(self, path: str, dest_path_temp: str) -> None:
+#         """
+#         Moves the processed file to a target directory, renaming it if the file
+#         name is already taken.
 
-        Args:
-            path: Path to newly detected file to be moved.
-            dest_path_temp: Target destination directory.
-        """
-        filename = os.path.basename(path)
+#         Args:
+#             path: Path to newly detected file to be moved.
+#             dest_path_temp: Target destination directory.
+#         """
+#         filename = os.path.basename(path)
 
-        if os.path.exists(dest_path_temp):
-            base, ext = os.path.splitext(filename)
-            timestamp = int(time.time())
-            new_filename = f"{base}_{timestamp}{ext}"
-            dest_path = os.path.join("dir", new_filename)
-            logging.warning(f"File exists, renaming to: {new_filename}")
+#         if os.path.exists(dest_path_temp):
+#             base, ext = os.path.splitext(filename)
+#             timestamp = int(time.time())
+#             new_filename = f"{base}_{timestamp}{ext}"
+#             dest_path = os.path.join("dir", new_filename)
+#             logging.warning(f"File exists, renaming to: {new_filename}")
 
-        shutil.move(path, dest_path)
-        logging.info(f"Moved file to library: {dest_path}")
+#         shutil.move(path, dest_path)
+#         logging.info(f"Moved file to library: {dest_path}")
 
-    def handle_new_file(self, path: str) -> Optional[Tuple[int]]:
-        """
-        Handles newly deteced files by inserting them into the database
-        and converting format if needed.
+#     def handle_new_file(self, path: str) -> Optional[Tuple[int]]:
+#         """
+#         Handles newly deteced files by inserting them into the database
+#         and converting format if needed.
 
-        Args:
-            path: Path of the newly detected file.
-        """
-        if is_comic(path):
-            if get_ext(path) == ".cbr":
-                path = convert_cbz(path)
+#         Args:
+#             path: Path of the newly detected file.
+#         """
+#         if is_comic(path):
+#             if get_ext(path) == ".cbr":
+#                 path = convert_cbz(path)
 
-            conn = sqlite3.connect("comics.db")
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                INSERT INTO comics (title, file_path)
-                VALUES (?, ?)
-            """,
-                (get_name(path), path),
-            )
-            comic_id = cursor.lastrowid
-            if comic_id:
-                return (comic_id,)
+#             conn = sqlite3.connect("comics.db")
+#             cursor = conn.cursor()
+#             cursor.execute(
+#                 """
+#                 INSERT INTO comics (title, file_path)
+#                 VALUES (?, ?)
+#             """,
+#                 (get_name(path), path),
+#             )
+#             comic_id = cursor.lastrowid
+#             if comic_id:
+#                 return (comic_id,)
 
-            conn.commit()
-            conn.close()
+#             conn.commit()
+#             conn.close()
 
-            if not has_metadata(path):
-                pass  # This is where to call the tagging function
+#             if not has_metadata(path):
+#                 pass  # This is where to call the tagging function
 
-            # files that make to here are downloaded already with metadata,
-            # if that is the case need to extract data
-            # so should call another function here
+#             # files that make to here are downloaded already with metadata,
+#             # if that is the case need to extract data
+#             # so should call another function here
 
-        else:
-            logging.critical("Wrong file type.")
+#         else:
+#             logging.critical("Wrong file type.")
 
 
-obs = Observer()
-obs.schedule(DownloadsHandler(), path_to_obs, recursive=False)
-obs.start()
-try:
-    while True:
-        time.sleep(1)
-except KeyboardInterrupt:
-    obs.stop()
-    obs.join()
+# obs = Observer()
+# obs.schedule(DownloadsHandler(), path_to_obs, recursive=False)
+# obs.start()
+# try:
+#     while True:
+#         time.sleep(1)
+# except KeyboardInterrupt:
+#     obs.stop()
+#     obs.join()

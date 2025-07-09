@@ -1,64 +1,42 @@
-import os
 import unittest
-import xml.etree.ElementTree as ET
-import zipfile
+import shutil
+import tempfile
 
-from metadata import find_metadata, get_text
-
-
-class TestGetText(unittest.TestCase):
-    def setUp(self):
-        self.root = find_metadata(
-            r"D:\comic_library\comic_examples\Juggernaut "
-            "- No Stopping Now TPB (March 2021).cbz"
-        )
-
-    def test_valid_tag(self):
-        self.assertEqual(get_text(self.root, "Writer"), "fabian nicieza")
-
-    def test_missing_tag(self):
-        xml = """<ComicInfo><Writer>Alan Moore</Writer>
-        <EmptyTag></EmptyTag></ComicInfo>"""
-        dummy_root = ET.fromstring(xml)
-        with self.assertRaises(KeyError):
-            get_text(dummy_root, "Penciller")
-
-    def test_empty_tag(self):
-        xml = """<ComicInfo><Writer>Alan Moore</Writer><EmptyTag></EmptyTag></ComicInfo>"""
-        dummy_root = ET.fromstring(xml)
-        with self.assertRaises(KeyError):
-            get_text(dummy_root, "EmptyTag")
+from metadata import MetadataExtraction
 
 
-class TestFindMetadata(unittest.TestCase):
-    def setUp(self):
-        self.valid_cbz = (
-            r"D:\comic_library\comic_examples\Juggernaut"
-            " - No Stopping Now TPB (March 2021).cbz"
-        )
-        self.invalid_cbz = r"D:\comic_library\comic_examples\bad.cbz"
-        with open(self.invalid_cbz, "w") as f:
-            f.write("not a zip file")
+class TestMetadataExtraction(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.path = "D:\\comic_library\\comic_examples\\Wonder Woman Dead Earth TPB (December 2020).cbz"
+        cls.tempdir = tempfile.mkdtemp()
+        print(f"Using temp dir: {cls.tempdir}")
+        cls.test_case = MetadataExtraction(cls.path, temp_dir=cls.tempdir)
+        assert cls.test_case.get_metadata()
+   
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tempdir)
 
-    def tearDown(self):
-        os.remove(self.invalid_cbz)
+    def test_parse_comicinfo_xml_from_cbz(self):
+        self.assertEqual(self.test_case.has_complete_metadata(["Writer", "Publisher"]), True)
+   
+    def test_easy_parsing1(self):
+        self.assertEqual(self.test_case.easy_parsing("Genre"), "Superhero")
 
-    def test_valid_cbz(self):
-        root = find_metadata(self.valid_cbz)
-        self.assertEqual(root.tag, "ComicInfo")
+    def test_easy_parsing2(self):
+        self.assertEqual(self.test_case.easy_parsing("Year", int), 2020)
 
-    def test_invalid_zip(self):
-        with self.assertRaises(zipfile.BadZipFile):
-            find_metadata(self.invalid_cbz)
+    def test_parse_creators(self):
+        self.assertEqual(self.test_case.parse_creators(["Writer", "Colorist"]), [("Daniel Warren Johnson", "Writer"), ("Michael Spicer","Colorist")])
 
-    def test_missing_file(self):
-        with self.assertRaises(FileNotFoundError):
-            find_metadata("missing.cbz")
+    def test_parse_teams(self):
+        self.assertEqual(self.test_case.parse_characters_or_teams("Teams"), ["Amazons"])
+   
+    def test_parse_characters(self):
+        self.assertEqual(self.test_case.parse_characters_or_teams("Characters"),
+                         ["Batman", "Cheetah (Minerva)", "Hippolyta", "Nubia", "Pegasus", "Steve Trevor", "Superman", "Wonder Woman"])
+   
 
-    def test_missing_comicinfo(self):
-        path = "noinfo.cbz"
-        with zipfile.ZipFile(path, "w") as z:
-            z.writestr("NotComicInfo.xml", "<root></root>")
-        with self.assertRaises(KeyError):
-            find_metadata(path)
-        os.remove(path)
+if __name__ == "__main__":
+    unittest.main()
