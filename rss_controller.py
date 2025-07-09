@@ -79,7 +79,7 @@ class RSSController:
             num: The number of recent entries to return.
 
         Returns:
-            A list of dictionaries of recent comic information dictionaries.
+            A list of dictionaries of recent comic information.
         """
         self.add_rss_to_db()
         result = self.get_recent_comic_info(num)
