@@ -1,6 +1,6 @@
 import sqlite3
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 
 
 class RSSRepository:
@@ -20,21 +20,21 @@ class RSSRepository:
         self.connection = sqlite3.connect(db_file)
         self.cursor = self.connection.cursor()
 
-    def get_latest_pub_date(self) -> Optional[str]:
-        """
-        Retrieve the latest publication date from stored entries.
+    # def get_latest_pub_date(self) -> Optional[str]:
+    #     """
+    #     Retrieve the latest publication date from stored entries.
 
-        Returns:
-            The most recent publication date, or None if no entries exist.
-        """
-        self.cursor.execute(
-            "SELECT pub_date FROM rss_entries "
-            "ORDER BY datetime(pub_date) DESC LIMIT 1"
-        )
-        row = self.cursor.fetchone()
-        # TODO: Make this return some arbitrary date from ages ago
-        # if no date is found.
-        return row[0] if row else None
+    #     Returns:
+    #         The most recent publication date, or None if no entries exist.
+    #     """
+    #     self.cursor.execute(
+    #         "SELECT pub_date FROM rss_entries "
+    #         "ORDER BY datetime(pub_date) DESC LIMIT 1"
+    #     )
+    #     row = self.cursor.fetchone()
+    #     # TODO: Make this return some arbitrary date from ages ago
+    #     # if no date is found.
+    #     return row[0] if row else None
 
     def insert_entries(self, entries: list[dict[str, Any]]) -> None:
         """
@@ -94,7 +94,7 @@ class RSSRepository:
             """
             SELECT title, cover_url
             FROM rss_entries
-            ORDER BY datetime(pub_date) ASC
+            ORDER BY pub_date DESC
             LIMIT ?
         """,
             (limit,),
