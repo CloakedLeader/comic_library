@@ -279,8 +279,8 @@ class HomePage(QMainWindow):
         cont = ReadingController(comic)
         cont.read_comic()
 
-    def print_hi(self, comic_dict) -> None:
-        print("Hi" + comic_dict["title"] + "!")
+    def print_hi(self, comic_dict: dict) -> None:
+        print("Hi " + comic_dict["title"] + "!")
 
     def create_continue_reading_area(
         self,
@@ -343,9 +343,7 @@ class HomePage(QMainWindow):
         """
         repository = RSSRepository("comics.db")
         rss_cont = RSSController(repository)
-        print("Calling rss_cont.run(6)")
         recent_comics_list = rss_cont.run(6)
-        print(f"To add to database: {recent_comics_list}")
         # self.rss_controller = DownloadControllerAsync(
         #     view=self, service=DownloadServiceAsync()
         # )

@@ -20,7 +20,6 @@ class RSSRepository:
         self.connection = sqlite3.connect(db_file)
         self.cursor = self.connection.cursor()
 
-
     # NOTE: Commented out as part of update detection logic removal
     # Remove entirely if not needed for future reference.
     # def get_latest_pub_date(self) -> Optional[str]:

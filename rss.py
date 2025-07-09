@@ -1,3 +1,5 @@
+from email.utils import parsedate_to_datetime
+
 import feedparser
 import requests
 from bs4 import BeautifulSoup
@@ -39,6 +41,12 @@ def rss_scrape() -> list[dict]:
         total_summary = entry.get("summary", "")
         comic_description = summary_scrape(total_summary)
         entry["summary"] = comic_description
+        raw = entry["pub_date"]
+        entry["pub_date"] = (
+            parsedate_to_datetime(raw)
+            .astimezone(tz=None)
+            .strftime("%Y-%m-%d %H:%M:%S")
+        ) if raw else raw
         res = requests.get(
             entry.get("link"), headers={"User-Agent": "Mozilla/5.0"}, timeout=30
         )
