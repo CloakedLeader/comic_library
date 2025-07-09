@@ -6,7 +6,7 @@ from pathlib import Path
 import rarfile
 
 
-def convert_cbz(cbr_path: str, delete_original: bool = True) -> str:
+def convert_cbz(cbr_path: str, *, delete_original: bool = True) -> str:
     """
     Extracts files from a cbr archive and repackages them as a cbz.
 
@@ -23,7 +23,7 @@ def convert_cbz(cbr_path: str, delete_original: bool = True) -> str:
     to a .cbr file.
 
     Dumps the contents of the .cbr file to a temporary directory
-    and then zips that directory into the .cbz with the same 
+    and then zips that directory into the .cbz with the same
     filename.
     """
     if not get_ext(cbr_path) == ".cbr":
@@ -61,8 +61,7 @@ def is_comic(path: str) -> bool:
     Tells whether a file is a comic archive or not.
     """
     comic_archives = [".cbz", ".cbr"]
-    return True if get_ext(path) in comic_archives \
-    else False
+    return get_ext(path) in comic_archives
 
 
 def get_name(path: str) -> str:

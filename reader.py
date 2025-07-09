@@ -1,5 +1,4 @@
 import os
-import re
 import sys
 import zipfile
 from collections import OrderedDict
@@ -17,7 +16,7 @@ from metadata_gui_panel import MetadataDialog
 
 def sort_imgs(filename: str) -> int:
     # TODO: Write this function, issue #7 on GitHub.
-    pass
+    return -1 # Placeholder until issue closed.
 
 
 class ImagePreloader(QThread):

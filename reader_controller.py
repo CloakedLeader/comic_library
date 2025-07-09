@@ -28,7 +28,7 @@ class ReadingController:
         """
         Open a new comic reader window.
 
-        Creates a comic instance from the stored filepath, instantiaes a SimpleReader,
+        Creates a comic instance from the stored filepath, instantiates a SimpleReader,
         displays the reader window and tracks it in the open window list for
         management.
         """

@@ -5,10 +5,10 @@ from bs4 import BeautifulSoup
 
 def rss_scrape() -> list[dict]:
     """
-    Scrapes and processed RSS feed data from GetComics
+    Scrapes and processes RSS feed data from GetComics
     website.
 
-    Fetches the RSS feed, fitters comic entries, extracts
+    Fetches the RSS feed, filters comic entries, extracts
     relevant information including title, link, publication
     date, summary and cover image.
 

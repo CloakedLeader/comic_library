@@ -186,7 +186,7 @@ class HomePage(QMainWindow):
             The loaded image or a gray placeholder if loading fails.
 
         Downloads the image from the given URL and converts it to
-        a QPixamp. Returns a 120x180 gray placeholder if the 
+        a QPixmap. Returns a 120x180 gray placeholder if the 
         download fails.
         """
         try:
@@ -207,8 +207,8 @@ class HomePage(QMainWindow):
         list_of_dicts: list,
         header: str,
         upon_clicked: callable,
-        links=False
-        ) -> QScrollArea:
+        links: bool = False
+    ) -> QScrollArea:
         """
         Create a horizontal scroll area populated with comic widgets.
 
@@ -280,7 +280,7 @@ class HomePage(QMainWindow):
         cont = ReadingController(comic)
         cont.read_comic()
 
-    def print_hi(self):
+    def print_hi(self) -> None:
         print("Hi")
 
     def create_continue_reading_area(
@@ -319,13 +319,13 @@ class HomePage(QMainWindow):
     def create_review_area(
         self,
         list_of_unreviewed_comics: list[dict]
-        ) -> QScrollArea:
+    ) -> QScrollArea:
         """
         Creates a scroll area for comics marked as requiring
         review.
 
         Args:
-            list_of_unreviewed_comics: List of unreviewec comics
+            list_of_unreviewed_comics: List of unreviewed comics
         to display.
         """
         return self.create_scroll_area(
