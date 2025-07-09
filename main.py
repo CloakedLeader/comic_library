@@ -162,9 +162,9 @@ class HomePage(QMainWindow):
         stats_bar = self.create_stats_bar()
         # stats_bar.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         # stats_bar.setMaximumHeight(70)
-        continue_reading = self.create_continue_reading_area()
+        continue_reading = self.create_continue_reading_area(dummy_data)
         # recommended = self.create_recommended_reading_area()
-        need_review = self.create_review_area()
+        need_review = self.create_review_area(dummy_data)
         rss = self.create_rss_area()
 
         content_layout.addWidget(stats_bar)
@@ -474,6 +474,9 @@ def count_files_and_storage(directory: str) -> tuple[int, float]:
     total_size = total_size / (1024**3)
     return file_count, total_size
 
+
+dummy_data = [{"title": "Mr Miracle TPB", "cover_path" : "D:\\Comics\\.yacreaderlibrary\\covers\\1f7c63fb2bf06fcd4293fad5928354e591542fb9459630961.jpg", "filepath": "D://Comics//DC//Misc//Mister Miracle TPB (February 2019).cbz"}, 
+              {"title" : "Daredevil: The Man Witout Fear", "cover_path" : "D:\\Comics\\.yacreaderlibrary\\covers\\051a70f024954f92e2b2c0699f00859ac772e865685497443.jpg"}]
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
