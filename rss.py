@@ -5,16 +5,22 @@ from bs4 import BeautifulSoup
 
 def rss_scrape() -> list[dict]:
     """
-    Scrapes the rss feed of GetComics and returns
-    a list of dictionaries with the following structure:
-    {
-    title: The title of the page on GetComics.
-    link: The link of the article on GetComics.
-    pub_date: The date the article was published on GetComics.
-    summary: The description (or blurb) of the comic,
-    filtered out of the html summary.
-    cover_link: The link to the cover image for display purposes.
-    }
+    Scrapes and processes RSS feed data from GetComics
+    website.
+
+    Fetches the RSS feed, filters comic entries, extracts
+    relevant information including title, link, publication
+    date, summary and cover image.
+
+    Returns:
+        A list of dictionaries containing comic information.
+
+    Each dictionary contains:
+        - title: Comic title
+        - link: Article link
+        - pub_date: Publication date
+        - summary: Cleaned summary text
+        - cover_link: Cover image URL
     """
     base_url = "https://getcomics.org/feed/"
     feed = feedparser.parse(base_url)
@@ -44,11 +50,31 @@ def rss_scrape() -> list[dict]:
 
 
 def is_metadata_paragraph(paragraph: BeautifulSoup) -> bool:
+    """
+    Checks if a paragraph contains metadata keywords.
+
+    Args:
+        paragraph: A BeautifulSoup paragraph element to check.
+
+    Returns:
+        True if the paragraph contains metadata keywords, else False.
+    """
     text = paragraph.get_text(strip=True).lower()
     return text.startswith(("year", "size")) or ("year" in text and "size" in text)
 
 
 def summary_scrape(html_formatted_string: str) -> str:
+    """
+    Removes metadata paragraphs and promotional content to extract
+    the core summary information.
+
+    Args:
+        html_formatted_string: A HTML formatted string extracted
+    from the RSS feed.
+
+    Returns:
+        Cleaned summary text, basically just the description of the comic.
+    """
     soup = BeautifulSoup(html_formatted_string, "html.parser")
     paragraphs = soup.find_all("p")
     description_paragraphs = []
@@ -75,6 +101,17 @@ def summary_scrape(html_formatted_string: str) -> str:
 
 
 def is_comic_entry(entry: dict[str, str]) -> bool:
+    """
+    Filters comic entries based on blacklists applied to links
+    and titles.
+
+    Args:
+        entry: Dictionary containing information scraped from
+    the RSS feed.
+
+    Returns:
+        True if the entry is a valid comic entry.
+    """
     link_blacklist = ["/news/", "/announcement/", "/blog"]
     title_blacklist = ["weekly pack"]
     link_lower = entry["link"].lower()
@@ -86,7 +123,24 @@ def is_comic_entry(entry: dict[str, str]) -> bool:
     )
 
 
-def download_comic(comic_info: dict) -> list[tuple[str, str]]:
+def download_comic(comic_info: dict[str, str]) -> list[tuple[str, str]]:
+    """
+    Extracts download links from a comic page's HTML code.
+
+    Fetches the comic page, parses HTML to find download buttons and
+    extracts download links with their titles.
+
+    Args:
+        comic_info: Dictionary containing comic information with 'link'
+    key.
+
+    Returns:
+        List of tuples containing (title, download_url).
+
+    The function looks for div elements with class
+    "aio-button-center" and extracts download links from anchor tags
+    within them.
+    """
     url = comic_info.get("link")
     headers = {"User-Agent": "Mozilla/5.0"}
 

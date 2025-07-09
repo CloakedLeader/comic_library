@@ -1,5 +1,4 @@
 import os
-import re
 import sys
 import zipfile
 from collections import OrderedDict
@@ -16,9 +15,9 @@ from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMainWindow,
 from file_utils import get_name
 
 
-def sort_imgs(filename: str) -> int | None:
-    numbers = re.findall(r"\d+", filename)
-    return int(numbers[-1]) if numbers else -1
+def sort_imgs(filename: str) -> int:
+    # TODO: Write this function, issue #7 on GitHub.
+    return -1 # Placeholder until issue closed.
 
 
 class ComicError(Exception):
