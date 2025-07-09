@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 
 class DownloadControllerAsync:
     """
-    Asynchronous controller for handling comicc download operations.
+    Asynchronous controller for handling comic download operations.
 
     This class coordinates between the view and download service to handle
     user interactions for downloading comics from RSS feeds. It manages the
@@ -74,7 +74,7 @@ class DownloadServiceAsync:
 
     This class handles the actual downloading of the comic files, including
     link extraction from web pages, filename resolution and file management.
-    It provides robust error handling and suppots various comic file formats.
+    It provides robust error handling and supports various comic file formats.
     """
 
     def __init__(self, download_folder: str = "D://Comics//To Be Sorted") -> None:
@@ -163,7 +163,7 @@ class DownloadServiceAsync:
 
         Downloads the file in chunks to handle large files efficiently.
         Attempts to get filename from Content-Disposition header, falls back
-        to URl path, finally, uses "downloaded_comic.cbz" as a last resort.
+        to URL path, finally, uses "downloaded_comic.cbz" as a last resort.
         """
         async with aiohttp.ClientSession() as session:
             async with session.get(comic_download_link) as response:

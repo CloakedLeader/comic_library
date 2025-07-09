@@ -652,7 +652,7 @@ class DownloadsHandler(FileSystemEventHandler):
 
         Args:
             filepath: Path to newly detected file.
-            stable_time: Number of consectutive stable 
+            stable_time: Number of consectutive stable intervals.
         intervals before confirming readiness.
             check_interval: The number of seconds to wait between intervals.
 

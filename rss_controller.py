@@ -13,7 +13,7 @@ class RSSController:
     """
     def __init__(self, repository: RSSRepository) -> None:
         """
-        Intiliase the RSS controller.
+        Initialise the RSS controller.
 
         Args:
             repository: RSSRepository instance for database operations.
@@ -26,7 +26,7 @@ class RSSController:
         Updates the database with new RSS entries.
 
         Deletes old entries and inserts new ones from the RSS feed if there
-        newer entries than the latest stored one.
+        are newer entries than the latest stored one.
         """
         self.repo.delete_old_entries()
         if self.is_new_update():
@@ -37,7 +37,7 @@ class RSSController:
         Checks if the RSS feed contains newer updates than stored data.
 
         Compares the publication date of the latest RSS entry with the
-        latest entry in the databas using email date parsing.
+        latest entry in the database using email date parsing.
 
         Returns:
             True if there are newer updates available, else False.

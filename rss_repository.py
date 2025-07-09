@@ -12,7 +12,7 @@ class RSSRepository:
     """
     def __init__(self, db_file: str) -> None:
         """
-        Initalise the RSS repository with a database connection.
+        Initialise the RSS repository with a database connection.
 
         Args:
             db_file: Path to the SQLite database file.
@@ -22,7 +22,7 @@ class RSSRepository:
 
     def get_latest_pub_date(self) -> Optional[str]:
         """
-        Retrieve tbe latest publication date from stored entries.
+        Retrieve the latest publication date from stored entries.
 
         Returns:
             The most recent publication date, or None if no entries exist.
@@ -61,7 +61,7 @@ class RSSRepository:
 
     def delete_old_entries(self, lifetime: int = 14) -> None:
         """
-        Delete entries older than the specifiec lifetime.
+        Delete entries older than the specified lifetime.
 
         Args:
             lifetime: Maximum number of days an entry survives in the
@@ -114,7 +114,7 @@ class RSSRepository:
 
 def init_db() -> None:
     """
-    Intialise the database and create the rss_entries table
+    Initialise the database and create the rss_entries table
     if it doesn't exist.
 
     Creates a table with columns for URL (primary key), title,
