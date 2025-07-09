@@ -27,9 +27,9 @@ logging.basicConfig(
 
 def find_credit_pages(path: str) -> Tuple[str, str]:
     """
-    Searches for comic ripper pages among the image files. 
+    Searches for comic ripper pages among the image files.
     Identifies comic ripper pages by filenames that are very different
-    from the names of the first 40% of files. 
+    from the names of the first 40% of files.
 
     Args:
         path: The filepath of the comic archive.
@@ -42,20 +42,19 @@ def find_credit_pages(path: str) -> Tuple[str, str]:
     """
     with zipfile.ZipFile(path, "r") as arch:
         image_files = [
-            f
-            for f in arch.namelist()
-            if f.lower().endswith((".jpg", ".jpeg", ".png"))
+            f for f in arch.namelist() if f.lower().endswith((".jpg", ".jpeg", ".png"))
         ]
         if not image_files:
             raise ValueError("Empty archive: no image files found.")
-        
+
         image_files.sort()
         common_files_index = int(len(image_files) * 0.4)
         early_files = image_files[:common_files_index]
         file_paths_to_compare = random.sample(early_files, min(5, len(early_files)))
         last_files = image_files[-3:]
         not_matching_file = {
-            j for j in last_files
+            j
+            for j in last_files
             for k in file_paths_to_compare
             if Levenshtein.distance(j, k) > 10
         }
@@ -79,7 +78,7 @@ def pad(n: int) -> str:
 
 def get_comicid_from_path(
     path: str,
-    ) -> int:
+) -> int:
     """
     Finds the ID of the comic in the database from its filepath.
 
@@ -99,12 +98,14 @@ def get_comicid_from_path(
     else:
         raise LookupError(f"No comic found in database for path: {path}")
 
+
 download_path = os.getenv("DEST_FILE_PATH")
 
 
 def save_cover(id: int, bytes: bytes, out_dir: str = download_path) -> Tuple[str, str]:
     """
-    Saves two copies of the same image with different sizes and suffixes to their filename.
+    Saves two copies of the same image with different sizes 
+    and suffixes to their filename.
 
     Args:
         id: The primary key id of the comic from the database.
@@ -209,7 +210,7 @@ def get_text(root: ET.Element, tag: str) -> str:
     Args:
         root: The base of the xml tree (where pretty much all the data is).
         tag: The section to search for (e.g. writer, summary etc).
-    
+
     Returns:
         The lowercase, stripped text from the tag.
 
@@ -362,7 +363,7 @@ def parse_creator(path: str, tag: str) -> list[str]:
 
 def match_publisher(
     a: str,
-    ) -> int:
+) -> int:
     """
     Matches the natural language name of a publisher from metadata
     to an entry in the list of known publishers with numbered keys from the sql table.
@@ -390,9 +391,7 @@ def match_publisher(
     best_match = None
     normalised_pub = normalise_publisher(a)
     for pub_id, pub_name in known_publishers:
-        score = fuzz.token_set_ratio(
-            normalised_pub, normalise_publisher(pub_name)
-        )
+        score = fuzz.token_set_ratio(normalised_pub, normalise_publisher(pub_name))
         if score > best_score:
             best_score = score
             best_match = (pub_id, pub_name)
@@ -421,7 +420,8 @@ common_title_words = {"volume", "book", "collection"}
 
 def title_parsing(path: str) -> Tuple[str, int]:
     """
-    Parses the title from the ComicInfo.xml to determine collection type and cleaned series title.
+    Parses the title from the ComicInfo.xml to determine 
+    collection type and cleaned series title.
 
     Args:
         path: The filepath of the comic archive.
@@ -435,30 +435,33 @@ def title_parsing(path: str) -> Tuple[str, int]:
     title_raw = parse_title(path)
     if not title_raw:
         raise ValueError(f"Could not parse title from path: {path}")
-   
+
     title_raw = title_raw.lower()
     title = parse_series(path)
     if not title:
         raise ValueError(f"Could not parse series from path: {path}")
- 
+
     for keyword, type_id in series_overrides:
         if keyword in title_raw:
             cleaned_title = title_raw.replace(keyword, "").strip(" -:").title()
             return cleaned_title or title.title(), type_id
 
-
     match = re.search(
-        r"(volume|book)\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)",
-        title_raw
+        r"(volume|book)\s*(\d+|one|two|three|four"
+        "|five|six|seven|eight|nine|ten|eleven|twelve)",
+        title_raw,
     )
     if match:
         try:
             cleaned_title = title_raw.replace(match.group(0), "").strip(" -:").title()
             return cleaned_title or title.title(), 1
         except ValueError:
-            logging.warning("Volume number couldn't be parsed; falling back to basic title.")
+            logging.warning(
+                "Volume number couldn't be parsed; falling back to basic title."
+            )
     return title.title(), 1
- 
+
+
 # ======================
 # Database Inputting
 # =======================
@@ -471,26 +474,25 @@ def build_dict(path: str) -> dict:
 
     Args:
         path: The filepath of the comic archive.
-    
+
     Returns:
         A dictionary of metadata fields to be stored in the main comics table.
 
     Raises:
         ValueErrors: if parsing fails to find a corresponding match.
         KeyErrors: if data cannot be read.
-        
+
     """
     dic = {
-        
-            "title": "",
-            "series": "",
-            "volume_id": "",
-            "publisher_id": "",
-            "release_date": "",
-            "file_path": path,
-            "front_cover_path": "",
-            "description": "",
-            "coll_type_id": "",
+        "title": "",
+        "series": "",
+        "volume_id": "",
+        "publisher_id": "",
+        "release_date": "",
+        "file_path": path,
+        "front_cover_path": "",
+        "description": "",
+        "coll_type_id": "",
     }
 
     dic["description"] = parse_desc(path)
@@ -520,7 +522,7 @@ def build_dict(path: str) -> dict:
         month = parse_month(path)
         year = parse_year(path)
         if month and year:
-            dic["release_date"] = f"{month}/year"   
+            dic["release_date"] = f"{month}/year"
         else:
             raise ValueError("Missing month/year")
     except Exception as e:
@@ -578,12 +580,12 @@ class DownloadsHandler(FileSystemEventHandler):
     Methods:
         on_created(event): Triggered when a file is created. Waits until file
     is stable then processes it.
-        on_moved(event): Triggered when a file is moved. Handles processing 
+        on_moved(event): Triggered when a file is moved. Handles processing
     if moved to the watched folder.
         on_deleted(event): Triggered when a file is deleted.
         is_file_ready(filepath, stable_time, check_interval): Checks if a file has
     stopped changing size to ensure it's fully written.
-        process_file(path, dest_path_temp): Moves a stable file to a destination, 
+        process_file(path, dest_path_temp): Moves a stable file to a destination,
     renaming if needed.
         handle_new_file(path): Inserts a new comic into the database and converts
     formats if necessary.
@@ -642,17 +644,16 @@ class DownloadsHandler(FileSystemEventHandler):
         logging.debug(f"Detected a file deletion: {event.src_path}")
 
     def is_file_ready(
-        self, 
-        filepath: str, 
-        stable_time: int = 5, 
-        check_interval: int = 1
-        ) -> bool:
+        self, filepath: str, stable_time: int = 5, check_interval: int = 1
+    ) -> bool:
         """
-        Checks to see if the file size has stabilised over time, indicating it's fully written.
+        Checks to see if the file size has stabilised over time,
+        indicating it's fully written.
 
         Args:
             filepath: Path to newly detected file.
-            stable_time: Number of consectutive stable intervals before confirming readiness.
+            stable_time: Number of consectutive stable intervals.
+        intervals before confirming readiness.
             check_interval: The number of seconds to wait between intervals.
 
         Returns:
@@ -684,7 +685,7 @@ class DownloadsHandler(FileSystemEventHandler):
 
         Args:
             path: Path to newly detected file to be moved.
-            dest_path_temp: Target destination directory. 
+            dest_path_temp: Target destination directory.
         """
         filename = os.path.basename(path)
 
@@ -713,10 +714,11 @@ class DownloadsHandler(FileSystemEventHandler):
             conn = sqlite3.connect("comics.db")
             cursor = conn.cursor()
             cursor.execute(
-                f"""
+                """
                 INSERT INTO comics (title, file_path)
                 VALUES (?, ?)
-            """, (get_name(path), path)
+            """,
+                (get_name(path), path),
             )
             comic_id = cursor.lastrowid
             if comic_id:

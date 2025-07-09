@@ -10,7 +10,7 @@ class MetadataDialog(QDialog):
 
     def __init__(self, comic: Comic) -> None:
         """
-        Initalise the metadata dialog.
+        Initialise the metadata dialog.
 
         Args:
             comic: A Comic instance containing comic data and filename.
