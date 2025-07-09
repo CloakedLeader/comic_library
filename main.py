@@ -271,7 +271,7 @@ class HomePage(QMainWindow):
     def open_reader(self, comic: dict) -> None:
         """
         Open a comic reader for the specified comic.
-  
+
         Args:
             Dictionary containing information about the comic
             including filepath and database id.

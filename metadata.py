@@ -5,10 +5,12 @@ import re
 import shutil
 import sqlite3
 import time
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
+# import xml.etree.ElementTree as ET
 import zipfile
 from io import BytesIO
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Union, Any
+import tempfile
 
 import Levenshtein
 from fuzzywuzzy import fuzz
@@ -104,7 +106,7 @@ download_path = os.getenv("DEST_FILE_PATH")
 
 def save_cover(id: int, bytes: bytes, out_dir: str = download_path) -> Tuple[str, str]:
     """
-    Saves two copies of the same image with different sizes 
+    Saves two copies of the same image with different sizes
     and suffixes to their filename.
 
     Args:
@@ -340,7 +342,7 @@ def parse_title(path: str) -> str:
     return easy_parse(path, "Title")
 
 
-def parse_creator(path: str, tag: str) -> list[str]:
+def parse_creators(path: str, tag: str) -> set[str]:
     """
     Returns a list of the creators where each entry is a single creator.
 
@@ -353,7 +355,17 @@ def parse_creator(path: str, tag: str) -> list[str]:
         A list of names for all of the creators listed under a certain role.
     """
     creators = easy_parse(path, tag)
-    return creators.split(", ")
+    return set(creators.split(", "))
+
+
+def parse_characters(path: str) -> set[str]:
+    characters = easy_parse(path, "Characters")
+    return set(characters.split(", "))
+
+
+def parse_teams(path: str) -> set[str]:
+    teams = easy_parse(path, "Teams")
+    return set(teams.split(", "))
 
 
 # ===========================================
@@ -420,7 +432,7 @@ common_title_words = {"volume", "book", "collection"}
 
 def title_parsing(path: str) -> Tuple[str, int]:
     """
-    Parses the title from the ComicInfo.xml to determine 
+    Parses the title from the ComicInfo.xml to determine
     collection type and cleaned series title.
 
     Args:
@@ -462,12 +474,65 @@ def title_parsing(path: str) -> Tuple[str, int]:
     return title.title(), 1
 
 
+class MetadataCollection:
+    def __init__(self, path: str) -> None:
+        self.filepath: str = path
+        self.temp_dir: str = tempfile.mkdtemp()
+        self.extracted: bool = False
+        self.metadata_root: ET.Element = None
+ 
+    def extract(self) -> None:
+        if not self.extracted:
+            with zipfile.ZipFile(self.path, "r") as zip_ref:
+                zip_ref.extractall(self.temp_dir)
+            self.extracted = True
+
+    def get_metadata(self) -> bool:
+        self.extract()
+        xml_path = os.path.join(self.temp_dir, "ComicInfo.xml")
+        if os.path.exists(xml_path):
+            tree = ET.parse(xml_path)
+            self.metadata_root = tree.getroot()
+            return True
+        else:
+            return False
+        
+    def has_complete_metadata(self, required: list = required_fields) -> bool:
+        for field in required:
+            try:
+                self.get_text(field)
+            except KeyError:
+                return False
+        return True            
+        
+    def get_text(self, tag: str) -> str:
+        element = self.metadata_root.find(tag)
+        if element is not None and element.text:
+            return element.text.strip()
+        else:
+            raise KeyError(f"No info inside tag: {tag}.")
+        
+    def easy_parsing(self, field: str, as_type: type = str) -> str | int:
+        text = self.get_text(self.metadata_root, field)
+        if text is None:
+            raise KeyError(f"Field '{field}' not found in metadata.")
+        
+        try:
+            return as_type(text)
+        except ValueError as e:
+            raise TypeError(
+                f"Could not convert field '{field}' to {as_type.__name__}"
+            ) from e
+        
+        
+    
+
 # ======================
 # Database Inputting
 # =======================
 
 
-def build_dict(path: str) -> dict:
+def build_dict(path: str) -> dict[str, Any]:
     """
     Builds a metadata dictionary for a comic archive from its ComicInfo.xml file.
     This data will eventually be pushed to database.
@@ -490,9 +555,10 @@ def build_dict(path: str) -> dict:
         "publisher_id": "",
         "release_date": "",
         "file_path": path,
-        "front_cover_path": "",
         "description": "",
-        "coll_type_id": "",
+        "creators": "",
+        "characters": "",
+        "teams": ""
     }
 
     dic["description"] = parse_desc(path)
@@ -528,6 +594,16 @@ def build_dict(path: str) -> dict:
     except Exception as e:
         logging.warning(f"Date parsing failed: {e}")
         dic["release_date"] = "01/2000"
+
+
+    characters = parse_characters(path)
+    dic["characters"] = characters if characters else ""
+
+    teams = parse_teams(path)
+    dic["teams"] = teams if teams else ""
+
+    creators = parse_creators(path)
+    dic["creators"] = creators if creators else ""
 
     return dic
 
