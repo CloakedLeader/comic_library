@@ -11,7 +11,8 @@ from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMainWindow,
                                QToolBar, QToolButton, QWidget)
 
-from metadata_gui_panel import MetadataDialog
+# from metadata_gui_panel import MetadataDialog
+from file_utils import get_name
 
 
 def sort_imgs(filename: str) -> int:
@@ -19,87 +20,103 @@ def sort_imgs(filename: str) -> int:
     return -1 # Placeholder until issue closed.
 
 
-class ImagePreloader(QThread):
-    image_ready = Signal(int, QPixmap)
+class ComicError(Exception):
+    """Base exception for Comic-related issues."""
 
-    def __init__(self, reader, index):
-        super().__init__()
-        self.reader = reader
-        self.index = index
 
-    def run(self):
-        pixmap = self.reader.load_page(self.index)
-        if pixmap:
-            self.image_ready.emit(self.index, pixmap)
+class PageIndexError(ComicError):
+    """Raised when a page index is out of range."""
+
+
+class ImageLoadError(ComicError):
+    """Raised when an image fails to load."""
 
 
 class Comic:
-    def __init__(self, filepath: str, max_cache: int = 10):
+
+    def __init__(self, filepath: str, max_cache: int = 10) -> None:
         self.path = filepath
-        self.filename = os.path.basename(filepath)
+        self.filename = get_name(filepath)
         self.zip = zipfile.ZipFile(filepath, "r")
         self.image_names = sorted(
-            [
-                name
-                for name in self.zip.namelist()
-                if name.lower().endswith((".jpg", ".jpeg", ".png"))
-            ]
+            name for name in self.zip.namelist()
+            if name.lower().endswith((".jpg", ".jpeg", ".png"))
         )
+        if not self.image_names:
+            raise ComicError("No images found in the file.")
+        self.total_pages = len(self.image_names)
         self.size = os.path.getsize(filepath)
-        self.page_counter = 1
-        self.cache: OrderedDict = OrderedDict()
-        self.max_cache_size = max_cache
+        self.cache: OrderedDict[str, bytes] = OrderedDict()
+        self.max_cache = max_cache
+        self.current_index = 0
 
-    def load_page(self, index):
-        if index < 0 or index >= len(self.image_names):
-            return None
-        name = self.image_names[index - 1]
+    def get_image_data(self, index: int) -> bytes:
+        if index < 0 or index >= self.total_pages:
+            raise PageIndexError(f"Index {index} out of range.")
+
+        name = self.image_names[index]
         if name in self.cache:
             self.cache.move_to_end(name)
             return self.cache[name]
+   
         try:
             with self.zip.open(name) as file:
-                image = Image.open(BytesIO(file.read()))
-                image.load()
-
-                data = image.convert("RGBA").tobytes("raw", "RGBA")
-                qimage = QImage(data, image.width, image.height, QImage.Format_RGBA8888)
-                pixmap = QPixmap.fromImage(qimage)
-
-                self.cache[name] = pixmap
-                if len(self.cache) > self.max_cache_size:
-                    self.cache.popitem(last=False)  # Remove LRU
-                return pixmap
+                data = file.read()
         except Exception as e:
-            print(f"Failed to load image {name}: {e}")
+            raise ImageLoadError(f"Failed to read image {name}: {e}") from e
+
+        self.cache[name] = data
+        if len(self.cache) > self.max_cache:
+            self.cache.popitem(last=False)
+
+        return data
+
+    def next_image_data(self) -> bytes:
+        self.current_index += 1
+        return self.get_image_data(self.current_index)
+
+
+class ImagePreloader(QThread):
+    image_ready = Signal(int, QPixmap)
+    error_occurred = Signal(int, str)
+
+    def __init__(self, comic: Comic, index: int) -> None:
+        super().__init__()
+        self.comic = comic
+        self.index = index
+
+    def run(self):
+        try:
+            data = self.comic.get_image_data(self.index)
+        except Exception as e:
+            self.error_occurred.emit(self.index, str(e))
             return None
 
-    def total_pages(self):
-        return len(self.image_names)
+        try:
+            image = Image.open(BytesIO(data))
+            image.load()
+            image = image.convert("RGBA")
 
-    def get_page(self, number: int):
-        if number < 0 or number >= len(self.image_names):
-            return None
-        name = self.image_names[number - 1]
-        if name not in self.cache:
-            with self.zip.open(name) as file:
-                image_data = file.read()
-                image = Image.open(BytesIO(image_data))
-                image.load()
-                self.cache[name] = image
-        return self.cache[name]
+            qimage = QImage(
+                image.tobytes("raw", "RGBA"),
+                image.width,
+                image.height,
+                QImage.Format_RGBA8888
+            )
+            pixmap = QPixmap.fromImage(qimage)
 
-    def next_page(self):
-        self.page_counter += 1
-        self.get_page(self.page_counter)
+            self.image_ready.emit(self.index, pixmap)
+     
+        except Exception as e:
+            self.error_occurred.emit(self.index, f"Error converting image at index {self.index}: {e}")
 
 
 class SimpleReader(QMainWindow):
-    def __init__(self, reader: Comic):
+    def __init__(self, comic: Comic):
         super().__init__()
-        self.reader = reader
-        self.current_index = 1
-        self._threads: list = []
+        self.comic = comic
+        self.current_index = 0
+        self._threads: list[ImagePreloader] = []
 
         self.setWindowTitle("Comic Reader")
 
@@ -118,12 +135,12 @@ class SimpleReader(QMainWindow):
         # self.add_menu_button("Help", self.open_help_panel)
 
         self.menu_bar_widget.hide()
-
         self.hide_menu_timer = QTimer()
         self.hide_menu_timer.setSingleShot(True)
         self.hide_menu_timer.timeout.connect(self.menu_bar_widget.hide)
 
         self.setMouseTracking(True)
+
         self.navigation_toolbar = QToolBar("Navigation Tools")
         self.navigation_toolbar.addAction("Zoom In")
         self.navigation_toolbar.addAction("Zoom Out")
@@ -133,10 +150,6 @@ class SimpleReader(QMainWindow):
         self.comments_toolbar = QToolBar("Commenting Tools")
         self.comments_toolbar.addAction("Add Bookmark")
         self.comments_toolbar.addAction("Add Comment")
-
-        # self.toolbar_stack = QStackedWidget()
-        # self.toolbar_stack.addWidget(self.navigation_toolbar)
-        # self.toolbar_stack.addWidget(self.comments_toolbar)
 
         self.addToolBar(self.navigation_toolbar)
         self.addToolBar(self.comments_toolbar)
@@ -148,27 +161,36 @@ class SimpleReader(QMainWindow):
         self.image_label.setFocusPolicy(Qt.StrongFocus)
 
         self.setCentralWidget(self.image_label)
-        self.centralWidget().setMouseTracking(True)
+        self.image_label.setFocusPolicy(Qt.StrongFocus)
 
-        self.load_page(self.current_index)
+        self.preload_page(self.current_index)
 
-    def load_page(self, index):
-        pixmap = self.reader.load_page(index)
-        if pixmap:
+    def preload_page(self, index: int) -> None:
+        try:
+            thread = ImagePreloader(self.comic, index)
+            thread.image_ready.connect(self.display_page)
+            thread.finished.connect(lambda: self.cleanup_thread(thread))
+            self._threads.append(thread)
+            thread.start()
+        except PageIndexError as e:
+            print(f"Invalid page index: {e}")
+       
+    def display_page(self, index: int, pixmap: QPixmap) -> None:
+        if index != self.current_index:
+            raise PageIndexError("Reader and page loader not in sync")
+       
+        scaled = pixmap.scaledToHeight(self.image_label.height(),
+                                        Qt.SmoothTransformation)
+        self.image_label.setPixmap(scaled)
+        self.page_label.setText(f"Page {index + 1} / {self.comic.total_pages}")
 
-            scaled = pixmap.scaledToHeight(
-                self.image_label.height(), Qt.SmoothTransformation
-            )
-            self.image_label.setPixmap(scaled)
-            self.page_label.setText(f"Page {index + 1} / {self.reader.total_pages()}")
-            self.current_index = index
+        if index + 1 < self.comic.total_pages:
+            self.preload_page(index + 1)
 
-            # Preload next page
-            if index + 1 < self.reader.total_pages():
-                thread = ImagePreloader(self.reader, index + 1)
-                thread.image_ready.connect(lambda i, p: print(f"Preloaded page {i}"))
-                self._threads.append(thread)
-                thread.start()
+    def cleanup_thread(self, thread):
+        if thread in self._threads:
+            self._threads.remove(thread)
+            thread.deleteLater()
 
     def add_menu_button(self, name: str, callback, *args):
         button = QToolButton()
@@ -191,19 +213,22 @@ class SimpleReader(QMainWindow):
         self.switch_toolbar(self.comments_toolbar)
 
     def open_metadata_panel(self):
-        dialog = MetadataDialog(self)
-        dialog.exec()
+        print("Not yet implemented.")
+        # dialog = MetadataDialog(self)
+        # dialog.exec()
 
     def resizeEvent(self, event):
-        self.load_page(self.current_index)
+        self.preload_page(self.current_index)
 
     def next_page(self):
-        if self.current_index + 1 < self.reader.total_pages():
-            self.load_page(self.current_index + 1)
+        if self.current_index + 1 < self.comic.total_pages:
+            self.current_index += 1
+            self.preload_page(self.current_index)
 
     def prev_page(self):
         if self.current_index > 0:
-            self.load_page(self.current_index - 1)
+            self.current_index -= 1
+            self.preload_page(self.current_index)
 
     def keyPressEvent(self, event):
         key = event.key()
