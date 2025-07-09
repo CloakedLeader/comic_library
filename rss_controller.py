@@ -30,6 +30,8 @@ class RSSController:
         self.repo.delete_old_entries()
         self.repo.insert_entries(self.rss_results)
 
+    # NOTE: Update detection logic removed - always refresh RSS data
+    # Remove entirely if not needed for future reference
     # def is_new_update(self) -> bool:
     #     """
     #     Checks if the RSS feed contains newer updates than stored data.
