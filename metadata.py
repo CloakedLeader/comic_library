@@ -2,14 +2,12 @@ import logging
 import os
 import random
 import re
-import shutil
 import sqlite3
-import time
 import defusedxml.ElementTree as ET
 # import xml.etree.ElementTree as ET
 import zipfile
 from io import BytesIO
-from typing import Optional, Tuple, Union, Any
+from typing import Optional, Tuple, Union, Any, TypedDict
 import tempfile
 
 import Levenshtein
@@ -421,13 +419,7 @@ def match_publisher(
 # [collection type] Volume [volume_number]: [Title] [month] [year]
 
 
-series_overrides = [
-    ("tpb", 1),
-    ("omnibus", 2),
-    ("epic collection", 3),
-    ("modern era epic collection", 4),
-]
-common_title_words = {"volume", "book", "collection"}
+
 
 
 def title_parsing(path: str) -> Tuple[str, int]:
@@ -474,6 +466,20 @@ def title_parsing(path: str) -> Tuple[str, int]:
     return title.title(), 1
 
 
+class ComicInfo(TypedDict):
+    title: str
+    series: str
+    volume_num: int
+    publisher: str
+    month: int
+    year: int
+    filepath: str
+    description: str
+    creators: list[tuple]
+    characters: list[str]
+    teams: list[str]
+
+
 class MetadataExtraction:
     def __init__(self, path: str, temp_dir: str | None = None) -> None:
         self.filepath: str = path
@@ -498,7 +504,7 @@ class MetadataExtraction:
             return True
         else:
             return False
-    
+  
     def has_complete_metadata(self, required: list = required_fields) -> bool:
         for field in required:
             try:
@@ -506,14 +512,14 @@ class MetadataExtraction:
             except KeyError:
                 return False
         return True           
-    
+
     def get_text(self, tag: str) -> str:
         element = self.metadata_root.find(tag)
         if element is not None and element.text:
             return element.text.strip()
         else:
             raise KeyError(f"No info inside tag: {tag}.")
-   
+ 
     def easy_parsing(self, field: str, as_type: type = str) -> str | int:
         text = self.get_text(field)
         if text is None:
@@ -525,7 +531,7 @@ class MetadataExtraction:
             raise TypeError(
                 f"Could not convert field '{field}' to {as_type.__name__}"
             ) from e
-        
+       
     def parse_characters_or_teams(self, field: str) -> list[str]:
         seen = set()
         out = []
@@ -549,14 +555,14 @@ class MetadataExtraction:
                     seen_per_role[field].add(person)
                     creator_role_list.append((person, field))
         return creator_role_list
-    
+  
     def to_dict(self) -> dict[str, Any] | None:
         roles = ["Writer", "Penciller", "CoverArtist", "Inker", "Colorist", "Letterer", "Editor"]
         if self.has_complete_metadata():
-            return {
+            final_dict: ComicInfo = {
                 "title": self.easy_parsing("Title"),
                 "series": self.easy_parsing("Series"),
-                "volume_id": self.easy_parsing("Number", int),
+                "volume_num": self.easy_parsing("Number", int),
                 "publisher": self.easy_parsing("Publisher"),
                 "month": self.easy_parsing("Month", int),
                 "year": self.easy_parsing("Year", int),
@@ -566,6 +572,7 @@ class MetadataExtraction:
                 "characters": self.parse_characters_or_teams("Characters"),
                 "teams": self.parse_characters_or_teams("Teams")
             }
+            return final_dict
 
     @staticmethod
     def normalise_publisher_name(name: str) -> str:
@@ -574,7 +581,66 @@ class MetadataExtraction:
         return " ".join([t for t in tokens if t not in suffixes])
 
 
-# class MetadataProcessing:
+class MetadataProcessing:
+    def __init__(self, raw_dict: dict) -> None:
+        self.raw_info = raw_dict
+
+    @staticmethod
+    def normalise_publisher_name(name: str) -> str:
+        suffixes = ["comics", "publishing", "group", "press", "inc.", "inc", "llc"]
+        tokens = name.replace("&", "and").lower().split()
+        return " ".join([t for t in tokens if t not in suffixes])
+    
+    def match_publisher(self, raw_pub_name: str) -> int:
+        known_publishers = [
+            (1, "Marvel Comics", "marvel"),
+            (2, "DC Comics", "dc"),
+            (3, "Image Comics", "image"),
+            (4, "Dark Horse Comics", "dark horse"),
+            (5, "IDW Comics", "idw"),
+            (6, "Valiant Comics", "valiant"),
+            (7, "2000AD Comics", "2000ad"),
+        ]
+        best_score = 0
+        best_match = None
+        normalised_pub_name = self.normalise_publisher_name(raw_pub_name)
+        for pub_id, pub_name, clean_name in known_publishers:
+            score = fuzz.token_set_ratio(normalised_pub_name, clean_name)
+            if score > best_score:
+                best_match = (pub_id, pub_name)
+        if best_score >= 80 and best_match:
+            return best_match[0]
+        else:
+            raise KeyError(f"Publisher '{raw_pub_name} not known.")
+        
+    def title_parsing(self):
+        series_overrides = [
+            ("tpb", 1),
+            ("omnibus", 2),
+            ("epic collection", 3),
+            ("modern era epic collection", 4),
+        ]
+        common_title_words = {"volume", "book", "collection"}
+        title_raw = self.raw_info["title"].lower()
+        series_raw = self.raw_info["series"].lower()
+
+        for keyword, type_id in series_overrides:
+            if keyword in title_raw:
+                cleaned_title = title_raw.replace(keyword, "").strip("-:").title()
+                return cleaned_title, type_id
+
+        match = re.search(
+            r"(volume|book)\s*(\d+|one|two|three|four"
+            "|five|six|seven|eight|nine|ten|eleven|twelve)",
+            title_raw,
+        )
+        if match:
+            try:
+                cleaned_title = title_raw.replace(match.group(0), "").strip("-:").title()
+                return cleaned_title, 1
+            except ValueError:
+                return title_raw.title(), 1
+
 
 # ======================
 # Database Inputting
