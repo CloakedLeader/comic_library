@@ -94,7 +94,7 @@ class RSSRepository:
             """
             SELECT title, cover_url
             FROM rss_entries
-            ORDER BY datetime(pub_date) DESC
+            ORDER BY datetime(pub_date) ASC
             LIMIT ?
         """,
             (limit,),

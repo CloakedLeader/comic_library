@@ -345,14 +345,14 @@ class HomePage(QMainWindow):
         repository = RSSRepository("comics.db")
         rss_cont = RSSController(repository)
         recent_comics_list = rss_cont.run(6)
-        self.rss_controller = DownloadControllerAsync(
-            view=self, service=DownloadServiceAsync()
-        )
+        # self.rss_controller = DownloadControllerAsync(
+        #     view=self, service=DownloadServiceAsync()
+        # )
         return self.create_scroll_area(
             recent_comics_list,
             links=True,
             header="GetComics RSS Feed",
-            upon_clicked=self.rss_controller.handle_rss_comic_clicked,
+            upon_clicked=self.print_hi  # self.rss_controller.handle_rss_comic_clicked,
         )
 
     def create_stats_bar(self) -> QWidget:
