@@ -11,7 +11,6 @@ from PySide6.QtWidgets import (QApplication, QFileSystemModel, QHBoxLayout,
                                QSizePolicy, QStatusBar, QToolBar, QTreeView,
                                QVBoxLayout, QWidget)
 
-from download_controller import DownloadControllerAsync, DownloadServiceAsync
 from reader_controller import ReadingController
 from rss_controller import RSSController
 from rss_repository import RSSRepository
@@ -21,7 +20,7 @@ class ClickableComicWidget(QWidget):
     """
     A clickable widget for displaying comic information with
     cover and title.
-    
+
     This widget displays a comic cover image and title in a vertical
     layout and emits a clicked signal when the user clicks on it.
 
@@ -186,7 +185,7 @@ class HomePage(QMainWindow):
             The loaded image or a gray placeholder if loading fails.
 
         Downloads the image from the given URL and converts it to
-        a QPixmap. Returns a 120x180 gray placeholder if the 
+        a QPixmap. Returns a 120x180 gray placeholder if the
         download fails.
         """
         try:
@@ -226,7 +225,7 @@ class HomePage(QMainWindow):
         Creates a scroll area with comic widgets arranged horizontally.
         Each comic displays a cover image and title, and connects to the
         provided callback function when clicked.
-        """    
+        """
         img_width, img_height = 120, 180
 
         scroll_area = QScrollArea()
@@ -272,7 +271,7 @@ class HomePage(QMainWindow):
     def open_reader(self, comic: dict) -> None:
         """
         Open a comic reader for the specified comic.
-        
+  
         Args:
             Dictionary containing information about the comic
             including filepath and database id.
@@ -280,13 +279,13 @@ class HomePage(QMainWindow):
         cont = ReadingController(comic)
         cont.read_comic()
 
-    def print_hi(self) -> None:
-        print("Hi")
+    def print_hi(self, comic_dict) -> None:
+        print("Hi" + comic_dict["title"] + "!")
 
     def create_continue_reading_area(
         self,
         list_of_comics_marked_as_read: list[dict]
-        ) -> QScrollArea:
+    ) -> QScrollArea:
         """
         Creates a scroll area for comics marked as continue reading.
 
@@ -302,7 +301,7 @@ class HomePage(QMainWindow):
     def create_recommended_reading_area(
         self,
         list_of_recommended_comics: list[dict]
-        ) -> QScrollArea:
+    ) -> QScrollArea:
         """
         Creates a scroll area for comics marked as recommended.
 
@@ -338,13 +337,15 @@ class HomePage(QMainWindow):
         """
         Creates a scroll area for RSS feed comics.
 
-        Fetches recent comics from the RSS controller and 
+        Fetches recent comics from the RSS controller and
         creates a scroll area with download functionality
         for each comic.
         """
         repository = RSSRepository("comics.db")
         rss_cont = RSSController(repository)
+        print("Calling rss_cont.run(6)")
         recent_comics_list = rss_cont.run(6)
+        print(f"To add to database: {recent_comics_list}")
         # self.rss_controller = DownloadControllerAsync(
         #     view=self, service=DownloadServiceAsync()
         # )
@@ -455,7 +456,7 @@ def count_files_and_storage(directory: str) -> tuple[int, float]:
 
     Args:
         directory: Path to the parent directory containing the comics.
-    
+
     Returns:
         A tuple containing (file_count, size_in_gb).
 
@@ -475,7 +476,7 @@ def count_files_and_storage(directory: str) -> tuple[int, float]:
     return file_count, total_size
 
 
-dummy_data = [{"title": "Mr Miracle TPB", "cover_path" : "D:\\Comics\\.yacreaderlibrary\\covers\\1f7c63fb2bf06fcd4293fad5928354e591542fb9459630961.jpg", "filepath": "D://Comics//DC//Misc//Mister Miracle TPB (February 2019).cbz"}, 
+dummy_data = [{"title": "Mr Miracle TPB", "cover_path" : "D:\\Comics\\.yacreaderlibrary\\covers\\1f7c63fb2bf06fcd4293fad5928354e591542fb9459630961.jpg", "filepath": "D://Comics//DC//Misc//Mister Miracle TPB (February 2019).cbz"},
               {"title" : "Daredevil: The Man Witout Fear", "cover_path" : "D:\\Comics\\.yacreaderlibrary\\covers\\051a70f024954f92e2b2c0699f00859ac772e865685497443.jpg"}]
 
 if __name__ == "__main__":
