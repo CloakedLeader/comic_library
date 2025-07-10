@@ -15,6 +15,7 @@ from fuzzywuzzy import fuzz
 from PIL import Image
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
+from word2number import w2n
 
 from file_utils import convert_cbz, get_ext, get_name, is_comic
 
@@ -421,7 +422,6 @@ def match_publisher(
 
 
 
-
 def title_parsing(path: str) -> Tuple[str, int]:
     """
     Parses the title from the ComicInfo.xml to determine
@@ -556,34 +556,34 @@ class MetadataExtraction:
                     creator_role_list.append((person, field))
         return creator_role_list
   
-    def to_dict(self) -> dict[str, Any] | None:
+    def to_dict(self) -> dict[str, Any]:
         roles = ["Writer", "Penciller", "CoverArtist", "Inker", "Colorist", "Letterer", "Editor"]
-        if self.has_complete_metadata():
-            final_dict: ComicInfo = {
-                "title": self.easy_parsing("Title"),
-                "series": self.easy_parsing("Series"),
-                "volume_num": self.easy_parsing("Number", int),
-                "publisher": self.easy_parsing("Publisher"),
-                "month": self.easy_parsing("Month", int),
-                "year": self.easy_parsing("Year", int),
-                "file_path": self.filepath,
-                "description": self.easy_parsing("Summary"),
-                "creators": self.parse_creators(roles),
-                "characters": self.parse_characters_or_teams("Characters"),
-                "teams": self.parse_characters_or_teams("Teams")
-            }
-            return final_dict
-
-    @staticmethod
-    def normalise_publisher_name(name: str) -> str:
-        suffixes = ["comics", "publishing", "group", "press", "inc.", "inc", "llc"]
-        tokens = name.replace("&", "and").split()
-        return " ".join([t for t in tokens if t not in suffixes])
+        final_dict: ComicInfo = {
+            "title": self.easy_parsing("Title"),
+            "series": self.easy_parsing("Series"),
+            "volume_num": self.easy_parsing("Number", int),
+            "publisher": self.easy_parsing("Publisher"),
+            "month": self.easy_parsing("Month", int),
+            "year": self.easy_parsing("Year", int),
+            "file_path": self.filepath,
+            "description": self.easy_parsing("Summary"),
+            "creators": self.parse_creators(roles),
+            "characters": self.parse_characters_or_teams("Characters"),
+            "teams": self.parse_characters_or_teams("Teams")
+        }
+        return final_dict
+        
+    def extract_metadata(self) -> dict[str, Any]:
+        required_fields = ["Title", "Series", "Year", "Number", "Writer", "Summary"]
+        self.extract()
+        if self.has_complete_metadata(required_fields):
+            return self.to_dict()
 
 
 class MetadataProcessing:
     def __init__(self, raw_dict: dict) -> None:
         self.raw_info = raw_dict
+        self.title_info = None
 
     @staticmethod
     def normalise_publisher_name(name: str) -> str:
@@ -591,6 +591,25 @@ class MetadataProcessing:
         tokens = name.replace("&", "and").lower().split()
         return " ".join([t for t in tokens if t not in suffixes])
     
+    @staticmethod
+    def title_case(title: str) -> str:
+        minor_words = {
+            'a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'in',
+            'nor', 'of', 'on', 'or', 'so', 'the', 'to', 'up', 'yet'
+        }
+
+        words = title.lower().split()
+        if not words:
+            return ""
+        
+        result = []
+        for i, word in enumerate(words):
+            if i == 0 or i == len(words) - 1 or word not in minor_words:
+                result.append(word.capitalize())
+            else:
+                result.append(word)        
+        return " ".join(result)
+
     def match_publisher(self, raw_pub_name: str) -> int:
         known_publishers = [
             (1, "Marvel Comics", "marvel"),
@@ -612,34 +631,83 @@ class MetadataProcessing:
             return best_match[0]
         else:
             raise KeyError(f"Publisher '{raw_pub_name} not known.")
-        
-    def title_parsing(self):
+       
+    def title_parsing(self) -> dict[str, str | int] | None:
         series_overrides = [
             ("tpb", 1),
             ("omnibus", 2),
-            ("epic collection", 3),
             ("modern era epic collection", 4),
+            ("epic collection", 3)
         ]
-        common_title_words = {"volume", "book", "collection"}
+       
+        out = {
+            "title": str,
+            "series": str,
+            "collection_type": int,
+            "issue_num": int
+        }
+        common_title_words = {"tpb", "hc"}
+
         title_raw = self.raw_info["title"].lower()
         series_raw = self.raw_info["series"].lower()
 
-        for keyword, type_id in series_overrides:
-            if keyword in title_raw:
-                cleaned_title = title_raw.replace(keyword, "").strip("-:").title()
-                return cleaned_title, type_id
+        if ":" in series_raw:
+            series_name, collection_title = map(str.strip, series_raw.split(":", 1))
+        elif ":" in title_raw:
+            _, collection_title = map(str.strip, title_raw.split(":", 1))
+            series_name = series_raw
+        else:
+            series_name = series_raw
+            collection_title = title_raw
 
-        match = re.search(
-            r"(volume|book)\s*(\d+|one|two|three|four"
-            "|five|six|seven|eight|nine|ten|eleven|twelve)",
-            title_raw,
+        for i in common_title_words:
+            if i == collection_title:
+                collection_title = series_name
+
+        collection_type = 1
+        for keyword, type_id in series_overrides:
+            if keyword in series_name.lower():
+                collection_type = type_id
+                break
+            if keyword in collection_title.lower():
+                collection_type = type_id
+                break
+       
+        volume_match = re.match(
+            r"(?:vol(?:ume)?|book)\.?\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*[:\-]?\s*(.*)",
+            title_raw, re.I
         )
-        if match:
-            try:
-                cleaned_title = title_raw.replace(match.group(0), "").strip("-:").title()
-                return cleaned_title, 1
-            except ValueError:
-                return title_raw.title(), 1
+
+        issue_number = None
+
+        if volume_match:
+            num_text = volume_match.group(1).lower()
+            rest_title = volume_match.group(2).strip().lower()
+
+            if num_text.isdigit():
+                issue_number = int(num_text)
+            else:
+                try:
+                    issue_number = w2n.word_to_num(num_text)
+                except ValueError:
+                    issue_number = None
+
+        if rest_title:
+            collection_title = rest_title
+
+        out["title"] = self.title_case(collection_title)
+        out["series"] = self.title_case(series_name)
+        out["collection_type"] = collection_type
+        out["issue_num"] = issue_number
+
+        self.title_info = out
+
+        return out
+
+    def check_issue_numbers_match(self) -> bool:
+        if self.title_info is None:
+            self.title_parsing()
+        return self.raw_info["volume_num"] == self.title_info["issue_num"]
 
 
 # ======================
