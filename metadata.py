@@ -581,10 +581,21 @@ class MetadataExtraction:
 
 
 class MetadataProcessing:
-    def __init__(self, raw_dict: dict) -> None:
+    def __init__(self, raw_dict: ComicInfo) -> None:
         self.raw_info = raw_dict
+        self.filepath = raw_dict["filepath"]
         self.title_info = None
 
+    PATTERNS: list[re.Pattern] = [
+        re.compile(r"\bv(?<num>)\d{1,3}\b", re.I),
+
+        re.compile(r"\b(?<num>\d{3})\b"),
+
+        re.compile(r"\bvol(?:ume)?\.?\s*(?P<num>\d{1,3})\b", re.I),
+    ]
+        
+    SPECIAL_PATTERN = re.compile(r"\bv(?P<volume>\d{1,3})\s+(?P<issue>\d{2,3})\b)", re.I)
+    
     @staticmethod
     def normalise_publisher_name(name: str) -> str:
         suffixes = ["comics", "publishing", "group", "press", "inc.", "inc", "llc"]
@@ -593,6 +604,7 @@ class MetadataProcessing:
     
     @staticmethod
     def title_case(title: str) -> str:
+        # Need to also make this capitalise things like X-Men not X-men.
         minor_words = {
             'a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'in',
             'nor', 'of', 'on', 'or', 'so', 'the', 'to', 'up', 'yet'
@@ -690,7 +702,7 @@ class MetadataProcessing:
                 try:
                     issue_number = w2n.word_to_num(num_text)
                 except ValueError:
-                    issue_number = None
+                    issue_number = 0  # Need a logic check later, 0 signals an error.
 
         if rest_title:
             collection_title = rest_title
@@ -708,6 +720,46 @@ class MetadataProcessing:
         if self.title_info is None:
             self.title_parsing()
         return self.raw_info["volume_num"] == self.title_info["issue_num"]
+    
+    def extract_volume_num_from_filepath(self) -> tuple[int, int]:
+        fname = os.path.basename(self.filepath)
+        
+        for pat in self.PATTERNS:
+            m = pat.search(fname)
+            if m:
+                volume = int(m.group("num").lstrip("0") or "0")
+                return volume, 0
+
+        m = self.SPECIAL_PATTERN.search(fname)
+        if m:
+            volume = int(m.group("volume").lstrip("0") or "0")
+            issue = int(m.group("issue").lstrip("0") or "0")
+            return volume, issue
+        
+        return 0, 0
+
+    
+    def volume_number_parsing(self):
+        if self.check_issue_numbers_match():
+            return self.title_info["issue_num"]
+        
+
+    
+
+
+
+class MetadataInputting:
+    def __init__(self, comicinfo_dict: ComicInfo) -> None:
+        self.clean_info = comicinfo_dict
+        self.db_ready_dict = None
+    
+    def build_dict(self) -> ComicInfo:
+        final_dict: ComicInfo = {
+            "title": self.clean_info["title"],
+            "series": self.clean_info["series"]
+        }
+
+
 
 
 # ======================
@@ -777,7 +829,6 @@ def build_dict(path: str) -> dict[str, Any]:
     except Exception as e:
         logging.warning(f"Date parsing failed: {e}")
         dic["release_date"] = "01/2000"
-
 
     characters = parse_characters(path)
     dic["characters"] = characters if characters else ""
