@@ -4,7 +4,6 @@ import random
 import re
 import sqlite3
 import defusedxml.ElementTree as ET
-# import xml.etree.ElementTree as ET
 import zipfile
 from io import BytesIO
 from typing import Optional, Tuple, Union, Any, TypedDict
@@ -18,6 +17,7 @@ from watchdog.observers import Observer
 from word2number import w2n
 
 from file_utils import convert_cbz, get_ext, get_name, is_comic
+from helper_classes import ComicInfo
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -466,19 +466,6 @@ def title_parsing(path: str) -> Tuple[str, int]:
     return title.title(), 1
 
 
-class ComicInfo(TypedDict):
-    title: str
-    series: str
-    volume_num: int
-    publisher: str
-    month: int
-    year: int
-    filepath: str
-    description: str
-    creators: list[tuple]
-    characters: list[str]
-    teams: list[str]
-
 
 class MetadataExtraction:
     def __init__(self, path: str, temp_dir: str | None = None) -> None:
@@ -720,10 +707,10 @@ class MetadataProcessing:
         if self.title_info is None:
             self.title_parsing()
         return self.raw_info["volume_num"] == self.title_info["issue_num"]
-    
+  
     def extract_volume_num_from_filepath(self) -> tuple[int, int]:
         fname = os.path.basename(self.filepath)
-        
+      
         for pat in self.PATTERNS:
             m = pat.search(fname)
             if m:
@@ -735,17 +722,39 @@ class MetadataProcessing:
             volume = int(m.group("volume").lstrip("0") or "0")
             issue = int(m.group("issue").lstrip("0") or "0")
             return volume, issue
-        
+     
         return 0, 0
-
     
     def volume_number_parsing(self):
         if self.check_issue_numbers_match():
             return self.title_info["issue_num"]
-        
+      
 
+class ImageExtraction:
+    def __init__(self, path: str) -> None:
+        self.filepath = path
+        self.cover_bytes : bytes = None
     
-
+    def find_cover(self) -> None:
+        with zipfile.ZipFile(self.filepath, "r") as zip_ref:
+            image_files = [
+                f
+                for f in zip_ref.namelist()
+                if f.lower().endswith((".jpg", ".jpeg", ".png"))
+            ]
+            if not image_files:
+                raise ValueError("Empty archive: no image files found.")
+            cover_files = [
+                f
+                for f in image_files
+                if os.path.splitext(os.path.basename(f))[0].lower() == "cover"
+            ]
+            if cover_files:
+                first_image = zip_ref.read(cover_files[0])
+            else:
+                image_files.sort()
+                first_image = zip_ref.read(image_files[0])
+        self.cover_bytes = first_image
 
 
 class MetadataInputting:
@@ -758,9 +767,6 @@ class MetadataInputting:
             "title": self.clean_info["title"],
             "series": self.clean_info["series"]
         }
-
-
-
 
 # ======================
 # Database Inputting
