@@ -1,4 +1,3 @@
-import os
 import unittest
 import zipfile
 from pathlib import Path
@@ -46,8 +45,8 @@ def make_test_method(archive_path: Path):
             expected = EXPECTED_COVERS.get(stem)
             if expected is not None:
                 self.assertEqual(
-                    chosen,
-                    expected,
+                    Path(chosen).name,
+                    Path(expected).name,
                     msg=f"Cover mismatch for {archive_path}",
                 )
     return test

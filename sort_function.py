@@ -9,7 +9,7 @@ def score(name: str) -> tuple[int, int, str]:
     stem = Path(name).stem
     lowered = stem.lower()
 
-    if COVER_CUES.search(lowered) or lowered.endswith(00):
+    if COVER_CUES.search(lowered) or lowered.endswith("00"):
         return (0, 0, name)
   
     for num in NUMBERS.findall(stem):
