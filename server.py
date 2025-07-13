@@ -1,5 +1,6 @@
-from flask import Flask, send_from_directory, render_template_string, jsonify
 import os
+
+from flask import Flask, jsonify, render_template_string, send_from_directory
 
 app = Flask(__name__)
 FILE_DIRECTORY = "D:\\comic_library\\comic_examples"

@@ -1,4 +1,3 @@
-
 from rss import rss_scrape
 from rss_repository import RSSRepository
 
@@ -10,6 +9,7 @@ class RSSController:
     This class handles fetching RSS feed data, updating the database and
     retrieving recent comic information with date-based update checks.
     """
+
     def __init__(self, repository: RSSRepository) -> None:
         """
         Initialise the RSS controller.

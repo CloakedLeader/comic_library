@@ -1,9 +1,8 @@
-import unittest
 import shutil
 import tempfile
+import unittest
 
 from metadata import MetadataExtraction, MetadataProcessing
-
 
 # class TestMetadataExtraction(unittest.TestCase):
 #     @classmethod
@@ -13,14 +12,14 @@ from metadata import MetadataExtraction, MetadataProcessing
 #         print(f"Using temp dir: {cls.tempdir}")
 #         cls.test_case = MetadataExtraction(cls.path, temp_dir=cls.tempdir)
 #         assert cls.test_case.get_metadata()
-   
+
 #     @classmethod
 #     def tearDownClass(cls):
 #         shutil.rmtree(cls.tempdir)
 
 #     def test_parse_comicinfo_xml_from_cbz(self):
 #         self.assertEqual(self.test_case.has_complete_metadata(["Writer", "Publisher"]), True)
-   
+
 #     def test_easy_parsing1(self):
 #         self.assertEqual(self.test_case.easy_parsing("Genre"), "Superhero")
 
@@ -32,30 +31,30 @@ from metadata import MetadataExtraction, MetadataProcessing
 
 #     def test_parse_teams(self):
 #         self.assertEqual(self.test_case.parse_characters_or_teams("Teams"), ["Amazons"])
-   
+
 #     def test_parse_characters(self):
 #         self.assertEqual(self.test_case.parse_characters_or_teams("Characters"),
 #                          ["Batman", "Cheetah (Minerva)", "Hippolyta", "Nubia", "Pegasus", "Steve Trevor", "Superman", "Wonder Woman"])
+
 
 class TestTitleParsing(unittest.TestCase):
     def test_comictagger_quirk(self):
         raw = {
             "series": "Amazing Spider Man Modern Era Epic Collection: Coming Home",
-            "title": "Volume 1"
+            "title": "Volume 1",
         }
         comic = MetadataProcessing(raw)
         comic.title_parsing()
 
         self.assertEqual(comic.title_info["title"], "Coming Home")
-        self.assertEqual(comic.title_info["series"], "Amazing Spider Man Modern Era Epic Collection")
+        self.assertEqual(
+            comic.title_info["series"], "Amazing Spider Man Modern Era Epic Collection"
+        )
         self.assertEqual(comic.title_info["collection_type"], 4)
         self.assertEqual(comic.title_info["issue_num"], 1)
 
     def test_omnibus_keyword(self):
-        raw = {
-            "series": "X-Men Omnibus",
-            "title": "Vol. 2"
-        }
+        raw = {"series": "X-Men Omnibus", "title": "Vol. 2"}
         comic = MetadataProcessing(raw)
         comic.title_parsing()
         self.assertEqual(comic.title_info["title"], "Vol. 2")
@@ -63,10 +62,7 @@ class TestTitleParsing(unittest.TestCase):
         self.assertEqual(comic.title_info["issue_num"], 2)
 
     def test_default_tpb(self):
-        raw = {
-            "series": "Saga",
-            "title": "Volume 3"
-        }
+        raw = {"series": "Saga", "title": "Volume 3"}
         comic = MetadataProcessing(raw)
         comic.title_parsing()
 
@@ -77,7 +73,7 @@ class TestTitleParsing(unittest.TestCase):
     def test_title_vol_num(self):
         raw = {
             "series": "Ultimate X-Men by Peach Momoko",
-            "title": "Vol. 2: Children of the Atom"
+            "title": "Vol. 2: Children of the Atom",
         }
         comic = MetadataProcessing(raw)
         comic.title_parsing()
@@ -88,10 +84,7 @@ class TestTitleParsing(unittest.TestCase):
         self.assertEqual(comic.title_info["series"], "Ultimate X-men by Peach Momoko")
 
     def test_word_to_num(self):
-        raw = {
-            "series": "Action Comics",
-            "title": "Vol. Four"
-        }
+        raw = {"series": "Action Comics", "title": "Vol. Four"}
         comic = MetadataProcessing(raw)
         comic.title_parsing()
 

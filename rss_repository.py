@@ -10,6 +10,7 @@ class RSSRepository:
     This class provides methods for storing, retrieving and managing
     RSS feed entries with automatic cleanup of old entries.
     """
+
     def __init__(self, db_file: str) -> None:
         """
         Initialise the RSS repository with a database connection.

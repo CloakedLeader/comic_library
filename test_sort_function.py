@@ -10,7 +10,7 @@ EXPECTED_COVERS = {
     "Booster Gold Vol. 1 #04 (May 1986)": "Booster Gold (1986-1988) 004-000.jpg",
     "Green Lantern Emerald Dawn #01 (December 1989)": "Green Lantern - Emerald Dawn (1989-1990) 001-000.jpg",
     "Runaways by Rowell TPB #02 (October 2018)": "Runaways by Rainbow Rowell & Kris Anka v02 - Best Friends Forever-000.jpg",
-    "Wonder Woman Dead Earth TPB (December 2020)": "Wonder Woman - Dead Earth-000.jpg"
+    "Wonder Woman Dead Earth TPB (December 2020)": "Wonder Woman - Dead Earth-000.jpg",
 }
 
 IMG_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
@@ -49,6 +49,7 @@ def make_test_method(archive_path: Path):
                     Path(expected).name,
                     msg=f"Cover mismatch for {archive_path}",
                 )
+
     return test
 
 
