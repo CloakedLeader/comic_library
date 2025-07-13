@@ -7,6 +7,7 @@ import defusedxml.ElementTree as ET
 import zipfile
 from io import BytesIO
 from typing import Optional, Tuple, Union, Any, TypedDict
+from pathlib import Path
 import tempfile
 
 import Levenshtein
@@ -16,7 +17,6 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from word2number import w2n
 
-from file_utils import convert_cbz, get_ext, get_name, is_comic
 from helper_classes import ComicInfo
 
 logging.basicConfig(
@@ -24,46 +24,6 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[logging.StreamHandler(), logging.FileHandler("log.txt")],
 )
-
-
-def find_credit_pages(path: str) -> Tuple[str, str]:
-    """
-    Searches for comic ripper pages among the image files.
-    Identifies comic ripper pages by filenames that are very different
-    from the names of the first 40% of files.
-
-    Args:
-        path: The filepath of the comic archive.
-
-    Raises:
-        ValueError: if there are no images found in the archive on filepath.
-
-    Returns a tuple with first entry always the same path variable
-    and second is either the name of the credit page or an empty string.
-    """
-    with zipfile.ZipFile(path, "r") as arch:
-        image_files = [
-            f for f in arch.namelist() if f.lower().endswith((".jpg", ".jpeg", ".png"))
-        ]
-        if not image_files:
-            raise ValueError("Empty archive: no image files found.")
-
-        image_files.sort()
-        common_files_index = int(len(image_files) * 0.4)
-        early_files = image_files[:common_files_index]
-        file_paths_to_compare = random.sample(early_files, min(5, len(early_files)))
-        last_files = image_files[-3:]
-        not_matching_file = {
-            j
-            for j in last_files
-            for k in file_paths_to_compare
-            if Levenshtein.distance(j, k) > 10
-        }
-        if len(not_matching_file) == 1:
-            return path, list(not_matching_file)[0]
-        else:
-            logging.info("No credit pages found!")
-            return path, ""
 
 
 def pad(n: int) -> str:
@@ -103,314 +63,9 @@ def get_comicid_from_path(
 download_path = os.getenv("DEST_FILE_PATH")
 
 
-def save_cover(id: int, bytes: bytes, out_dir: str = download_path) -> Tuple[str, str]:
-    """
-    Saves two copies of the same image with different sizes
-    and suffixes to their filename.
-
-    Args:
-        id: The primary key id of the comic from the database.
-        bytes: The raw data of the cover image.
-        out_dir: The output directory.
-
-    Returns:
-        A tuple containing the file path of two images (smaller, bigger).
-    """
-    t_height = 400
-    b_height = 800
-    variants = {}
-    with Image.open(BytesIO(bytes)) as img:
-        for name, height in [("thumbnail", t_height), ("browser", b_height)]:
-            w, h = img.size
-            new_w = int(w * (height / h))
-            resized_img = img.resize((new_w, height), Image.Resampling.LANCZOS)
-
-            if name == "thumbnail":
-                quality = 90
-            else:
-                quality = 80
-
-            buffer = BytesIO()
-            resized_img.save(buffer, format="JPEG", quality=quality, optimize=True)
-            variants[name] = buffer.getvalue()
-
-    file_dic = {}
-    for key, value in variants.items():
-        if key == "thumbnail":
-            out_path_t = os.path.join(out_dir, (f"{id}_cover_t.jpg"))
-            file_dic["thumbnail"] = (value, out_path_t)
-        elif key == "browser":
-            out_path_b = os.path.join(out_dir, (f"{id}_cover_b.jpg"))
-            file_dic["browser"] = (value, out_path_b)
-
-    for _key, value in file_dic.items():
-        with open(value[1], "wb") as f:
-            f.write(value[0])
-
-    return file_dic["thumbnail"][1], file_dic["browser"][1]
-
-
-def find_cover(path: str, out_dir: str) -> None:
-    """
-    Finds the cover image of a comic and saves two copies of different sizes
-    of it to disk.
-
-    Args:
-        path: The filepath of the comic archive.
-        out_dir: The filepath of the directory containing all the thumbnail images.
-    """
-    comicid = get_comicid_from_path(path)
-    with zipfile.ZipFile(path, "r") as zip_ref:
-        image_files = [
-            f
-            for f in zip_ref.namelist()
-            if f.lower().endswith((".jpg", ".jpeg", ".png"))
-        ]
-        if not image_files:
-            raise ValueError("Empty archive: no image files found.")
-        cover_files = [
-            f
-            for f in image_files
-            if os.path.splitext(os.path.basename(f))[0].lower() == "cover"
-        ]
-        if cover_files:
-            first_image = zip_ref.read(cover_files[0])
-        else:
-            image_files.sort()
-            first_image = zip_ref.read(image_files[0])
-        save_cover(comicid, first_image, out_dir)
-
-
-def find_metadata(path: str):
-    """
-    Extracts and parses the ComicInfo.xml metadata file from an archive.
-
-    Args:
-        path: The filepath of the comic archive file.
-
-    Returns:
-        The root element of the parsed ComicInfo.xml file.
-
-    Raises:
-        zipfile.BadZipFile: If the file is not a valid ZIP archive.
-        FileNotFoundError: If the file is not found.
-        KeyError: If ComicInfo.xml is not found in the archive.
-        ET.ParseError: If ComicInfo.xml is not valid XML.
-        Any other exceptions encountered during file access/parsing.
-    """
-    with zipfile.ZipFile(path, "r") as cbz:
-        with cbz.open("ComicInfo.xml") as xml_file:
-            tree = ET.parse(xml_file)
-            return tree.getroot()
-
-
-def get_text(root, tag: str) -> str:
-    """
-    Searches for results under the tag given. Returns the stripped lowercase content.
-
-    Args:
-        root: The base of the xml tree (where pretty much all the data is).
-        tag: The section to search for (e.g. writer, summary etc).
-
-    Returns:
-        The lowercase, stripped text from the tag.
-
-    Raises:
-        KeyError: If the tag is missing or has no text content.
-    """
-    element = root.find(tag)
-    if element is not None and element.text:
-        return element.text.strip().lower()
-    else:
-        raise KeyError(f"No info inside tag: {tag}.")
-
-
-def normalise_publisher(name: str) -> str:
-    suffixes = ["comics", "publishing", "group", "press", "inc.", "inc", "llc"]
-    tokens = name.replace("&", "and").split()
-    return " ".join([t for t in tokens if t not in suffixes])
-
-
-required_fields = ["Title", "Series", "Year", "Number"]
-
-
-def has_metadata(path: str, required: list = required_fields) -> bool:
-    """
-    Checks that the required metadata fields are complete with some info
-    e.g. that they are not blank.
-
-    Args:
-    path: The file path of the comic archive file.
-    required: A list of the fields that must be present.
-
-    Note:
-    Will be used to remove None type option from easy_parse function
-    """
-    try:
-        with zipfile.ZipFile(path, "r") as cbz:
-            if "ComicInfo.xml" not in cbz.namelist():
-                print(f"'ComicInfo.xml' not found in {path}")
-                return False
-
-            with cbz.open("ComicInfo.xml") as file:
-                tree = ET.parse(file)
-                root = tree.getroot()
-
-                for field in required:
-                    element = root.find(field)
-                    if element is None or not element.text.strip():
-                        logging.error(f"Field '{field}' is missing or blank.")
-                        return False
-
-        logging.debug("All required fields are present and not blank")
-        return True
-
-    except Exception as e:
-        logging.error(f"Error occurred: {e}")
-        return False
-
-
-# =================================================
-# Parsing the easy metadata which requires no logic
-# =================================================
-
-
-def easy_parse(path: str, field: str, as_type: type = str) -> Union[str, int]:
-    """
-    Returns metadata from the corresponding field by parsing an XML tree.
-    Assumes ComicInfo.xml has already been verified to exist and be readable.
-
-    Args:
-    path: The filepath of the comic archive file.
-    field: The name of the metadata field.
-    as_type: The type that the metadata must be returned as.
-            Required as all metadata fields are strings by default
-            but some must be integers.
-
-    Returns:
-    The metadata inside that field, either a string or integer.
-    Never type None.
-    """
-    root = find_metadata(path)
-
-    text = get_text(root, field)
-
-    if text is None:
-        raise KeyError(f"Field '{field}' not found in metadata.")
-
-    try:
-        return as_type(text)
-    except ValueError as e:
-        raise TypeError(
-            f"Could not convert field '{field}' to {as_type.__name__}"
-        ) from e
-
-
-def parse_desc(path: str) -> str:
-    # Returns the summary or raises errors.
-    return easy_parse(path, "Summary")
-
-
-def parse_series(path: str) -> str:
-    # Returns the series or raises errors.
-    return easy_parse(path, "Series")
-
-
-def parse_vol_num(path: str) -> int:
-    # Returns the volume number or raises errors.
-    return easy_parse(path, "Number", int)
-
-
-def parse_year(path: str) -> int:
-    # Returns the year or raises errors.
-    return easy_parse(path, "Year", int)
-
-
-def parse_month(path: str) -> int:
-    # Returns the month or raises errors.
-    return easy_parse(path, "Month", int)
-
-
-def parse_publisher(path: str) -> str:
-    # Returns the publisher or raises errors.
-    return easy_parse(path, "Publisher")
-
-
-def parse_title(path: str) -> str:
-    # Returns the title or raises errors.
-    return easy_parse(path, "Title")
-
-
-def parse_creators(path: str, tag: str) -> set[str]:
-    """
-    Returns a list of the creators where each entry is a single creator.
-
-    Args:
-        path: The filepath of the comic archive to be parsed.
-        tag: The job title of the creator(s) for example:
-            'Writer' or 'Penciller'
-
-    Returns:
-        A list of names for all of the creators listed under a certain role.
-    """
-    creators = easy_parse(path, tag)
-    return set(creators.split(", "))
-
-
-def parse_characters(path: str) -> set[str]:
-    characters = easy_parse(path, "Characters")
-    return set(characters.split(", "))
-
-
-def parse_teams(path: str) -> set[str]:
-    teams = easy_parse(path, "Teams")
-    return set(teams.split(", "))
-
-
 # ===========================================
 # Advanced parsing that requires extra logic
 # ===========================================
-
-
-def match_publisher(
-    a: str,
-) -> int:
-    """
-    Matches the natural language name of a publisher from metadata
-    to an entry in the list of known publishers with numbered keys from the sql table.
-    This uses fuzzy matches due to alterations of publisher names.
-
-    Args:
-        a: The string extracted from ComicInfo.xml to be matched.
-
-    Returns:
-        The ID of the best-matching known publisher.
-
-    Raises:
-        KeyError: If no known publisher matches closely enough.
-    """
-    known_publishers = [
-        (1, "Marvel Comics"),
-        (2, "DC Comics"),
-        (3, "Image Comics"),
-        (4, "Dark Horse Comics"),
-        (5, "IDW Comics"),
-        (6, "Valiant Comics"),
-        (7, "2000AD Comics"),
-    ]
-    best_score = 0
-    best_match = None
-    normalised_pub = normalise_publisher(a)
-    for pub_id, pub_name in known_publishers:
-        score = fuzz.token_set_ratio(normalised_pub, normalise_publisher(pub_name))
-        if score > best_score:
-            best_score = score
-            best_match = (pub_id, pub_name)
-    if best_score >= 80 and best_match:
-        return best_match[0]
-    else:
-        raise KeyError(f"Publisher {a} not known.")
-
 
 # use Amazing Spider-Man Modern Era Epic Collection: Coming Home
 
@@ -418,53 +73,6 @@ def match_publisher(
 # [Collection_Type] [Volume_Number] ([date in month/year])
 # User Visible Title: [Series] [star_year] -
 # [collection type] Volume [volume_number]: [Title] [month] [year]
-
-
-
-
-def title_parsing(path: str) -> Tuple[str, int]:
-    """
-    Parses the title from the ComicInfo.xml to determine
-    collection type and cleaned series title.
-
-    Args:
-        path: The filepath of the comic archive.
-
-    Returns:
-        A tuple off (clean_title, collection_type_id).
-
-    Raises:
-        ValueError: if the title or collection type cannot be determined.
-    """
-    title_raw = parse_title(path)
-    if not title_raw:
-        raise ValueError(f"Could not parse title from path: {path}")
-
-    title_raw = title_raw.lower()
-    title = parse_series(path)
-    if not title:
-        raise ValueError(f"Could not parse series from path: {path}")
-
-    for keyword, type_id in series_overrides:
-        if keyword in title_raw:
-            cleaned_title = title_raw.replace(keyword, "").strip(" -:").title()
-            return cleaned_title or title.title(), type_id
-
-    match = re.search(
-        r"(volume|book)\s*(\d+|one|two|three|four"
-        "|five|six|seven|eight|nine|ten|eleven|twelve)",
-        title_raw,
-    )
-    if match:
-        try:
-            cleaned_title = title_raw.replace(match.group(0), "").strip(" -:").title()
-            return cleaned_title or title.title(), 1
-        except ValueError:
-            logging.warning(
-                "Volume number couldn't be parsed; falling back to basic title."
-            )
-    return title.title(), 1
-
 
 
 class MetadataExtraction:
@@ -481,6 +89,19 @@ class MetadataExtraction:
             self.extracted = True
 
     def get_metadata(self) -> bool:
+        """
+        Extracts the ComicInfo.xml metadata file from an archive.
+
+        Returns:
+            True if the ComicInfo was found, else False.
+
+        Raises:
+            zipfile.BadZipFile: If the file is not a valid ZIP archive.
+            FileNotFoundError: If the file is not found.
+            KeyError: If ComicInfo.xml is not found in the archive.
+            ET.ParseError: If ComicInfo.xml is not valid XML.
+            Any other exceptions encountered during file access/parsing.
+        """
         self.extract()
         if self.metadata_root is not None:
             return True
@@ -492,15 +113,37 @@ class MetadataExtraction:
         else:
             return False
   
-    def has_complete_metadata(self, required: list = required_fields) -> bool:
+    def has_complete_metadata(self, required: list) -> bool:
+        """
+        Checks that the required metadata fields are complete with some info
+        e.g. that they are not blank.
+
+        Args:
+        required: A list of the fields that must be present.
+
+        Returns:
+        True if all required info is present, else False.
+        """
         for field in required:
             try:
                 self.get_text(field)
             except KeyError:
                 return False
-        return True           
+        return True
 
     def get_text(self, tag: str) -> str:
+        """
+        Searches for results under the tag given. Returns the stripped content.
+
+        Args:
+            tag: The section to search for (e.g. writer, summary etc).
+
+        Returns:
+            The stripped text from the tag.
+
+        Raises:
+            KeyError: If the tag is missing or has no text content.
+        """
         element = self.metadata_root.find(tag)
         if element is not None and element.text:
             return element.text.strip()
@@ -508,6 +151,20 @@ class MetadataExtraction:
             raise KeyError(f"No info inside tag: {tag}.")
  
     def easy_parsing(self, field: str, as_type: type = str) -> str | int:
+        """
+        Returns metadata from the corresponding field by parsing an XML tree.
+        Assumes ComicInfo.xml has already been verified to exist and be readable.
+
+        Args:
+        field: The name of the metadata field.
+        as_type: The type that the metadata must be returned as.
+            Required as all metadata fields are strings by default
+            but some must be integers.
+
+        Returns:
+        The metadata inside that field, either a string or integer.
+        Never type None.
+        """
         text = self.get_text(field)
         if text is None:
             raise KeyError(f"Field '{field}' not found in metadata.")
@@ -520,6 +177,15 @@ class MetadataExtraction:
             ) from e
        
     def parse_characters_or_teams(self, field: str) -> list[str]:
+        """
+        Finds all the characters or teams affliated with the comic book.
+
+        Args:
+        field: Whether to search under the characters or teams field.
+
+        Returns:
+        A list of the corresponding people.
+        """
         seen = set()
         out = []
         list_string = self.easy_parsing(field)
@@ -532,6 +198,17 @@ class MetadataExtraction:
         return out
 
     def parse_creators(self, fields: list) -> list[tuple]:
+        """
+        Finds all the creators affliated with the book.
+
+        Args:
+        fields: A list of job titles of the creator(s) for example:
+            'Writer' or 'Penciller'
+
+        Returns:
+        A list of tuples of people and their role, for example:
+        (John Byrne, Penciller)
+        """
         creator_role_list = []
         seen_per_role = {field: set() for field in fields}
         for field in fields:
@@ -610,6 +287,20 @@ class MetadataProcessing:
         return " ".join(result)
 
     def match_publisher(self, raw_pub_name: str) -> int:
+        """
+        Matches the natural language name of a publisher from metadata
+        to an entry in the list of known publishers with numbered keys from the sql table.
+        This uses fuzzy matches due to alterations of publisher names.
+
+        Args:
+            raw_pub_name: The string extracted from ComicInfo.xml to be matched.
+
+        Returns:
+            The ID of the best-matching known publisher.
+
+        Raises:
+            KeyError: If no known publisher matches closely enough.
+        """
         known_publishers = [
             (1, "Marvel Comics", "marvel"),
             (2, "DC Comics", "dc"),
@@ -632,6 +323,22 @@ class MetadataProcessing:
             raise KeyError(f"Publisher '{raw_pub_name} not known.")
        
     def title_parsing(self) -> dict[str, str | int] | None:
+        """
+        Parses the title from the ComicInfo.xml to determine
+        collection type, series name, title name and issue number.
+        Tries to avoid ambigous title names.
+
+        Returns:
+            A dictionary with fields:
+                - title: a string
+                - series: a string
+                - collection_type: an integer corresponding to the series_overrides
+                    table
+                - issue_num: an integer
+
+        Raises:
+            If issue number is zero, this signifies an error in the processing.
+    """
         series_overrides = [
             ("tpb", 1),
             ("omnibus", 2),
@@ -725,36 +432,139 @@ class MetadataProcessing:
      
         return 0, 0
     
-    def volume_number_parsing(self):
+    def volume_number_parsing(self) -> int:
         if self.check_issue_numbers_match():
-            return self.title_info["issue_num"]
+            return int(self.title_info["volume_num"])
+        #  Need extra logic here to get the correct volume number
       
+
 
 class ImageExtraction:
     def __init__(self, path: str) -> None:
         self.filepath = path
+        self.image_names : list[str] = self.get_namelist()
         self.cover_bytes : bytes = None
+
+    @staticmethod
+    def score(name: str) -> tuple[int, int, str]:
+        COVER_CUES = re.compile(r"\b(?:cover|front|fc)\b", re.IGNORECASE)
+        NUMBERS = re.compile(r"\d+")
+        stem = Path(name)
+        lowered = stem.lower()
+
+        if COVER_CUES.search(lowered) or lowered.endswith("00"):
+            return (0, 0, name)
+        
+        numbers = [int(n) for n in NUMBERS.findall(stem)]
+        for num in numbers:
+            if num in (0, 1):
+                return (1, num, name)
+        
+        if numbers:
+            return (2 + min(numbers), min(numbers), name)
     
-    def find_cover(self) -> None:
+        return (10, 0, name)
+
+    def get_namelist(self) -> list[str]:
         with zipfile.ZipFile(self.filepath, "r") as zip_ref:
-            image_files = [
-                f
-                for f in zip_ref.namelist()
-                if f.lower().endswith((".jpg", ".jpeg", ".png"))
-            ]
-            if not image_files:
-                raise ValueError("Empty archive: no image files found.")
-            cover_files = [
-                f
-                for f in image_files
-                if os.path.splitext(os.path.basename(f))[0].lower() == "cover"
-            ]
-            if cover_files:
-                first_image = zip_ref.read(cover_files[0])
-            else:
-                image_files.sort()
-                first_image = zip_ref.read(image_files[0])
-        self.cover_bytes = first_image
+            images = [f for f in zip_ref.namelist() if f.endswith(".jpg", ".jpeg", ".png")]
+        return images
+
+    def choose_cover(self) -> str:
+        """
+        Finds the cover image of a comic.
+
+        Returns:
+            The filepath of the image file believed to be the cover.
+        """
+        if not self.image_names:
+            raise ValueError("Empty file list")
+
+        ranked: list[tuple[int, int, str]] = sorted(self.score(f) for f in self.image_names)
+        return ranked[0][-1]
+   
+    def extract_image_bytes(self) -> None:
+        cover_file_name = self.choose_cover()
+        with zipfile.ZipFile(self.filepath, "r") as zf:
+            with zf.open(cover_file_name) as img_file:
+                self.cover_bytes = img_file.read()
+ 
+    def save_cover(self, out_dir: str, primary_key: str) -> tuple[str, str]:
+        """
+        Saves two copies of the same image with different sizes
+        and suffixes to their filename.
+
+        Args:
+            primary_key: The primary key id of the comic from the database.
+            out_dir: The output directory.
+
+        Returns:
+            A tuple containing the file path of two images (smaller, bigger).
+        """
+        t_height = 400
+        b_height = 800
+        variants = {}
+        with Image.open(BytesIO(self.cover_bytes)) as img:
+            for name, height in [("thumbnail", t_height), ("browser", b_height)]:
+                w, h = img.size
+                new_w = int(w * (height / h))
+                resized_img = img.resize((new_w, height), Image.Resampling.LANCZOS)
+                
+                if name == "thumbnail":
+                    quality = 90
+                else:
+                    quality = 80
+
+                buffer = BytesIO()
+                resized_img.save(buffer, format="JPEG", quality=quality, optimize=True)
+                variants[name] = buffer.getvalue()
+        
+        file_dict = {}
+        for key, value in variants.items():
+            if key == "thumbail":
+                out_path_t = os.path.join(out_dir, f"{primary_key}_t.jpg")
+                file_dict["thumbnail"] = (value, out_path_t)
+            elif key == "browser":
+                out_path_b = os.path.join(out_dir, f"{primary_key}_b.jpg")
+                file_dict["browser"] = (value, out_path_b)
+        
+        for _, value in file_dict.items():
+            with open(value[1], "wb") as f:
+                f.write(value[0])
+        
+        return file_dict["thumbnail"][1], file_dict["browser"[1]]
+
+    def find_credit_pages(self) -> Optional[str]:
+        """
+        Searches for comic ripper pages among the image files.
+        Identifies comic ripper pages by filenames that are very different
+        from the names of the first 40% of files.
+
+        Raises:
+            ValueError: if there are no images found in the archive on filepath.
+
+        Returns the filepath of the supposed credit page or None if
+        nothing is found.
+        """
+        if not self.image_names:
+            raise ValueError("Empty archhve: no image files found.")
+        
+        self.image_names.sort()
+        common_files_index = int(len(self.image_names) * 0.4)
+        early_files = self.image_names[:common_files_index]
+        file_paths_to_compare = random.sample(early_files, min(5, len(early_files)))
+        last_files = self.image_names[-3:]
+        not_matching_files = {
+            j
+            for j in last_files
+            for k in file_paths_to_compare
+            if Levenshtein.distance(j, k) > 10
+        }
+
+        if len(not_matching_files) == 1:
+            return str(not_matching_files[0])
+        else:
+            return None
 
 
 class MetadataInputting:
@@ -886,180 +696,180 @@ def dic_into_db(my_dic: dict) -> None:
 path_to_obs = os.getenv("PATH_TO_WATCH")
 
 
-# class DownloadsHandler(FileSystemEventHandler):
-#     """
-#     Watches a directory for new files and processes them when they appear.
+class DownloadsHandler(FileSystemEventHandler):
+    """
+    Watches a directory for new files and processes them when they appear.
 
-#     Attributes:
-#         None
+    Attributes:
+        None
 
-#     Methods:
-#         on_created(event): Triggered when a file is created. Waits until file
-#     is stable then processes it.
-#         on_moved(event): Triggered when a file is moved. Handles processing
-#     if moved to the watched folder.
-#         on_deleted(event): Triggered when a file is deleted.
-#         is_file_ready(filepath, stable_time, check_interval): Checks if a file has
-#     stopped changing size to ensure it's fully written.
-#         process_file(path, dest_path_temp): Moves a stable file to a destination,
-#     renaming if needed.
-#         handle_new_file(path): Inserts a new comic into the database and converts
-#     formats if necessary.
-#     """
+    Methods:
+        on_created(event): Triggered when a file is created. Waits until file
+    is stable then processes it.
+        on_moved(event): Triggered when a file is moved. Handles processing
+    if moved to the watched folder.
+        on_deleted(event): Triggered when a file is deleted.
+        is_file_ready(filepath, stable_time, check_interval): Checks if a file has
+    stopped changing size to ensure it's fully written.
+        process_file(path, dest_path_temp): Moves a stable file to a destination,
+    renaming if needed.
+        handle_new_file(path): Inserts a new comic into the database and converts
+    formats if necessary.
+    """
 
-#     def on_created(self, event: FileSystemEventHandler) -> None:
-#         """
-#         Called when a new file is created in the watched directory.
+    def on_created(self, event: FileSystemEventHandler) -> None:
+        """
+        Called when a new file is created in the watched directory.
 
-#         Args:
-#             event(FileSystemEvent): The file system event triggered.
-#         """
-#         if event.is_directory:
-#             return
+        Args:
+            event(FileSystemEvent): The file system event triggered.
+        """
+        if event.is_directory:
+            return
 
-#         filepath = event.src_path
-#         filename = os.path.basename(filepath)
+        filepath = event.src_path
+        filename = os.path.basename(filepath)
 
-#         if filename.endswith(".part"):
-#             logging.info(f"Ignoring partial file: {filename}")
-#             return
+        if filename.endswith(".part"):
+            logging.info(f"Ignoring partial file: {filename}")
+            return
 
-#         logging.info(f"Detected new file: {filename}")
+        logging.info(f"Detected new file: {filename}")
 
-#         time.sleep(2)
+        time.sleep(2)
 
-#         if not self.is_file_ready(filepath):
-#             logging.warning(f"File not stable yet: {filename}")
-#             return
+        if not self.is_file_ready(filepath):
+            logging.warning(f"File not stable yet: {filename}")
+            return
 
-#         try:
-#             self.process_file(filepath)
-#         except Exception as e:
-#             logging.error(f"Error processing file {filepath}: {e}")
+        try:
+            self.process_file(filepath)
+        except Exception as e:
+            logging.error(f"Error processing file {filepath}: {e}")
 
-#     def on_moved(self, event: FileSystemEventHandler) -> None:
-#         """
-#         Called when a file is moved.
+    def on_moved(self, event: FileSystemEventHandler) -> None:
+        """
+        Called when a file is moved.
 
-#         Args:
-#             event(FileSystemEvent): The file system move event.
-#         """
-#         if event.dest_path == path_to_obs:
-#             if not event.is_directory:
-#                 file_path = event.src_path
-#                 logging.debug(f"New file detected: {file_path}")
-#                 self.handle_new_file(file_path)
+        Args:
+            event(FileSystemEvent): The file system move event.
+        """
+        if event.dest_path == path_to_obs:
+            if not event.is_directory:
+                file_path = event.src_path
+                logging.debug(f"New file detected: {file_path}")
+                self.handle_new_file(file_path)
 
-#     def on_deleted(self, event: FileSystemEventHandler) -> None:
-#         """
-#         Called when a file is deleted.
+    def on_deleted(self, event: FileSystemEventHandler) -> None:
+        """
+        Called when a file is deleted.
 
-#         Args:
-#             event (FileSystemEvent): The file system delete event.
-#         """
-#         logging.debug(f"Detected a file deletion: {event.src_path}")
+        Args:
+            event (FileSystemEvent): The file system delete event.
+        """
+        logging.debug(f"Detected a file deletion: {event.src_path}")
 
-#     def is_file_ready(
-#         self, filepath: str, stable_time: int = 5, check_interval: int = 1
-#     ) -> bool:
-#         """
-#         Checks to see if the file size has stabilised over time,
-#         indicating it's fully written.
+    def is_file_ready(
+        self, filepath: str, stable_time: int = 5, check_interval: int = 1
+    ) -> bool:
+        """
+        Checks to see if the file size has stabilised over time,
+        indicating it's fully written.
 
-#         Args:
-#             filepath: Path to newly detected file.
-#             stable_time: Number of consectutive stable intervals.
-#         intervals before confirming readiness.
-#             check_interval: The number of seconds to wait between intervals.
+        Args:
+            filepath: Path to newly detected file.
+            stable_time: Number of consectutive stable intervals.
+        intervals before confirming readiness.
+            check_interval: The number of seconds to wait between intervals.
 
-#         Returns:
-#             bool: True if file is stable and ready to be moved, False otherwise.
-#         """
-#         prev_size = -1
-#         stab_counter = 0
-#         while stab_counter < stable_time:
-#             try:
-#                 current_size = os.path.getsize(filepath)
-#             except FileNotFoundError:
-#                 logging.warning(f"File {filepath} disappeared.")
-#                 return False
+        Returns:
+            bool: True if file is stable and ready to be moved, False otherwise.
+        """
+        prev_size = -1
+        stab_counter = 0
+        while stab_counter < stable_time:
+            try:
+                current_size = os.path.getsize(filepath)
+            except FileNotFoundError:
+                logging.warning(f"File {filepath} disappeared.")
+                return False
 
-#             if current_size == prev_size:
-#                 stab_counter += 1
-#             else:
-#                 stab_counter = 0
-#                 prev_size = current_size
+            if current_size == prev_size:
+                stab_counter += 1
+            else:
+                stab_counter = 0
+                prev_size = current_size
 
-#             time.sleep(check_interval)
+            time.sleep(check_interval)
 
-#         return True
+        return True
 
-#     def process_file(self, path: str, dest_path_temp: str) -> None:
-#         """
-#         Moves the processed file to a target directory, renaming it if the file
-#         name is already taken.
+    def process_file(self, path: str, dest_path_temp: str) -> None:
+        """
+        Moves the processed file to a target directory, renaming it if the file
+        name is already taken.
 
-#         Args:
-#             path: Path to newly detected file to be moved.
-#             dest_path_temp: Target destination directory.
-#         """
-#         filename = os.path.basename(path)
+        Args:
+            path: Path to newly detected file to be moved.
+            dest_path_temp: Target destination directory.
+        """
+        filename = os.path.basename(path)
 
-#         if os.path.exists(dest_path_temp):
-#             base, ext = os.path.splitext(filename)
-#             timestamp = int(time.time())
-#             new_filename = f"{base}_{timestamp}{ext}"
-#             dest_path = os.path.join("dir", new_filename)
-#             logging.warning(f"File exists, renaming to: {new_filename}")
+        if os.path.exists(dest_path_temp):
+            base, ext = os.path.splitext(filename)
+            timestamp = int(time.time())
+            new_filename = f"{base}_{timestamp}{ext}"
+            dest_path = os.path.join("dir", new_filename)
+            logging.warning(f"File exists, renaming to: {new_filename}")
 
-#         shutil.move(path, dest_path)
-#         logging.info(f"Moved file to library: {dest_path}")
+        shutil.move(path, dest_path)
+        logging.info(f"Moved file to library: {dest_path}")
 
-#     def handle_new_file(self, path: str) -> Optional[Tuple[int]]:
-#         """
-#         Handles newly deteced files by inserting them into the database
-#         and converting format if needed.
+    def handle_new_file(self, path: str) -> Optional[Tuple[int]]:
+        """
+        Handles newly deteced files by inserting them into the database
+        and converting format if needed.
 
-#         Args:
-#             path: Path of the newly detected file.
-#         """
-#         if is_comic(path):
-#             if get_ext(path) == ".cbr":
-#                 path = convert_cbz(path)
+        Args:
+            path: Path of the newly detected file.
+        """
+        if is_comic(path):
+            if get_ext(path) == ".cbr":
+                path = convert_cbz(path)
 
-#             conn = sqlite3.connect("comics.db")
-#             cursor = conn.cursor()
-#             cursor.execute(
-#                 """
-#                 INSERT INTO comics (title, file_path)
-#                 VALUES (?, ?)
-#             """,
-#                 (get_name(path), path),
-#             )
-#             comic_id = cursor.lastrowid
-#             if comic_id:
-#                 return (comic_id,)
+            conn = sqlite3.connect("comics.db")
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO comics (title, file_path)
+                VALUES (?, ?)
+            """,
+                (get_name(path), path),
+            )
+            comic_id = cursor.lastrowid
+            if comic_id:
+                return (comic_id,)
 
-#             conn.commit()
-#             conn.close()
+            conn.commit()
+            conn.close()
 
-#             if not has_metadata(path):
-#                 pass  # This is where to call the tagging function
+            if not has_metadata(path):
+                pass  # This is where to call the tagging function
 
-#             # files that make to here are downloaded already with metadata,
-#             # if that is the case need to extract data
-#             # so should call another function here
+            # files that make to here are downloaded already with metadata,
+            # if that is the case need to extract data
+            # so should call another function here
 
-#         else:
-#             logging.critical("Wrong file type.")
+        else:
+            logging.critical("Wrong file type.")
 
 
-# obs = Observer()
-# obs.schedule(DownloadsHandler(), path_to_obs, recursive=False)
-# obs.start()
-# try:
-#     while True:
-#         time.sleep(1)
-# except KeyboardInterrupt:
-#     obs.stop()
-#     obs.join()
+obs = Observer()
+obs.schedule(DownloadsHandler(), path_to_obs, recursive=False)
+obs.start()
+try:
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    obs.stop()
+    obs.join()

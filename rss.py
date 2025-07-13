@@ -43,10 +43,14 @@ def rss_scrape() -> list[dict]:
         entry["summary"] = comic_description
         raw = entry["pub_date"]
         entry["pub_date"] = (
-            parsedate_to_datetime(raw)
-            .astimezone(tz=None)
-            .strftime("%Y-%m-%d %H:%M:%S")
-        ) if raw else raw
+            (
+                parsedate_to_datetime(raw)
+                .astimezone(tz=None)
+                .strftime("%Y-%m-%d %H:%M:%S")
+            )
+            if raw
+            else raw
+        )
         res = requests.get(
             entry.get("link"), headers={"User-Agent": "Mozilla/5.0"}, timeout=30
         )

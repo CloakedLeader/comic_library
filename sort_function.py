@@ -11,15 +11,15 @@ def score(name: str) -> tuple[int, int, str]:
 
     if COVER_CUES.search(lowered) or lowered.endswith("00"):
         return (0, 0, name)
-  
+
     numbers = [int(n) for n in NUMBERS.findall(stem)]
     for num in numbers:
         if num in (0, 1):
             return (1, num, name)
-      
+
     if numbers:
         return (2 + min(numbers), min(numbers), name)
-       
+
     return (10, 0, name)
 
 

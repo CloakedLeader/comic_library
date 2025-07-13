@@ -27,6 +27,7 @@ class ClickableComicWidget(QWidget):
     Signals:
         clicked: Emitted when the widget is clicked with the left mouse button.
     """
+
     clicked = Signal()
 
     def __init__(
@@ -103,6 +104,7 @@ class HomePage(QMainWindow):
         - Multiple scrollable sections for different comic categories
         - RSS feed integration for new comic discovery
     """
+
     def __init__(self) -> None:
         """
         Initalise the homepage main window.
@@ -206,7 +208,7 @@ class HomePage(QMainWindow):
         list_of_dicts: list,
         header: str,
         upon_clicked: callable,
-        links: bool = False
+        links: bool = False,
     ) -> QScrollArea:
         """
         Create a horizontal scroll area populated with comic widgets.
@@ -283,8 +285,7 @@ class HomePage(QMainWindow):
         print("Hi " + comic_dict["title"] + "!")
 
     def create_continue_reading_area(
-        self,
-        list_of_comics_marked_as_read: list[dict]
+        self, list_of_comics_marked_as_read: list[dict]
     ) -> QScrollArea:
         """
         Creates a scroll area for comics marked as continue reading.
@@ -299,8 +300,7 @@ class HomePage(QMainWindow):
         )
 
     def create_recommended_reading_area(
-        self,
-        list_of_recommended_comics: list[dict]
+        self, list_of_recommended_comics: list[dict]
     ) -> QScrollArea:
         """
         Creates a scroll area for comics marked as recommended.
@@ -315,10 +315,7 @@ class HomePage(QMainWindow):
             upon_clicked=self.open_reader,
         )
 
-    def create_review_area(
-        self,
-        list_of_unreviewed_comics: list[dict]
-    ) -> QScrollArea:
+    def create_review_area(self, list_of_unreviewed_comics: list[dict]) -> QScrollArea:
         """
         Creates a scroll area for comics marked as requiring
         review.
@@ -351,7 +348,7 @@ class HomePage(QMainWindow):
             recent_comics_list,
             links=True,
             header="GetComics RSS Feed",
-            upon_clicked=self.print_hi  # self.rss_controller.handle_rss_comic_clicked,
+            upon_clicked=self.print_hi,  # self.rss_controller.handle_rss_comic_clicked,
         )
 
     def create_stats_bar(self) -> QWidget:
@@ -474,8 +471,17 @@ def count_files_and_storage(directory: str) -> tuple[int, float]:
     return file_count, total_size
 
 
-dummy_data = [{"title": "Mr Miracle TPB", "cover_path" : "D:\\Comics\\.yacreaderlibrary\\covers\\1f7c63fb2bf06fcd4293fad5928354e591542fb9459630961.jpg", "filepath": "D://Comics//DC//Misc//Mister Miracle TPB (February 2019).cbz"},
-              {"title" : "Daredevil: The Man Witout Fear", "cover_path" : "D:\\Comics\\.yacreaderlibrary\\covers\\051a70f024954f92e2b2c0699f00859ac772e865685497443.jpg"}]
+dummy_data = [
+    {
+        "title": "Mr Miracle TPB",
+        "cover_path": "D:\\Comics\\.yacreaderlibrary\\covers\\1f7c63fb2bf06fcd4293fad5928354e591542fb9459630961.jpg",
+        "filepath": "D://Comics//DC//Misc//Mister Miracle TPB (February 2019).cbz",
+    },
+    {
+        "title": "Daredevil: The Man Witout Fear",
+        "cover_path": "D:\\Comics\\.yacreaderlibrary\\covers\\051a70f024954f92e2b2c0699f00859ac772e865685497443.jpg",
+    },
+]
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

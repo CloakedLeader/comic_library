@@ -17,7 +17,7 @@ from file_utils import get_name
 
 def sort_imgs(filename: str) -> int:
     # TODO: Write this function, issue #7 on GitHub.
-    return -1 # Placeholder until issue closed.
+    return -1  # Placeholder until issue closed.
 
 
 class ComicError(Exception):
@@ -39,7 +39,8 @@ class Comic:
         self.filename = get_name(filepath)
         self.zip = zipfile.ZipFile(filepath, "r")
         self.image_names = sorted(
-            name for name in self.zip.namelist()
+            name
+            for name in self.zip.namelist()
             if name.lower().endswith((".jpg", ".jpeg", ".png"))
         )
         if not self.image_names:
@@ -58,7 +59,7 @@ class Comic:
         if name in self.cache:
             self.cache.move_to_end(name)
             return self.cache[name]
-   
+
         try:
             with self.zip.open(name) as file:
                 data = file.read()
@@ -101,14 +102,16 @@ class ImagePreloader(QThread):
                 image.tobytes("raw", "RGBA"),
                 image.width,
                 image.height,
-                QImage.Format_RGBA8888
+                QImage.Format_RGBA8888,
             )
             pixmap = QPixmap.fromImage(qimage)
 
             self.image_ready.emit(self.index, pixmap)
-     
+
         except Exception as e:
-            self.error_occurred.emit(self.index, f"Error converting image at index {self.index}: {e}")
+            self.error_occurred.emit(
+                self.index, f"Error converting image at index {self.index}: {e}"
+            )
 
 
 class SimpleReader(QMainWindow):
@@ -174,13 +177,14 @@ class SimpleReader(QMainWindow):
             thread.start()
         except PageIndexError as e:
             print(f"Invalid page index: {e}")
-       
+
     def display_page(self, index: int, pixmap: QPixmap) -> None:
         if index != self.current_index:
             raise PageIndexError("Reader and page loader not in sync")
-       
-        scaled = pixmap.scaledToHeight(self.image_label.height(),
-                                        Qt.SmoothTransformation)
+
+        scaled = pixmap.scaledToHeight(
+            self.image_label.height(), Qt.SmoothTransformation
+        )
         self.image_label.setPixmap(scaled)
         self.page_label.setText(f"Page {index + 1} / {self.comic.total_pages}")
 

@@ -1,4 +1,5 @@
-from typing import TypedDict, NotRequired
+from typing import NotRequired, TypedDict
+
 
 class ComicInfo(TypedDict):
     title: str
@@ -13,10 +14,9 @@ class ComicInfo(TypedDict):
     characters: list[str]
     teams: list[str]
 
+
 class GUIComicInfo(TypedDict):
     primary_id: str
     title: str
     filepath: str
     cover_link: NotRequired[str]
-    
-    
