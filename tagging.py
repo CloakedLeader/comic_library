@@ -1143,4 +1143,4 @@ def run_tagging_process(filepath, api_key):
 
 final_match = run_tagging_process(
     "D:\\Comics\\To Be Sorted\\New Mutants Epic Collection v04 - Fallen Angels (2025) (Digital) (Shan-Empire).cbz",
-    "61d8fd6e7cc37cc177cd09f795e9c585999903ed")
+    )
