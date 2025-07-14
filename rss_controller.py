@@ -30,26 +30,6 @@ class RSSController:
         self.repo.delete_old_entries()
         self.repo.insert_entries(self.rss_results)
 
-    # NOTE: Update detection logic removed - always refresh RSS data
-    # Remove entirely if not needed for future reference
-    # def is_new_update(self) -> bool:
-    #     """
-    #     Checks if the RSS feed contains newer updates than stored data.
-
-    #     Compares the publication date of the latest RSS entry with the
-    #     latest entry in the database using email date parsing.
-
-    #     Returns:
-    #         True if there are newer updates available, else False.
-    #     """
-    #     latest_date = self.repo.get_latest_pub_date()
-    #     if not latest_date:
-    #         return True
-    #     latest_db_date = parsedate_to_datetime(latest_date)
-
-    #     latest_feed_date = parsedate_to_datetime(self.rss_results[0]["pub_date"])
-
-    #     return latest_feed_date > latest_db_date
 
     def get_recent_comic_info(self, number_of_entries: int) -> list[dict[str, str]]:
         """
