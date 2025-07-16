@@ -1,22 +1,26 @@
-from typing import NotRequired, TypedDict
+from typing import Optional
+from pydantic import BaseModel
 
 
-class ComicInfo(TypedDict):
-    title: str
-    series: str
-    volume_num: int
-    publisher: str
-    month: int
-    year: int
+class ComicInfo(BaseModel):
+    primary_key: str
     filepath: str
-    description: str
-    creators: list[tuple]
-    characters: list[str]
-    teams: list[str]
+    original_filename: str
+    title: Optional[str] = None
+    series: Optional[str] = None
+    volume_num: Optional[int] = None
+    publisher: Optional[str] = None
+    month: Optional[int] = None
+    year: Optional[int] = None
+    date: Optional[str] = None
+    description: Optional[str] = None
+    creators: Optional[list[tuple[str, str]]] = None
+    characters: Optional[list[str]] = None
+    teams: Optional[list[str]] = None
 
 
-class GUIComicInfo(TypedDict):
+class GUIComicInfo(BaseModel):
     primary_id: str
     title: str
     filepath: str
-    cover_link: NotRequired[str]
+    cover_link: Optional[str]
