@@ -1,0 +1,332 @@
+import logging
+import os
+import sqlite3
+from typing import Any
+
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
+import uuid
+import time
+import zipfile
+from defusedxml import ElementTree as ET
+
+from helper_classes import ComicInfo
+from file_utils import convert_cbz, get_ext
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(), logging.FileHandler("log.txt")],
+)
+
+
+def pad(n: int) -> str:
+    return f"{n:04}" if n < 1000 else str(n)
+
+
+# NEED TO WORK ON THIS FUNCTION
+
+# def sort_imgs(filename: str) -> int:
+#     numbers = re.findall(r"\d+", filename)
+#     return int(numbers[-1]) if numbers else -1
+
+
+def get_comicid_from_path(
+    path: str,
+) -> int:
+    """
+    Finds the ID of the comic in the database from its filepath.
+
+    Args:
+        path: the filepath of the comic archive to be searched against.
+
+    Raises:
+        LookupError: if the comic is not found in the database.
+    """
+    conn = sqlite3.connect("comics.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM comics WHERE path = ?", (path,))
+    result = cursor.fetchone()
+    conn.close()
+    if result:
+        return result[0]
+    else:
+        raise LookupError(f"No comic found in database for path: {path}")
+
+
+download_path = os.getenv("DEST_FILE_PATH")
+
+
+# ===========================================
+# Advanced parsing that requires extra logic
+# ===========================================
+
+# use Amazing Spider-Man Modern Era Epic Collection: Coming Home
+
+# File Naming System: [Series_Name][Start_Year] -
+# [Collection_Type] [Volume_Number] ([date in month/year])
+# User Visible Title: [Series] [star_year] -
+# [collection type] Volume [volume_number]: [Title] [month] [year]
+
+
+# ======================
+# Database Inputting
+# =======================
+
+
+def build_dict(path: str) -> dict[str, Any]:
+    """
+    Builds a metadata dictionary for a comic archive from its ComicInfo.xml file.
+    This data will eventually be pushed to database.
+
+    Args:
+        path: The filepath of the comic archive.
+
+    Returns:
+        A dictionary of metadata fields to be stored in the main comics table.
+
+    Raises:
+        ValueErrors: if parsing fails to find a corresponding match.
+        KeyErrors: if data cannot be read.
+
+    """
+    pass
+
+
+def dic_into_db(my_dic: dict) -> None:
+    """
+    First checks to see if the input has any blank fields.
+    If not it inputs them into the database.
+
+    Args:
+    my_dic: A metadata dictionary following the structure layed out in
+    build_dic.
+    """
+    conn = sqlite3.connect("comics.db")
+    cursor = conn.cursor()
+
+    for key, value in my_dic.items():
+        if value is None:
+            raise ValueError(f"Dictionary field '{key}' is None.")
+            # Need to trigger another function or re-tag
+        else:
+            cursor.execute(
+                """
+                   INSERT INTO comics (title, series, volume_id, publisher_id,
+                    release_date, file_path, front_cover_path, description)
+                   VALUES (:title, :series, :volume_id, :pubslisher_id,
+                   :release_date, :file_path, :front_cover_path, :description)
+                   """,
+                my_dic,
+            )
+    conn.commit()
+    conn.close()
+    return None
+
+
+# ===================
+# Watchdog Module
+# ===================
+
+path_to_obs = os.getenv("PATH_TO_WATCH")
+
+
+class DownloadsHandler(FileSystemEventHandler):
+    """
+    Watches a directory for new files and processes them when they appear.
+
+    Attributes:
+        None
+
+    Methods:
+        on_created(event): Triggered when a file is created. Waits until file
+    is stable then processes it.
+        on_moved(event): Triggered when a file is moved. Handles processing
+    if moved to the watched folder.
+        on_deleted(event): Triggered when a file is deleted.
+        is_file_ready(filepath, stable_time, check_interval): Checks if a file has
+    stopped changing size to ensure it's fully written.
+        process_file(path, dest_path_temp): Moves a stable file to a destination,
+    renaming if needed.
+        handle_new_file(path): Inserts a new comic into the database and converts
+    formats if necessary.
+    """
+
+    def on_created(self, event: FileSystemEventHandler) -> None:
+        """
+        Called when a new file is created in the watched directory.
+
+        Args:
+            event(FileSystemEvent): The file system event triggered.
+        """
+        if event.is_directory:
+            return
+
+        filepath = event.src_path
+        filename = os.path.basename(filepath)
+
+        if filename.endswith(".part"):
+            logging.info(f"Ignoring partial file: {filename}")
+            return
+
+        logging.info(f"Detected new file: {filename}")
+
+        time.sleep(2)
+
+        if not self.is_file_ready(filepath):
+            logging.warning(f"File not stable yet: {filename}")
+            return
+
+        new_key = str(uuid.uuid4())
+        cont = MetadataController(new_key, filepath)
+        cont.process()
+
+    def on_moved(self, event: FileSystemEventHandler) -> None:
+        """
+        Called when a file is moved.
+
+        Args:
+            event(FileSystemEvent): The file system move event.
+        """
+        if event.dest_path == path_to_obs:
+            if not event.is_directory:
+                file_path = event.src_path
+                logging.debug(f"New file detected: {file_path}")
+                self.handle_new_file(file_path)
+
+    def on_deleted(self, event: FileSystemEventHandler) -> None:
+        """
+        Called when a file is deleted.
+
+        Args:
+            event (FileSystemEvent): The file system delete event.
+        """
+        logging.debug(f"Detected a file deletion: {event.src_path}")
+
+    def is_file_ready(
+        self, filepath: str, stable_time: int = 5, check_interval: int = 1
+    ) -> bool:
+        """
+        Checks to see if the file size has stabilised over time,
+        indicating it's fully written.
+
+        Args:
+            filepath: Path to newly detected file.
+            stable_time: Number of consectutive stable intervals.
+        intervals before confirming readiness.
+            check_interval: The number of seconds to wait between intervals.
+
+        Returns:
+            bool: True if file is stable and ready to be moved, False otherwise.
+        """
+        prev_size = -1
+        stab_counter = 0
+        while stab_counter < stable_time:
+            try:
+                current_size = os.path.getsize(filepath)
+            except FileNotFoundError:
+                logging.warning(f"File {filepath} disappeared.")
+                return False
+
+            if current_size == prev_size:
+                stab_counter += 1
+            else:
+                stab_counter = 0
+                prev_size = current_size
+
+            time.sleep(check_interval)
+
+        return True
+
+
+class MetadataController:
+    def __init__(self, primary_key: str, filepath: str):
+        self.primary_key = primary_key
+        self.original_filepath = filepath
+        self.original_filename = os.path.basename(filepath)
+        self.filepath = None
+        self.filename = None
+        self.comic_info = None
+
+    def rename_and_reformat(self) -> None:
+        temp_filepath = self.original_filepath
+        if get_ext(temp_filepath) == ".cbr":
+            temp_filepath = convert_cbz(temp_filepath)
+        elif get_ext(temp_filepath) != ".cbz":
+            raise ValueError("Wrong filetype.")
+
+        directory = os.path.dirname(temp_filepath)
+        new_name = f"{self.primary_key}.cbz"
+        new_path = os.path.join(directory, new_name)
+
+        os.rename(temp_filepath, new_path)
+
+        self.filepath = new_path
+        self.filename = new_name
+    
+    def has_metadata(self) -> bool:
+        """
+        Checks that the required metadata fields are complete with some info
+        e.g. that they are not blank.
+
+        Args:
+        required: A list of the fields that must be present.
+
+        Returns:
+        True if all required info is present, else False.
+        """
+        
+        required_fields = ["Title", "Series", "Year", "Number", "Writer", "Summary"]
+        with zipfile.ZipFile(self.filepath, "r") as archive:
+            if "ComicInfo.xml" in archive.namelist():
+                with archive.open("ComicInfo.xml") as xml_file:
+                    try:
+                        tree = ET.parse(xml_file)
+                        root = tree.getroot()
+                        missing = [tag for tag in required_fields if root.find(tag) is None]
+
+                        if missing:
+                            print(f"ComicInfo.xml is missing tags: {missing}")
+                            return False
+                        else:
+                            print("ComicInfo.xml is valid and complete")
+                            return True
+                        
+                    except ET.ParseError:
+                        print("ComicInfo.xml is present but not valid xml")
+                        return False
+            else:
+                print("ComicInfo.xml is missing.")
+                return False
+
+    def run(self):
+        self.rename_and_reformat()
+        self.comic_info = ComicInfo(
+            primary_key=self.primary_key,
+            filepath=self.filepath,
+            original_filename=self.original_filename
+        )
+
+        if self.has_metadata():
+            # Call the metadata extraction process.
+            # Then call the database insertion process.
+            pass
+        else:
+            # Call the entire tagging process.
+            # Call the xml creation process.
+            # Call the database insertion process.
+            pass
+        
+        # Now the file should have complete metdata and be in the database.
+        # Rename to permanent name.
+        # Move to correct folder or place.
+
+obs = Observer()
+obs.schedule(DownloadsHandler(), path_to_obs, recursive=False)
+obs.start()
+try:
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    obs.stop()
+    obs.join()
