@@ -2,6 +2,7 @@ import os
 import os.path
 import sys
 from io import BytesIO
+from typing import Callable
 
 import requests
 from PySide6.QtCore import Qt, Signal
@@ -207,7 +208,7 @@ class HomePage(QMainWindow):
         self,
         list_of_dicts: list,
         header: str,
-        upon_clicked: callable,
+        upon_clicked: Callable,
         links: bool = False,
     ) -> QScrollArea:
         """
