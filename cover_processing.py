@@ -1,19 +1,20 @@
-from pathlib import Path
+import os
+import random
 import re
 import zipfile
 from io import BytesIO
-from PIL import Image
+from pathlib import Path
 from typing import Optional
-import random
+
 import Levenshtein
-import os
+from PIL import Image
 
 
 class ImageExtraction:
     def __init__(self, path: str) -> None:
         self.filepath = path
-        self.image_names : list[str] = self.get_namelist()
-        self.cover_bytes : bytes = None
+        self.image_names: list[str] = self.get_namelist()
+        self.cover_bytes: bytes = None
 
     @staticmethod
     def score(name: str) -> tuple[int, int, str]:
@@ -37,8 +38,9 @@ class ImageExtraction:
 
     def get_namelist(self) -> list[str]:
         with zipfile.ZipFile(self.filepath, "r") as zip_ref:
-            images = [f for f in zip_ref.namelist()
-                      if f.endswith(".jpg", ".jpeg", ".png")]
+            images = [
+                f for f in zip_ref.namelist() if f.endswith(".jpg", ".jpeg", ".png")
+            ]
         return images
 
     def choose_cover(self) -> str:
@@ -51,8 +53,9 @@ class ImageExtraction:
         if not self.image_names:
             raise ValueError("Empty file list")
 
-        ranked: list[tuple[int, int, str]] = sorted(self.score(f) for
-                                                    f in self.image_names)
+        ranked: list[tuple[int, int, str]] = sorted(
+            self.score(f) for f in self.image_names
+        )
         return ranked[0][-1]
 
     def extract_image_bytes(self) -> None:

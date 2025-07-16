@@ -1,17 +1,18 @@
 import logging
 import os
 import sqlite3
+import time
+import uuid
+import zipfile
 from typing import Any
 
+from defusedxml import ElementTree as ET
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
-import uuid
-import time
-import zipfile
-from defusedxml import ElementTree as ET
 
-from helper_classes import ComicInfo
+# from extract_meta_xml import MetadataExtraction
 from file_utils import convert_cbz, get_ext
+from helper_classes import ComicInfo
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -263,7 +264,7 @@ class MetadataController:
 
         self.filepath = new_path
         self.filename = new_name
-    
+
     def has_metadata(self) -> bool:
         """
         Checks that the required metadata fields are complete with some info
@@ -275,7 +276,7 @@ class MetadataController:
         Returns:
         True if all required info is present, else False.
         """
-        
+
         required_fields = ["Title", "Series", "Year", "Number", "Writer", "Summary"]
         with zipfile.ZipFile(self.filepath, "r") as archive:
             if "ComicInfo.xml" in archive.namelist():
@@ -283,7 +284,9 @@ class MetadataController:
                     try:
                         tree = ET.parse(xml_file)
                         root = tree.getroot()
-                        missing = [tag for tag in required_fields if root.find(tag) is None]
+                        missing = [
+                            tag for tag in required_fields if root.find(tag) is None
+                        ]
 
                         if missing:
                             print(f"ComicInfo.xml is missing tags: {missing}")
@@ -291,7 +294,7 @@ class MetadataController:
                         else:
                             print("ComicInfo.xml is valid and complete")
                             return True
-                        
+
                     except ET.ParseError:
                         print("ComicInfo.xml is present but not valid xml")
                         return False
@@ -304,11 +307,13 @@ class MetadataController:
         self.comic_info = ComicInfo(
             primary_key=self.primary_key,
             filepath=self.filepath,
-            original_filename=self.original_filename
+            original_filename=self.original_filename,
         )
 
         if self.has_metadata():
-            # Call the metadata extraction process.
+            # with MetadataExtraction(self.comic_info) as extractor:
+            #     raw_comic_info = extractor.run()
+            # Call the metadata cleaning process.
             # Then call the database insertion process.
             pass
         else:
@@ -316,10 +321,11 @@ class MetadataController:
             # Call the xml creation process.
             # Call the database insertion process.
             pass
-        
+
         # Now the file should have complete metdata and be in the database.
         # Rename to permanent name.
         # Move to correct folder or place.
+
 
 obs = Observer()
 obs.schedule(DownloadsHandler(), path_to_obs, recursive=False)

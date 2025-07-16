@@ -1,5 +1,5 @@
-from email.utils import parsedate_to_datetime
 from datetime import datetime
+from email.utils import parsedate_to_datetime
 
 import feedparser
 import requests
@@ -43,7 +43,7 @@ def rss_scrape() -> list[dict]:
         comic_description = summary_scrape(total_summary)
         entry["summary"] = comic_description
         raw = entry["pub_date"]
-        entry["pub_date"] = (parse_pub_date(raw))
+        entry["pub_date"] = parse_pub_date(raw)
         res = requests.get(
             entry.get("link"), headers={"User-Agent": "Mozilla/5.0"}, timeout=30
         )
@@ -126,6 +126,7 @@ def is_comic_entry(entry: dict[str, str]) -> bool:
         any(keyword in link_lower for keyword in link_blacklist)
         or any(keyword in title_lower for keyword in title_blacklist)
     )
+
 
 def parse_pub_date(pub_date_str: str) -> int:
     try:

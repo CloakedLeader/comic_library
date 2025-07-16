@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any
 
 
@@ -56,7 +56,9 @@ class RSSRepository:
         from the current date.
         """
         seconds_in_day = 86_400
-        cutoff_epoch = int(datetime.now(timezone.utc).timestamp()) - lifetime * seconds_in_day
+        cutoff_epoch = (
+            int(datetime.now(timezone.utc).timestamp()) - lifetime * seconds_in_day
+        )
         self.cursor.execute(
             "DELETE FROM rss_entries WHERE pub_epoch < ?",
             (cutoff_epoch,),
@@ -97,5 +99,3 @@ class RSSRepository:
         """
         self.connection.commit()
         self.connection.close()
-
-

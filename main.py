@@ -474,12 +474,14 @@ def count_files_and_storage(directory: str) -> tuple[int, float]:
 dummy_data = [
     {
         "title": "Mr Miracle TPB",
-        "cover_path": "D:\\Comics\\.yacreaderlibrary\\covers\\1f7c63fb2bf06fcd4293fad5928354e591542fb9459630961.jpg",
+        "cover_path": "D:\\Comics\\.yacreaderlibrary\\covers\\"
+        "1f7c63fb2bf06fcd4293fad5928354e591542fb9459630961.jpg",
         "filepath": "D://Comics//DC//Misc//Mister Miracle TPB (February 2019).cbz",
     },
     {
         "title": "Daredevil: The Man Witout Fear",
-        "cover_path": "D:\\Comics\\.yacreaderlibrary\\covers\\051a70f024954f92e2b2c0699f00859ac772e865685497443.jpg",
+        "cover_path": "D:\\Comics\\.yacreaderlibrary\\covers\\"
+        "051a70f024954f92e2b2c0699f00859ac772e865685497443.jpg",
     },
 ]
 

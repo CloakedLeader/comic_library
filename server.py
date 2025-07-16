@@ -1,9 +1,10 @@
 import os
 
-from flask import Flask, jsonify, render_template_string, send_from_directory
+from flask import Flask, render_template_string, send_from_directory
 
 app = Flask(__name__)
 FILE_DIRECTORY = "D:\\comic_library\\comic_examples"
+
 
 @app.route("/")
 def index():
@@ -22,7 +23,3 @@ def index():
 @app.route("/download/<path:filename>")
 def download(filename):
     return send_from_directory(FILE_DIRECTORY, filename, as_attachment=True)
-
-
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0" port=5000)

@@ -1,7 +1,9 @@
+import os
 import re
+
 from fuzzywuzzy import fuzz
 from word2number import w2n
-import os
+
 from helper_classes import ComicInfo
 
 
@@ -13,14 +15,13 @@ class MetadataProcessing:
 
     PATTERNS: list[re.Pattern] = [
         re.compile(r"\bv(?<num>)\d{1,3}\b", re.I),
-
         re.compile(r"\b(?<num>\d{3})\b"),
-
         re.compile(r"\bvol(?:ume)?\.?\s*(?P<num>\d{1,3})\b", re.I),
     ]
 
-    SPECIAL_PATTERN = re.compile(r"\bv(?P<volume>\d{1,3})\s+(?P<issue>\d{2,3})\b)",
-                                 re.I)
+    SPECIAL_PATTERN = re.compile(
+        r"\bv(?P<volume>\d{1,3})\s+(?P<issue>\d{2,3})\b)", re.I
+    )
 
     @staticmethod
     def normalise_publisher_name(name: str) -> str:
@@ -32,8 +33,24 @@ class MetadataProcessing:
     def title_case(title: str) -> str:
         # Need to also make this capitalise things like X-Men not X-men.
         minor_words = {
-            'a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'in',
-            'nor', 'of', 'on', 'or', 'so', 'the', 'to', 'up', 'yet'
+            "a",
+            "an",
+            "and",
+            "as",
+            "at",
+            "but",
+            "by",
+            "for",
+            "in",
+            "nor",
+            "of",
+            "on",
+            "or",
+            "so",
+            "the",
+            "to",
+            "up",
+            "yet",
         }
 
         words = title.lower().split()
@@ -102,20 +119,15 @@ class MetadataProcessing:
 
         Raises:
             If issue number is zero, this signifies an error in the processing.
-    """
+        """
         series_overrides = [
             ("tpb", 1),
             ("omnibus", 2),
             ("modern era epic collection", 4),
-            ("epic collection", 3)
+            ("epic collection", 3),
         ]
 
-        out = {
-            "title": str,
-            "series": str,
-            "collection_type": int,
-            "issue_num": int
-        }
+        out = {"title": str, "series": str, "collection_type": int, "issue_num": int}
         common_title_words = {"tpb", "hc"}
 
         title_raw = self.raw_info["title"].lower()
@@ -144,9 +156,10 @@ class MetadataProcessing:
                 break
 
         volume_match = re.match(
-            r"(?:vol(?:ume)?|book)\.?\s*(\d+|one|two|three|four|five|six|" /
-            r"seven|eight|nine|ten|eleven|twelve)\s*[:\-]?\s*(.*)",
-            title_raw, re.I
+            r"(?:vol(?:ume)?|book)\.?\s*(\d+|one|two|three|four|five|six|"
+            / r"seven|eight|nine|ten|eleven|twelve)\s*[:\-]?\s*(.*)",
+            title_raw,
+            re.I,
         )
 
         issue_number = None
