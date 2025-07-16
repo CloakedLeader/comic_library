@@ -11,7 +11,7 @@ class MetadataProcessing:
     def __init__(self, raw_dict: ComicInfo) -> None:
         self.raw_info = raw_dict
         self.filepath = raw_dict["filepath"]
-        self.title_info = None
+        self.title_info = {}
 
     PATTERNS: list[re.Pattern] = [
         re.compile(r"\bv(?<num>)\d{1,3}\b", re.I),
@@ -103,7 +103,7 @@ class MetadataProcessing:
         else:
             raise KeyError(f"Publisher '{raw_pub_name} not known.")
 
-    def title_parsing(self) -> dict[str, str | int] | None:
+    def title_parsing(self) -> dict[str, str | int]:
         """
         Parses the title from the ComicInfo.xml to determine
         collection type, series name, title name and issue number.
@@ -126,8 +126,7 @@ class MetadataProcessing:
             ("modern era epic collection", 4),
             ("epic collection", 3),
         ]
-
-        out = {"title": str, "series": str, "collection_type": int, "issue_num": int}
+        out: dict[str, str | int] = {}
         common_title_words = {"tpb", "hc"}
 
         title_raw = self.raw_info["title"].lower()
@@ -213,4 +212,6 @@ class MetadataProcessing:
     def volume_number_parsing(self) -> int:
         if self.check_issue_numbers_match():
             return int(self.title_info["volume_num"])
+        else:
+            return
         #  Need extra logic here to get the correct volume number

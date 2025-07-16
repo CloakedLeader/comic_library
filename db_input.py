@@ -8,6 +8,7 @@ from helper_classes import ComicInfo
 class MetadataInputting:
     def __init__(self, comicinfo_dict: ComicInfo) -> None:
         self.clean_info = comicinfo_dict
+        self.comic_id: Optional[str] = None
 
     @staticmethod
     def generate_uuid():

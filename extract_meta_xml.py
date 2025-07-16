@@ -2,7 +2,9 @@ import os
 import shutil
 import tempfile
 import zipfile
+from typing import Optional
 
+from defusedxml import Element
 from defusedxml import ElementTree as ET
 
 from helper_classes import ComicInfo
@@ -14,7 +16,7 @@ class MetadataExtraction:
         self.filepath: str = comic_info.filepath
         self.temp_dir: str = tempfile.mkdtemp()
         self.extracted: bool = False
-        self.metadata_root = None
+        self.metadata_root: Optional[Element] = None
 
     def __enter__(self):
         self.extract()
@@ -62,6 +64,8 @@ class MetadataExtraction:
         Raises:
             KeyError: If the tag is missing or has no text content.
         """
+        if self.metadata_root is None:
+            raise ValueError("metadata_root has not been intialised.")
         element = self.metadata_root.find(tag)
         if element is not None and element.text:
             return element.text.strip()
@@ -104,7 +108,10 @@ class MetadataExtraction:
         seen = set()
         out = []
         list_string = self.easy_parsing(field)
-        items = [p.strip() for p in list_string.split(",")]
+        if isinstance(list_string, str):
+            items = [p.strip() for p in list_string.split(",")]
+        else:
+            raise ValueError("Not a valid tag in the xml tree.")
         for item in items:
             if item not in seen:
                 seen.add(item)
@@ -125,10 +132,13 @@ class MetadataExtraction:
         (John Byrne, Penciller)
         """
         creator_role_list = []
-        seen_per_role = {field: set() for field in fields}
+        seen_per_role: dict[str, set] = {field: set() for field in fields}
         for field in fields:
-            list_string = self.easy_parsing(field)
-            people_raw = [p.strip() for p in list_string.split(",")]
+            list_string = self.easy_parsing(field, str)
+            if isinstance(list_string, str):
+                people_raw = [p.strip() for p in list_string.split(",")]
+            else:
+                raise ValueError("Not a correct field in the xml.")
             for person in people_raw:
                 if person not in seen_per_role[field]:
                     seen_per_role[field].add(person)

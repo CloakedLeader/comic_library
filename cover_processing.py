@@ -14,19 +14,19 @@ class ImageExtraction:
     def __init__(self, path: str) -> None:
         self.filepath = path
         self.image_names: list[str] = self.get_namelist()
-        self.cover_bytes: bytes = None
+        self.cover_bytes: Optional[bytes] = None
 
     @staticmethod
     def score(name: str) -> tuple[int, int, str]:
         COVER_CUES = re.compile(r"\b(?:cover|front|fc)\b", re.IGNORECASE)
         NUMBERS = re.compile(r"\d+")
         stem = Path(name)
-        lowered = stem.lower()
+        lowered = str(stem).lower()
 
         if COVER_CUES.search(lowered) or lowered.endswith("00"):
             return (0, 0, name)
 
-        numbers = [int(n) for n in NUMBERS.findall(stem)]
+        numbers = [int(n) for n in NUMBERS.findall(str(stem))]
         for num in numbers:
             if num in (0, 1):
                 return (1, num, name)
@@ -39,7 +39,7 @@ class ImageExtraction:
     def get_namelist(self) -> list[str]:
         with zipfile.ZipFile(self.filepath, "r") as zip_ref:
             images = [
-                f for f in zip_ref.namelist() if f.endswith(".jpg", ".jpeg", ".png")
+                f for f in zip_ref.namelist() if f.endswith((".jpg", ".jpeg", ".png"))
             ]
         return images
 
@@ -78,7 +78,7 @@ class ImageExtraction:
         """
         t_height = 400
         b_height = 800
-        variants = {}
+        variants: dict[str, bytes] = {}
         with Image.open(BytesIO(self.cover_bytes)) as img:
             for name, height in [("thumbnail", t_height), ("browser", b_height)]:
                 w, h = img.size
@@ -94,20 +94,22 @@ class ImageExtraction:
                 resized_img.save(buffer, format="JPEG", quality=quality, optimize=True)
                 variants[name] = buffer.getvalue()
 
-        file_dict = {}
+        file_dict: dict[str, tuple[bytes, str]] = {}
         for key, value in variants.items():
-            if key == "thumbail":
+            if key == "thumbnail":
                 out_path_t = os.path.join(out_dir, f"{primary_key}_t.jpg")
+                assert isinstance(value, bytes), f"{key} has wrong type: {type(value)}"
                 file_dict["thumbnail"] = (value, out_path_t)
             elif key == "browser":
                 out_path_b = os.path.join(out_dir, f"{primary_key}_b.jpg")
+                assert isinstance(value, bytes), f"{key} has wrong type: {type(value)}"
                 file_dict["browser"] = (value, out_path_b)
 
         for _, value in file_dict.items():
             with open(value[1], "wb") as f:
                 f.write(value[0])
 
-        return file_dict["thumbnail"][1], file_dict["browser"[1]]
+        return file_dict["thumbnail"][1], file_dict["browser"][1]
 
     def find_credit_pages(self) -> Optional[str]:
         """
@@ -137,6 +139,6 @@ class ImageExtraction:
         }
 
         if len(not_matching_files) == 1:
-            return str(not_matching_files[0])
+            return next(iter(not_matching_files))
         else:
             return None

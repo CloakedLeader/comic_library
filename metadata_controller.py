@@ -4,7 +4,7 @@ import sqlite3
 import time
 import uuid
 import zipfile
-from typing import Any
+from typing import Any, Optional
 
 from defusedxml import ElementTree as ET
 from watchdog.events import FileSystemEventHandler
@@ -245,9 +245,9 @@ class MetadataController:
         self.primary_key = primary_key
         self.original_filepath = filepath
         self.original_filename = os.path.basename(filepath)
-        self.filepath = None
-        self.filename = None
-        self.comic_info = None
+        self.filepath: Optional[str] = None
+        self.filename: Optional[str] = None
+        self.comic_info: Optional[ComicInfo] = None
 
     def rename_and_reformat(self) -> None:
         temp_filepath = self.original_filepath

@@ -12,9 +12,12 @@ from typing import Callable, Optional, Protocol
 import imagehash
 import requests
 from defusedxml import ElementTree as ET
+from dotenv import load_dotenv
 from fuzzywuzzy import fuzz
 from PIL import Image
 
+load_dotenv()
+API_KEY = os.getenv("API_KEY")
 # ==================================
 #   Filename Lexing
 # ==================================
@@ -1146,4 +1149,5 @@ def run_tagging_process(filepath, api_key):
 final_match = run_tagging_process(
     "D:\\Comics\\To Be Sorted\\New Mutants Epic Collection v04 "
     "- Fallen Angels (2025) (Digital) (Shan-Empire).cbz",
+    api_key=API_KEY,
 )
