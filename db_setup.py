@@ -19,7 +19,8 @@ cursor.execute(
                     FOREIGN KEY (publisher_id) REFERENCES publishers(id),
                     FOREIGN KEY (series) REFERENCES series(id)
                 )
-""")
+"""
+)
 
 cursor.execute(
     """
@@ -27,7 +28,8 @@ cursor.execute(
                     id INTEGER PRIMARY KEY,
                     name TEXT NOT NULL
                 )
-""")
+"""
+)
 
 cursor.execute(
     """
@@ -35,7 +37,8 @@ cursor.execute(
                     id TEXT PRIMARY KEY,
                     real_name TEXT NOT NULL UNIQUE
                 )
-""")
+"""
+)
 
 cursor.execute(
     """
@@ -43,9 +46,13 @@ cursor.execute(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 role_name TEXT NOT NULL UNIQUE
                 )
-""")
+"""
+)
 
-cursor.execute("INSERT INTO roles (role_name) VALUES ('Writer'), ('Penciller'), ('CoverArtist'), ('Inker'), ('Editor'), ('Colorist')")
+cursor.execute(
+    "INSERT INTO roles (role_name) VALUES ('Writer'), ('Penciller'), ('CoverArtist'),"
+    "('Inker'), ('Editor'), ('Colorist')"
+)
 
 cursor.execute(
     """
@@ -58,7 +65,8 @@ cursor.execute(
                     FOREIGN KEY (creator_id) REFERENCES creators(id),
                     FOREIGN KEY (role_id) REFERENCES roles(id)
                 )
-""")
+"""
+)
 
 cursor.execute(
     """
@@ -66,7 +74,8 @@ cursor.execute(
                     id  TEXT PRIMARY KEY,
                     real_name TEXT NOT NULL UNIQUE
                 )
-""")
+"""
+)
 
 cursor.execute(
     """
@@ -75,19 +84,44 @@ cursor.execute(
                 alias TEXT NOT NULL UNIQUE
                 )
 
-""")
+"""
+)
 SHARED_ALIASES = [
-        "Robin", "Green Lantern", "Flash", "Captain America", "Batgirl",
-        "Spider-Man", "Ant-Man", "Hawkeye", "Blue Beetle", "Wolverine",
-        "Thor", "Iron Fist", "Hulk", "Phoenix", "Captain Marvel",
-        "Superboy", "Black Panther", "Venom", "Spider-Woman", "Ms. Marvel",
-        "Superman", "Batman", "Iron Man", "Batwoman", "Green Arrow",
-        "Atom", "Starman"
-        ]
+    "Robin",
+    "Green Lantern",
+    "Flash",
+    "Captain America",
+    "Batgirl",
+    "Spider-Man",
+    "Ant-Man",
+    "Hawkeye",
+    "Blue Beetle",
+    "Wolverine",
+    "Thor",
+    "Iron Fist",
+    "Hulk",
+    "Phoenix",
+    "Captain Marvel",
+    "Superboy",
+    "Black Panther",
+    "Venom",
+    "Spider-Woman",
+    "Ms. Marvel",
+    "Superman",
+    "Batman",
+    "Iron Man",
+    "Batwoman",
+    "Green Arrow",
+    "Atom",
+    "Starman",
+]
 for alias in SHARED_ALIASES:
-    cursor.execute("""
+    cursor.execute(
+        """
         UPDATE aliases SET shared_alias = 1 WHERE alias = ?
-        """, (alias,))
+        """,
+        (alias,),
+    )
 
 cursor.execute(
     """
@@ -98,7 +132,8 @@ cursor.execute(
                 FOREIGN KEY (character_id) REFERENCES characters(id),
                 FOREIGN KEY (alias_id) REFERENCES aliases(id)
                 )
-""")
+"""
+)
 
 cursor.execute(
     """
@@ -112,7 +147,8 @@ cursor.execute(
                 FOREIGN KEY (alias_id) REFERENCES aliases(id),
                 FOREIGN KEY (character_id) REFERENCES characters(id)
                 )
-""")
+"""
+)
 
 cursor.execute(
     """

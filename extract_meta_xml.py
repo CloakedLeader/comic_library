@@ -1,17 +1,28 @@
+import os
+import shutil
 import tempfile
 import zipfile
+
 from defusedxml import ElementTree as ET
-import os
-from typing import Any
+
 from helper_classes import ComicInfo
 
 
 class MetadataExtraction:
-    def __init__(self, path: str, temp_dir: str | None = None) -> None:
-        self.filepath: str = path
-        self.temp_dir: str = temp_dir if temp_dir else tempfile.mkdtemp()
+    def __init__(self, comic_info: ComicInfo) -> None:
+        self.comic_info = comic_info
+        self.filepath: str = comic_info.filepath
+        self.temp_dir: str = tempfile.mkdtemp()
         self.extracted: bool = False
         self.metadata_root = None
+
+    def __enter__(self):
+        self.extract()
+        self.get_metadata()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.cleanup()
 
     def extract(self) -> None:
         if not self.extracted:
@@ -19,12 +30,9 @@ class MetadataExtraction:
                 zip_ref.extractall(self.temp_dir)
             self.extracted = True
 
-    def get_metadata(self) -> bool:
+    def get_metadata(self) -> None:
         """
         Extracts the ComicInfo.xml metadata file from an archive.
-
-        Returns:
-            True if the ComicInfo was found, else False.
 
         Raises:
             zipfile.BadZipFile: If the file is not a valid ZIP archive.
@@ -35,32 +43,11 @@ class MetadataExtraction:
         """
         self.extract()
         if self.metadata_root is not None:
-            return True
+            return
         xml_path = os.path.join(self.temp_dir, "ComicInfo.xml")
         if os.path.exists(xml_path):
             tree = ET.parse(xml_path)
             self.metadata_root = tree.getroot()
-            return True
-        else:
-            return False
-
-    def has_complete_metadata(self, required: list) -> bool:
-        """
-        Checks that the required metadata fields are complete with some info
-        e.g. that they are not blank.
-
-        Args:
-        required: A list of the fields that must be present.
-
-        Returns:
-        True if all required info is present, else False.
-        """
-        for field in required:
-            try:
-                self.get_text(field)
-            except KeyError:
-                return False
-        return True
 
     def get_text(self, tag: str) -> str:
         """
@@ -97,9 +84,6 @@ class MetadataExtraction:
         Never type None.
         """
         text = self.get_text(field)
-        if text is None:
-            raise KeyError(f"Field '{field}' not found in metadata.")
-
         try:
             return as_type(text)
         except ValueError as e:
@@ -128,7 +112,7 @@ class MetadataExtraction:
 
         return out
 
-    def parse_creators(self, fields: list) -> list[tuple]:
+    def parse_creators(self, fields: list) -> list[tuple[str, str]]:
         """
         Finds all the creators affliated with the book.
 
@@ -151,10 +135,21 @@ class MetadataExtraction:
                     creator_role_list.append((person, field))
         return creator_role_list
 
-    def to_dict(self) -> dict[str, Any]:
-        roles = ["Writer", "Penciller", "CoverArtist",
-                 "Inker", "Colorist", "Letterer", "Editor"]
-        final_dict: ComicInfo = {
+    def cleanup(self) -> None:
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
+
+    def run(self) -> ComicInfo:
+        roles = [
+            "Writer",
+            "Penciller",
+            "CoverArtist",
+            "Inker",
+            "Colorist",
+            "Letterer",
+            "Editor",
+        ]
+        updates = {
             "title": self.easy_parsing("Title"),
             "series": self.easy_parsing("Series"),
             "volume_num": self.easy_parsing("Number", int),
@@ -165,12 +160,8 @@ class MetadataExtraction:
             "description": self.easy_parsing("Summary"),
             "creators": self.parse_creators(roles),
             "characters": self.parse_characters_or_teams("Characters"),
-            "teams": self.parse_characters_or_teams("Teams")
+            "teams": self.parse_characters_or_teams("Teams"),
         }
-        return final_dict
-
-    def extract_metadata(self) -> dict[str, Any]:
-        required_fields = ["Title", "Series", "Year", "Number", "Writer", "Summary"]
-        self.extract()
-        if self.has_complete_metadata(required_fields):
-            return self.to_dict()
+        final_info = self.comic_info.model_copy(update=updates)
+        self.cleanup()
+        return final_info

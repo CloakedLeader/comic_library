@@ -30,7 +30,6 @@ class RSSController:
         self.repo.delete_old_entries()
         self.repo.insert_entries(self.rss_results)
 
-
     def get_recent_comic_info(self, number_of_entries: int) -> list[dict[str, str]]:
         """
         Retrieves recent comic information from the database.

@@ -3,19 +3,17 @@ import os
 import re
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from enum import Enum, auto
 from io import BytesIO
-from typing import Callable, Optional, Protocol
 from pathlib import Path
-from datetime import datetime
+from typing import Callable, Optional, Protocol
 
 import imagehash
 import requests
+from defusedxml import ElementTree as ET
 from fuzzywuzzy import fuzz
 from PIL import Image
-from defusedxml import ElementTree as ET
-
-from helper_classes import ComicInfo
 
 # ==================================
 #   Filename Lexing
@@ -26,10 +24,13 @@ def is_numeric_or_number_punctuation(x: str) -> bool:
     digits = "0123456789.,"
     return x.isnumeric() or x in digits
 
+
 class QMode(Enum):
     COMBO = auto()
     SERIES = auto()
     TITLE = auto()
+
+
 class ItemType(Enum):
     Error = auto()
     EOF = auto()
@@ -901,7 +902,7 @@ class TaggingPipeline:
         queries = [
             f"{self.data.series} {self.data.title}".strip(),
             self.data.series,
-            self.data.title
+            self.data.title,
         ]
         for q in queries:
 
@@ -964,7 +965,9 @@ class TaggingPipeline:
                     images = []
                     with ThreadPoolExecutor(max_workers=5) as executor:
                         images = list(
-                            executor.map(self.http.download_img, self.temp_validator.urls)
+                            executor.map(
+                                self.http.download_img, self.temp_validator.urls
+                            )
                         )
                     matches_indices = []
                     for index, i in enumerate(images):
@@ -1038,33 +1041,38 @@ class TagApplication:
         data = response.json()
         print(data)
         self.issue_data = data["results"]
-    
+
     def parse_list_of_dicts(self, field) -> list[str]:
         entries = self.issue_data[field]
         things = []
         for entry in entries:
             things.append(entry["name"])
         return things
-    
+
     def create_metadata_dict(self) -> dict:
         date_str = self.issue_data["cover_date"]
         date_obj = datetime.strptime(date_str, "%Y-%m-%d")
         year = date_obj.year
         month = date_obj.month
-        information : dict = {
+        information: dict = {
             "title": self.issue_data["name"],
             "series": self.issue_data["volume"]["name"],
             "volume_num": self.issue_data["issue_number"],
             # "publisher": self.issue_data[""]
-            # TODO: Cannot get publisher info from issue_data, have to pass it into this class.
+            # TODO: Cannot get publisher info from issue_data,
+            # have to pass it into this class.
             "month": month,
             "year": year,
             "filepath": None,
             "description": self.issue_data["description"],
-            "characters": self.character_or_team_parsing(self.issue_data["character_credits"]),
+            "characters": self.character_or_team_parsing(
+                self.issue_data["character_credits"]
+            ),
             "teams": self.character_or_team_parsing(self.issue_data["team_credits"]),
         }
-        information.update(self.creators_entry_parsing(self.issue_data["person_credits"]))
+        information.update(
+            self.creators_entry_parsing(self.issue_data["person_credits"])
+        )
         self.final_info = information
 
     @staticmethod
@@ -1086,31 +1094,28 @@ class TagApplication:
                 if info["role"] == role:
                     people_in_role.append(info["name"])
             creator_dict[mapping[role]] = ", ".join(people_in_role)
-        
+
         for i in mapping.keys():
             role_parsing(i)
-        
+
         return creator_dict
 
-    
     @staticmethod
     def character_or_team_parsing(list_of_info: list[dict]) -> list[str]:
         peoples = []
         for i in list_of_info:
             peoples.append(str(i["name"]))
         return peoples
-    
+
     def create_xml(self, output_path: str):
         root = ET.Element("ComicInfo")
-        
+
         for key, value in self.final_info.items():
             child = ET.SubElement(root, key)
             child.text = str(value)
 
         tree = ET.ElementTree(root)
         tree.write(output_path, encoding="utf-8", xml_declaration=True)
-
-
 
 
 def run_tagging_process(filepath, api_key):
@@ -1129,18 +1134,16 @@ def run_tagging_process(filepath, api_key):
 
     data = RequestData(num, year, series, title)
 
-    tagger = TaggingPipeline(data=data,
-                             path=filepath,
-                             size= 100,
-                             api_key=api_key)
+    tagger = TaggingPipeline(data=data, path=filepath, size=100, api_key=api_key)
 
     final_result = tagger.run()
     print(final_result)
-    
+
     # inserter = TagApplication(final_result, api_key)
     # inserter.get_request()
 
 
 final_match = run_tagging_process(
-    "D:\\Comics\\To Be Sorted\\New Mutants Epic Collection v04 - Fallen Angels (2025) (Digital) (Shan-Empire).cbz",
-    )
+    "D:\\Comics\\To Be Sorted\\New Mutants Epic Collection v04 "
+    "- Fallen Angels (2025) (Digital) (Shan-Empire).cbz",
+)
