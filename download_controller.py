@@ -28,7 +28,7 @@ class DownloadControllerAsync:
         """
         self.view = view
         self.download_service = service
-        self.comic_dict = {}
+        self.comic_dict: dict[str, str] = {}
 
     async def handle_rss_comic_clicked(self, comic_dict: dict) -> None:
         """

@@ -9,11 +9,11 @@ from defusedxml import ElementTree as ET
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
-from extract_meta_xml import MetadataExtraction
-from file_utils import convert_cbz, get_ext, generate_uuid
-from helper_classes import ComicInfo
-from metadata_cleaning import (MetadataProcessing, PublisherNotKnown)
 from db_input import insert_new_publisher
+from extract_meta_xml import MetadataExtraction
+from file_utils import convert_cbz, generate_uuid, get_ext
+from helper_classes import ComicInfo
+from metadata_cleaning import MetadataProcessing, PublisherNotKnown
 
 logging.basicConfig(
     level=logging.DEBUG,

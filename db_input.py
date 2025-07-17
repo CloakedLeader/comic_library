@@ -1,7 +1,7 @@
 import sqlite3
 from typing import Optional
 
-from file_utils import normalise_publisher_name, generate_uuid
+from file_utils import generate_uuid, normalise_publisher_name
 from helper_classes import ComicInfo
 
 
@@ -123,16 +123,17 @@ class MetadataInputting:
 
     def insert_new_teams(self) -> list[tuple[str, int]]:
         teams_ids = []
-        if self.clean_info.teams is not None:
-            for team in self.clean_info.teams:
-                self.cursor.execute(
-                    "INSERT OR IGNORE INTO teams (name) VALUES (?)", (team,)
-                )
-                self.cursor.execute("SELECT id FROM teams WHERE name = ?", (team,))
-                row = self.cursor.fetchone()
-                if row:
-                    teams_ids.append((team, row[0]))
-            return teams_ids
+        if self.clean_info.teams is None:
+            raise ValueError("teams cannot be None")
+        for team in self.clean_info.teams:
+            self.cursor.execute(
+                "INSERT OR IGNORE INTO teams (name) VALUES (?)", (team,)
+            )
+            self.cursor.execute("SELECT id FROM teams WHERE name = ?", (team,))
+            row = self.cursor.fetchone()
+            if row:
+                teams_ids.append((team, row[0]))
+        return teams_ids
 
     def insert_into_comic_teams(self, teams: list[tuple[str, int]]):
         for team in teams:
@@ -162,7 +163,9 @@ class MetadataInputting:
                     "INSERT OR IGNORE INTO creators (real_name) VALUES (?)", (name,)
                 )
 
-                self.cursor.execute("SELECT id from creators WHERE real_name = ?", (name,))
+                self.cursor.execute(
+                    "SELECT id from creators WHERE real_name = ?", (name,)
+                )
                 row = self.cursor.fetchone()
                 if row:
                     creators_ids.append((name, row[0]))

@@ -100,11 +100,9 @@ class ImageExtraction:
         for key, value in variants.items():
             if key == "thumbnail":
                 out_path_t = os.path.join(out_dir, f"{primary_key}_t.jpg")
-                assert isinstance(value, bytes), f"{key} has wrong type: {type(value)}"
                 file_dict["thumbnail"] = (value, out_path_t)
             elif key == "browser":
                 out_path_b = os.path.join(out_dir, f"{primary_key}_b.jpg")
-                assert isinstance(value, bytes), f"{key} has wrong type: {type(value)}"
                 file_dict["browser"] = (value, out_path_b)
 
         for _, (data, path) in file_dict.items():
@@ -131,7 +129,9 @@ class ImageExtraction:
         self.image_names.sort()
         common_files_index = int(len(self.image_names) * 0.4)
         early_files = self.image_names[:common_files_index]
-        file_paths_to_compare = random.sample(early_files, min(5, len(early_files)))
+        file_paths_to_compare = random.sample(
+            early_files, min(5, len(early_files))
+        )  # nosec B311
         last_files = self.image_names[-3:]
         not_matching_files = {
             j

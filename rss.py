@@ -44,9 +44,10 @@ def rss_scrape() -> list[dict]:
         entry["summary"] = comic_description
         raw = entry["pub_date"]
         entry["pub_date"] = parse_pub_date(raw)
-        res = requests.get(
-            entry.get("link"), headers={"User-Agent": "Mozilla/5.0"}, timeout=30
-        )
+        link = entry.get("link")
+        if link is None:
+            raise ValueError("link cannot be None")
+        res = requests.get(link, headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
         soup = BeautifulSoup(res.text, "html.parser")
         meta_tag = soup.find("meta", property="og:image")
         image_url = meta_tag.get("content") if meta_tag else None
@@ -156,7 +157,8 @@ def download_comic(comic_info: dict[str, str]) -> list[tuple[str, str]]:
     """
     url = comic_info.get("link")
     headers = {"User-Agent": "Mozilla/5.0"}
-
+    if url is None:
+        raise ValueError("url cannot be None")
     response = requests.get(url, headers, timeout=30)
     soup = BeautifulSoup(response.content, "html.parser")
 
