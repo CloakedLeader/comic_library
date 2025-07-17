@@ -11,7 +11,10 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 from extract_meta_xml import MetadataExtraction
-from metadata_cleaning import MetadataProcessing
+from metadata_cleaning import (MetadataProcessing,
+                               PublisherNotKnown,
+                               insert_new_publisher
+                               )
 from file_utils import convert_cbz, get_ext
 from helper_classes import ComicInfo
 
@@ -237,23 +240,32 @@ class MetadataController:
             filepath=self.filepath,
             original_filename=self.original_filename,
         )
+        while True:
+            if self.has_metadata():
+                with MetadataExtraction(self.comic_info) as extractor:
+                    raw_comic_info = extractor.run()
+                with MetadataProcessing(raw_comic_info) as cleaner:
+                    try:
+                        cleaned_comic_info = cleaner.run()
+                    except PublisherNotKnown as e:
+                        print(e)
+                        unknown_publisher = e.publisher_name
+                        # Start new publisher process.
+                        insert_new_publisher(unknown_publisher)
+                        continue
 
-        if self.has_metadata():
-            with MetadataExtraction(self.comic_info) as extractor:
-                raw_comic_info = extractor.run()
-            with MetadataProcessing(raw_comic_info) as cleaner:
-                cleaned_comic_info = cleaner.run()
-            missing_fields = [k for k, v in cleaned_comic_info.model_dump().items()
-                              if v is None]
-            if missing_fields:
-                # Need to call the entire tagging process here.
+                missing_fields = [k for k, v in cleaned_comic_info.model_dump().items()
+                                  if v is None]
+                if missing_fields:
+                    # Need to call the entire tagging process here.
+                    pass
+                # Then call the database insertion process.
+                break  # Finished successfully, exit the loop
+            else:
+                # Call the entire tagging process.
+                # Call the xml creation process.
+                # Call the database insertion process.
                 pass
-            # Then call the database insertion process.
-        else:
-            # Call the entire tagging process.
-            # Call the xml creation process.
-            # Call the database insertion process.
-            pass
 
         # Now the file should have complete metdata and be in the database.
         # Rename to permanent name.
