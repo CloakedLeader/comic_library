@@ -1,18 +1,14 @@
 import sqlite3
-import uuid
 from typing import Optional
 
 from helper_classes import ComicInfo
 
 
 class MetadataInputting:
-    def __init__(self, comicinfo_dict: ComicInfo) -> None:
-        self.clean_info = comicinfo_dict
-        self.comic_id: Optional[str] = None
-
-    @staticmethod
-    def generate_uuid():
-        return str(uuid.uuid4())
+    def __init__(self, comicinfo: ComicInfo) -> None:
+        self.clean_info = comicinfo
+        self.clean_dict = comicinfo.model_dump()
+        self.comic_id = comicinfo.primary_key
 
     def open_connection(self):
         self.conn = sqlite3.connect("comics.db")
@@ -21,12 +17,11 @@ class MetadataInputting:
     def db_into_main_db_table(self):
         self.cursor.execute(
             """
-                        INSERT INTO comics (title, series, volume_id, publisher_id,
-                        release_date, file_path, description, type_id)
-                        VALUES (:title, :series, :volume_num, :release_date,
-                        :filepath, :description, :type_id)
-                            """,
-            self.clean_info,
+            INSERT INTO comics (id, title, series, volume_id, publisher_id,
+            release_date, description, type_id)
+            VALUES (:primary_key, :title, :series, :volume_num, :publisher_id, :date,
+            :description, :collection_type)
+            """, self.clean_dict,
         )
         self.conn.commit()
 
@@ -114,3 +109,47 @@ class MetadataInputting:
                 certainity = "high"
 
             self.insert_comic_character(alias_id, character_id, certainity)
+
+    # ====================
+    # Creator Insertion
+    # ====================
+    def insert_new_creators(self) -> list[tuple[str, int]]:
+        creators_ids = []
+        for entry in self.clean_info.creators:
+            name, _ = entry
+            self.cursor.execute("INSERT OR IGNORE INTO creators (real_name) VALUES (?)",
+                                (name,))
+
+            self.cursor.execute("SELECT id from creators WHERE real_name = ?",
+                                (name,))
+            row = self.cursor.fetchone()
+            if row:
+                creators_ids.append((name, row[0]))
+        return creators_ids
+
+    def get_role_ids(self) -> dict[str, int]:
+        self.cursor.execute("SELECT id, role_name FROM roles")
+        roles = self.cursor.fetchall()
+        return {role_name: role_id for role_id, role_name in roles}
+
+    def insert_into_comic_creators(self, creators: list[tuple[str, int]]):
+        roles = self.get_role_ids()
+        creator_role_pairs = self.clean_info.creators
+        creator_role_id_tuples: list[tuple[str, str, int]] = []
+
+        for index, info in enumerate(creators):
+            creator_role_id_tuples.append(creator_role_pairs[index] + (info[0],))
+
+        for entry in creator_role_id_tuples:
+            _, role, id = entry
+            if role in roles.keys():
+                role_id = roles[role]
+            else:
+                role_id = 0
+            self.cursor.execute(
+                """
+                INSERT INTO comic_creators
+                (comic_id, creator_id, role_id)
+                VALUES
+                (?, ?, ?)
+                """, (self.comic_id, id, role_id))

@@ -4,13 +4,14 @@ import sqlite3
 import time
 import uuid
 import zipfile
-from typing import Any, Optional
+from typing import Optional
 
 from defusedxml import ElementTree as ET
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
-# from extract_meta_xml import MetadataExtraction
+from extract_meta_xml import MetadataExtraction
+from metadata_cleaning import MetadataProcessing
 from file_utils import convert_cbz, get_ext
 from helper_classes import ComicInfo
 
@@ -19,17 +20,6 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[logging.StreamHandler(), logging.FileHandler("log.txt")],
 )
-
-
-def pad(n: int) -> str:
-    return f"{n:04}" if n < 1000 else str(n)
-
-
-# NEED TO WORK ON THIS FUNCTION
-
-# def sort_imgs(filename: str) -> int:
-#     numbers = re.findall(r"\d+", filename)
-#     return int(numbers[-1]) if numbers else -1
 
 
 def get_comicid_from_path(
@@ -54,14 +44,6 @@ def get_comicid_from_path(
     else:
         raise LookupError(f"No comic found in database for path: {path}")
 
-
-download_path = os.getenv("DEST_FILE_PATH")
-
-
-# ===========================================
-# Advanced parsing that requires extra logic
-# ===========================================
-
 # use Amazing Spider-Man Modern Era Epic Collection: Coming Home
 
 # File Naming System: [Series_Name][Start_Year] -
@@ -70,64 +52,10 @@ download_path = os.getenv("DEST_FILE_PATH")
 # [collection type] Volume [volume_number]: [Title] [month] [year]
 
 
-# ======================
-# Database Inputting
-# =======================
-
-
-def build_dict(path: str) -> dict[str, Any]:
-    """
-    Builds a metadata dictionary for a comic archive from its ComicInfo.xml file.
-    This data will eventually be pushed to database.
-
-    Args:
-        path: The filepath of the comic archive.
-
-    Returns:
-        A dictionary of metadata fields to be stored in the main comics table.
-
-    Raises:
-        ValueErrors: if parsing fails to find a corresponding match.
-        KeyErrors: if data cannot be read.
-
-    """
-    pass
-
-
-def dic_into_db(my_dic: dict) -> None:
-    """
-    First checks to see if the input has any blank fields.
-    If not it inputs them into the database.
-
-    Args:
-    my_dic: A metadata dictionary following the structure layed out in
-    build_dic.
-    """
-    conn = sqlite3.connect("comics.db")
-    cursor = conn.cursor()
-
-    for key, value in my_dic.items():
-        if value is None:
-            raise ValueError(f"Dictionary field '{key}' is None.")
-            # Need to trigger another function or re-tag
-        else:
-            cursor.execute(
-                """
-                   INSERT INTO comics (title, series, volume_id, publisher_id,
-                    release_date, file_path, front_cover_path, description)
-                   VALUES (:title, :series, :volume_id, :pubslisher_id,
-                   :release_date, :file_path, :front_cover_path, :description)
-                   """,
-                my_dic,
-            )
-    conn.commit()
-    conn.close()
-    return None
-
-
 # ===================
 # Watchdog Module
 # ===================
+
 
 path_to_obs = os.getenv("PATH_TO_WATCH")
 
@@ -302,7 +230,7 @@ class MetadataController:
                 print("ComicInfo.xml is missing.")
                 return False
 
-    def run(self):
+    def process(self):
         self.rename_and_reformat()
         self.comic_info = ComicInfo(
             primary_key=self.primary_key,
@@ -311,11 +239,16 @@ class MetadataController:
         )
 
         if self.has_metadata():
-            # with MetadataExtraction(self.comic_info) as extractor:
-            #     raw_comic_info = extractor.run()
-            # Call the metadata cleaning process.
+            with MetadataExtraction(self.comic_info) as extractor:
+                raw_comic_info = extractor.run()
+            with MetadataProcessing(raw_comic_info) as cleaner:
+                cleaned_comic_info = cleaner.run()
+            missing_fields = [k for k, v in cleaned_comic_info.model_dump().items()
+                              if v is None]
+            if missing_fields:
+                # Need to call the entire tagging process here.
+                pass
             # Then call the database insertion process.
-            pass
         else:
             # Call the entire tagging process.
             # Call the xml creation process.

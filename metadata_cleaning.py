@@ -1,21 +1,34 @@
-import os
 import re
+import traceback
 
 from fuzzywuzzy import fuzz
 from word2number import w2n
 
 from helper_classes import ComicInfo
+from db_utils import get_publisher_info
 
 
 class MetadataProcessing:
     def __init__(self, raw_dict: ComicInfo) -> None:
         self.raw_info = raw_dict
         self.filepath = raw_dict["filepath"]
-        self.title_info = {}
+        self.title_info: dict[str, str | int] = {}
+
+    def __enter__(self):
+        print(f"[INFO] Starting metadata processing for {self.filepath}")
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type:
+            print(f"[ERROR] Exception while processing {self.filepath}: {exc_val}")
+            traceback.print_tb(exc_tb)
+        else:
+            print(f"[INFO] Sucessfully finished processing {self.filepath}")
+        return False
 
     PATTERNS: list[re.Pattern] = [
-        re.compile(r"\bv(?<num>)\d{1,3}\b", re.I),
-        re.compile(r"\b(?<num>\d{3})\b"),
+        re.compile(r"\bv(?P<num>)\d{1,3}\b", re.I),
+        re.compile(r"\b(?P<num>\d{3})\b"),
         re.compile(r"\bvol(?:ume)?\.?\s*(?P<num>\d{1,3})\b", re.I),
     ]
 
@@ -66,7 +79,7 @@ class MetadataProcessing:
 
         return " ".join(result)
 
-    def match_publisher(self, raw_pub_name: str) -> int:
+    def match_publisher(self) -> tuple[int, str]:
         """
         Matches the natural language name of a publisher from metadata
         to an entry in the list of known publishers with numbered keys from
@@ -82,25 +95,29 @@ class MetadataProcessing:
         Raises:
             KeyError: If no known publisher matches closely enough.
         """
-        known_publishers = [
-            (1, "Marvel Comics", "marvel"),
-            (2, "DC Comics", "dc"),
-            (3, "Image Comics", "image"),
-            (4, "Dark Horse Comics", "dark horse"),
-            (5, "IDW Comics", "idw"),
-            (6, "Valiant Comics", "valiant"),
-            (7, "2000AD Comics", "2000ad"),
-        ]
+        # known_publishers = [
+        #     (1, "Marvel Comics", "marvel"),
+        #     (2, "DC Comics", "dc"),
+        #     (3, "Image Comics", "image"),
+        #     (4, "Dark Horse Comics", "dark horse"),
+        #     (5, "IDW Comics", "idw"),
+        #     (6, "Valiant Comics", "valiant"),
+        #     (7, "2000AD Comics", "2000ad"),
+        # ]
+        known_publishers = get_publisher_info()
         best_score = 0
         best_match = None
+        raw_pub_name = self.raw_info.publisher
         normalised_pub_name = self.normalise_publisher_name(raw_pub_name)
         for pub_id, pub_name, clean_name in known_publishers:
             score = fuzz.token_set_ratio(normalised_pub_name, clean_name)
             if score > best_score:
                 best_match = (pub_id, pub_name)
+                best_score = score
         if best_score >= 80 and best_match:
-            return best_match[0]
+            return best_match
         else:
+            # TODO: Add the raw_pub_name to the database.
             raise KeyError(f"Publisher '{raw_pub_name} not known.")
 
     def title_parsing(self) -> dict[str, str | int]:
@@ -129,8 +146,8 @@ class MetadataProcessing:
         out: dict[str, str | int] = {}
         common_title_words = {"tpb", "hc"}
 
-        title_raw = self.raw_info["title"].lower()
-        series_raw = self.raw_info["series"].lower()
+        title_raw = self.raw_info.title.lower()
+        series_raw = self.raw_info.series.lower()
 
         if ":" in series_raw:
             series_name, collection_title = map(str.strip, series_raw.split(":", 1))
@@ -181,7 +198,7 @@ class MetadataProcessing:
         out["title"] = self.title_case(collection_title)
         out["series"] = self.title_case(series_name)
         out["collection_type"] = collection_type
-        out["issue_num"] = issue_number
+        out["volume_num"] = issue_number
 
         self.title_info = out
 
@@ -190,10 +207,10 @@ class MetadataProcessing:
     def check_issue_numbers_match(self) -> bool:
         if self.title_info is None:
             self.title_parsing()
-        return self.raw_info["volume_num"] == self.title_info["issue_num"]
+        return self.raw_info.volume_num == self.title_info["volume_num"]
 
     def extract_volume_num_from_filepath(self) -> tuple[int, int]:
-        fname = os.path.basename(self.filepath)
+        fname = self.raw_info.original_filename
 
         for pat in self.PATTERNS:
             m = pat.search(fname)
@@ -212,6 +229,42 @@ class MetadataProcessing:
     def volume_number_parsing(self) -> int:
         if self.check_issue_numbers_match():
             return int(self.title_info["volume_num"])
-        else:
-            return
-        #  Need extra logic here to get the correct volume number
+        volume, _ = self.extract_volume_num_from_filepath()
+        if volume > 0:
+            return volume
+        if self.raw_info.volume_num:
+            try:
+                return int(self.raw_info.volume_num)
+            except (ValueError, TypeError):
+                pass
+        return 0
+        #  Need extra logic here to get the correct volume/issue number
+
+    def create_date_string(self) -> str:
+        return f"{self.raw_info.month}/{self.raw_info.year}"
+
+    def new_filename(self) -> str:
+        pass
+
+    def run(self) -> ComicInfo:
+        self.title_parsing()
+
+        volume = self.volume_number_parsing()
+
+        date_str = self.create_date_string()
+
+        try:
+            publisher_id, publisher_name = self.match_publisher(self.raw_info.publisher)
+        except KeyError:
+            publisher_id = 0
+        if publisher_id != 0:
+
+            return self.raw_info.model_copy(update={
+                "title": self.title_info["title"],
+                "series": self.title_info["series"],
+                "publisher": publisher_name,
+                "collection_type": self.title_info["collection_type"],
+                "volume_num": volume,
+                "date": date_str,
+                "publisher_id": publisher_id
+            })
