@@ -10,7 +10,10 @@ class ComicInfo(BaseModel):
     title: Optional[str] = None
     series: Optional[str] = None
     volume_num: Optional[int] = None
+    issue_num: Optional[int] = None
     publisher: Optional[str] = None
+    publisher_id: Optional[int] = None
+    collection_type: Optional[int] = None
     month: Optional[int] = None
     year: Optional[int] = None
     date: Optional[str] = None

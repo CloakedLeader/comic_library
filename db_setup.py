@@ -26,7 +26,8 @@ cursor.execute(
     """
                 CREATE TABLE IF NOT EXISTS publishers (
                     id INTEGER PRIMARY KEY,
-                    name TEXT NOT NULL
+                    name TEXT NOT NULL,
+                    normalised_name TEXT NOT NULL
                 )
 """
 )
@@ -34,8 +35,8 @@ cursor.execute(
 cursor.execute(
     """
                 CREATE TABLE IF NOT EXISTS creators (
-                    id TEXT PRIMARY KEY,
-                    real_name TEXT NOT NULL UNIQUE
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                real_name TEXT NOT NULL UNIQUE
                 )
 """
 )
@@ -58,7 +59,7 @@ cursor.execute(
     """
                 CREATE TABLE IF NOT EXISTS comic_creators (
                     comic_id TEXT NOT NULL,
-                    creator_id TEXT NOT NULL,
+                    creator_id INTEGER NOT NULL,
                     role_id INTEGER NOT NULL,
                     PRIMARY KEY (comic_id, creator_id, role_id),
                     FOREIGN KEY (comic_id) REFERENCES comics(id),
