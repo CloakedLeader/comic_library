@@ -173,8 +173,8 @@ class MetadataProcessing:
                 break
 
         volume_match = re.match(
-            r"(?:vol(?:ume)?|book)\.?\s*(\d+|one|two|three|four|five|six|" +
-            r"seven|eight|nine|ten|eleven|twelve)\s*[:\-]?\s*(.*)",
+            r"(?:vol(?:ume)?|book)\.?\s*(\d+|one|two|three|four|five|six|"
+            + r"seven|eight|nine|ten|eleven|twelve)\s*[:\-]?\s*(.*)",
             title_raw,
             re.I,
         )
@@ -247,9 +247,10 @@ class MetadataProcessing:
 
     def new_filename(self) -> str:
         return self.raw_info.original_filename
+
     # Only for now to satisfy mypy.
 
-    def run(self) -> ComicInfo:
+    def run(self) -> None | ComicInfo:
         self.title_parsing()
 
         volume = self.volume_number_parsing()

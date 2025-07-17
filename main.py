@@ -7,10 +7,21 @@ from typing import Callable
 import requests
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import (QApplication, QFileSystemModel, QHBoxLayout,
-                               QLabel, QLineEdit, QMainWindow, QScrollArea,
-                               QSizePolicy, QStatusBar, QToolBar, QTreeView,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (
+    QApplication,
+    QFileSystemModel,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QScrollArea,
+    QSizePolicy,
+    QStatusBar,
+    QToolBar,
+    QTreeView,
+    QVBoxLayout,
+    QWidget,
+)
 
 from reader_controller import ReadingController
 from rss_controller import RSSController

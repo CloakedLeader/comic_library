@@ -1,8 +1,8 @@
 import os
 import tempfile
+import uuid
 import zipfile
 from pathlib import Path
-import uuid
 
 import rarfile
 

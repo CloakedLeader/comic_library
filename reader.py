@@ -8,8 +8,15 @@ from io import BytesIO
 from PIL import Image
 from PySide6.QtCore import Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QImage, QPixmap
-from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMainWindow,
-                               QToolBar, QToolButton, QWidget)
+from PySide6.QtWidgets import (
+    QApplication,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QToolBar,
+    QToolButton,
+    QWidget,
+)
 
 # from metadata_gui_panel import MetadataDialog
 from file_utils import get_name

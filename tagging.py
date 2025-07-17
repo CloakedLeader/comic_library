@@ -553,8 +553,8 @@ def lex(filename: str) -> Lexer:
 class Parser:
     def __init__(self, list_of_tokens: list[Item]):
         self.tokens: list[Item] = list_of_tokens
-        self.metadata = {}
-        self.buffer = []
+        self.metadata: dict[str, str | int] = {}
+        self.buffer: list[str] = []
 
     def construct_metadata(self) -> dict[str, str | int]:
         capture_title = False
@@ -687,6 +687,8 @@ class HttpRequest:
         if type == "search":
             if not hasattr(self, "url_search"):
                 raise RuntimeError("You must build url before sending request.")
+            if self.url_search is None:
+                raise ValueError("search url cannot be None")
             response = session.get(self.url_search)
             if response.status_code != 200:
                 print(
@@ -699,6 +701,8 @@ class HttpRequest:
         elif type == "iss":
             if not hasattr(self, "url_iss"):
                 raise RuntimeError("You must build url before sending request.")
+            if self.url_iss is None:
+                raise ValueError("issue url cannot be None")
             response = session.get(self.url_iss)
             if response.status_code != 200:
                 print(
@@ -718,7 +722,7 @@ class HttpRequest:
 
     def download_img(self, url):
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=3000)
             response.raise_for_status()
             image = BytesIO(response.content)
             return image
@@ -1019,9 +1023,9 @@ class TagApplication:
         self.issue_id = entry["id"]
         self.volume_id = entry["volume"]["id"]
         self.api_key = api_key
-        self.url = None
+        self.url: Optional[str] = None
         self.issue_data = None
-        self.final_info = None
+        self.final_info: Optional[dict] = None
 
     def build_url(self) -> None:
         req = requests.Request(
@@ -1038,6 +1042,8 @@ class TagApplication:
     def get_request(self) -> None:
         if not self.url:
             self.build_url()
+        if self.url is None:
+            raise ValueError("url cannot be None")
         response = session.get(self.url)
         if response.status_code != 200:
             print(f"Request failed with status code: {response.status_code}")
@@ -1046,6 +1052,8 @@ class TagApplication:
         self.issue_data = data["results"]
 
     def parse_list_of_dicts(self, field) -> list[str]:
+        if self.issue_data is None:
+            raise ValueError("issue_data cannot be None")
         entries = self.issue_data[field]
         things = []
         for entry in entries:
@@ -1053,6 +1061,8 @@ class TagApplication:
         return things
 
     def create_metadata_dict(self) -> dict:
+        if self.issue_data is None:
+            raise ValueError("issue_data cannot be None")
         date_str = self.issue_data["cover_date"]
         date_obj = datetime.strptime(date_str, "%Y-%m-%d")
         year = date_obj.year
@@ -1077,6 +1087,7 @@ class TagApplication:
             self.creators_entry_parsing(self.issue_data["person_credits"])
         )
         self.final_info = information
+        return information
 
     @staticmethod
     def creators_entry_parsing(list_of_creator_info: list[dict]) -> dict[str, str]:
@@ -1113,6 +1124,8 @@ class TagApplication:
     def create_xml(self, output_path: str):
         root = ET.Element("ComicInfo")
 
+        if self.final_info is None:
+            raise ValueError("final_items cannot be None")
         for key, value in self.final_info.items():
             child = ET.SubElement(root, key)
             child.text = str(value)
