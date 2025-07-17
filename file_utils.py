@@ -2,6 +2,7 @@ import os
 import tempfile
 import zipfile
 from pathlib import Path
+import uuid
 
 import rarfile
 
@@ -75,3 +76,7 @@ def normalise_publisher_name(name: str) -> str:
     suffixes = ["comics", "publishing", "group", "press", "inc.", "inc", "llc"]
     tokens = name.replace("&", "and").lower().split()
     return " ".join([t for t in tokens if t not in suffixes])
+
+
+def generate_uuid() -> str:
+    return str(uuid.uuid4())

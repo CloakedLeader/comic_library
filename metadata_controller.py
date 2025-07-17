@@ -2,7 +2,6 @@ import logging
 import os
 import sqlite3
 import time
-import uuid
 import zipfile
 from typing import Optional
 
@@ -11,12 +10,10 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
 from extract_meta_xml import MetadataExtraction
-from metadata_cleaning import (MetadataProcessing,
-                               PublisherNotKnown,
-                               insert_new_publisher
-                               )
-from file_utils import convert_cbz, get_ext
+from file_utils import convert_cbz, get_ext, generate_uuid
 from helper_classes import ComicInfo
+from metadata_cleaning import (MetadataProcessing, PublisherNotKnown)
+from db_input import insert_new_publisher
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -46,6 +43,7 @@ def get_comicid_from_path(
         return result[0]
     else:
         raise LookupError(f"No comic found in database for path: {path}")
+
 
 # use Amazing Spider-Man Modern Era Epic Collection: Coming Home
 
@@ -109,7 +107,7 @@ class DownloadsHandler(FileSystemEventHandler):
             logging.warning(f"File not stable yet: {filename}")
             return
 
-        new_key = str(uuid.uuid4())
+        new_key = generate_uuid()
         cont = MetadataController(new_key, filepath)
         cont.process()
 
@@ -209,6 +207,8 @@ class MetadataController:
         """
 
         required_fields = ["Title", "Series", "Year", "Number", "Writer", "Summary"]
+        if self.filepath is None:
+            raise ValueError("Filename must not be None")
         with zipfile.ZipFile(self.filepath, "r") as archive:
             if "ComicInfo.xml" in archive.namelist():
                 with archive.open("ComicInfo.xml") as xml_file:
@@ -254,8 +254,9 @@ class MetadataController:
                         insert_new_publisher(unknown_publisher)
                         continue
 
-                missing_fields = [k for k, v in cleaned_comic_info.model_dump().items()
-                                  if v is None]
+                missing_fields = [
+                    k for k, v in cleaned_comic_info.model_dump().items() if v is None
+                ]
                 if missing_fields:
                     # Need to call the entire tagging process here.
                     pass
