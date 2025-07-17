@@ -25,7 +25,7 @@ cursor.execute(
 cursor.execute(
     """
                 CREATE TABLE IF NOT EXISTS publishers (
-                    id INTEGER PRIMARY KEY,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL,
                     normalised_name TEXT NOT NULL
                 )
@@ -57,35 +57,34 @@ cursor.execute(
 
 cursor.execute(
     """
-                CREATE TABLE IF NOT EXISTS comic_creators (
-                    comic_id TEXT NOT NULL,
-                    creator_id INTEGER NOT NULL,
-                    role_id INTEGER NOT NULL,
-                    PRIMARY KEY (comic_id, creator_id, role_id),
-                    FOREIGN KEY (comic_id) REFERENCES comics(id),
-                    FOREIGN KEY (creator_id) REFERENCES creators(id),
-                    FOREIGN KEY (role_id) REFERENCES roles(id)
-                )
-"""
+    CREATE TABLE IF NOT EXISTS comic_creators (
+    comic_id TEXT NOT NULL,
+    creator_id INTEGER NOT NULL,
+    role_id INTEGER NOT NULL,
+    PRIMARY KEY (comic_id, creator_id, role_id),
+    FOREIGN KEY (comic_id) REFERENCES comics(id),
+    FOREIGN KEY (creator_id) REFERENCES creators(id),
+    FOREIGN KEY (role_id) REFERENCES roles(id)
+    )
+    """
 )
 
 cursor.execute(
     """
-                CREATE TABLE IF NOT EXISTS characters (
-                    id  TEXT PRIMARY KEY,
-                    real_name TEXT NOT NULL UNIQUE
-                )
-"""
+    CREATE TABLE IF NOT EXISTS characters (
+    id TEXT PRIMARY KEY,
+    real_name TEXT NOT NULL UNIQUE
+    )
+    """
 )
 
 cursor.execute(
     """
-                CREATE TABLE aliases (
-                id TEXT PRIMARY KEY,
-                alias TEXT NOT NULL UNIQUE
-                )
-
-"""
+    CREATE TABLE aliases (
+    id TEXT PRIMARY KEY,
+    alias TEXT NOT NULL UNIQUE
+    )
+    """
 )
 SHARED_ALIASES = [
     "Robin",
@@ -118,59 +117,93 @@ SHARED_ALIASES = [
 ]
 for alias in SHARED_ALIASES:
     cursor.execute(
-        """
-        UPDATE aliases SET shared_alias = 1 WHERE alias = ?
-        """,
-        (alias,),
+     """
+    UPDATE aliases SET shared_alias = 1 WHERE alias = ?
+    """,
+     (alias,),
     )
 
 cursor.execute(
     """
-                CREATE TABLE character_alias_links (
-                character_id TEXT NOT NULL,
-                alias_id TEXT NOT NULL,
-                PRIMARY KEY (character_id, alias_id),
-                FOREIGN KEY (character_id) REFERENCES characters(id),
-                FOREIGN KEY (alias_id) REFERENCES aliases(id)
-                )
-"""
+    CREATE TABLE character_alias_links (
+    character_id TEXT NOT NULL,
+    alias_id TEXT NOT NULL,
+    PRIMARY KEY (character_id, alias_id),
+    FOREIGN KEY (character_id) REFERENCES characters(id),
+    FOREIGN KEY (alias_id) REFERENCES aliases(id)
+    )
+    """
 )
 
 cursor.execute(
     """
-                CREATE TABLE comic_characters (
-                comic_id TEXT NOT NULL,
-                alias_id TEXT NOT NULL,
-                character_id TEXT,
-                certainity TEXT,
-                PRIMARY KEY (comic_id, alias_id),
-                FOREIGN KEY (comic_id) REFERENCES comics(id),
-                FOREIGN KEY (alias_id) REFERENCES aliases(id),
-                FOREIGN KEY (character_id) REFERENCES characters(id)
-                )
-"""
+    CREATE TABLE comic_characters (
+    comic_id TEXT NOT NULL,
+    alias_id TEXT NOT NULL,
+    character_id TEXT,
+    certainity TEXT,
+    PRIMARY KEY (comic_id, alias_id),
+    FOREIGN KEY (comic_id) REFERENCES comics(id),
+    FOREIGN KEY (alias_id) REFERENCES aliases(id),
+    FOREIGN KEY (character_id) REFERENCES characters(id)
+    )
+    """
 )
 
 cursor.execute(
     """
-                CREATE TABLE IF NOT EXISTS comic_types (
-                    id INTEGER PRIMARY KEY,
-                    name TEXT NOT NULL UNIQUE
-                )
-"""
+    CREATE TABLE IF NOT EXISTS teams (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    )
+    """
 )
 
 cursor.execute(
     """
-                CREATE TABLE IF NOT EXISTS reviews (
-                    id INTEGER PRIMARY KEY,
-                    comic_id TEXT NOT NULL,
-                    rating INTEGER CHECK (rating BETWEEN 1 AND 10),
-                    review TEXT,
-                    date_reviewed TEXT DEFAULT CURRENT_DATE,
-                    FOREIGN KEY (comic_id) REFERENCES comics(id)
-                        )
-               """
+    CREATE TABLE IF NOT EXISTS comic_teams (
+    comic_id TEXT NOT NULL,
+    team_id INTEGER NOT NULL,
+    PRIMARY KEY (comic_id, team_id),
+    FOREIGN KEY (comic_id) REFERENCES comics(id),
+    FOREIGN KEY (team_id) REFERENCES teams(id)
+    )
+    """
+)
+
+cursor.execute(
+    """
+    CREATE TABLE IF NOT EXISTS comic_types (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+    )
+    """
+)
+
+cursor.execute(
+    """
+    CREATE TABLE IF NOT EXISTS reviews (
+    comic_id TEXT NOT NULL,
+    iteration INTEGER NOT NULL,
+    rating INTEGER CHECK (rating BETWEEN 1 AND 10),
+    review TEXT,
+    date_reviewed TEXT DEFAULT CURRENT_DATE,
+    PRIMARY KEY (comic_id, iteration),
+    FOREIGN KEY (comic_id) REFERENCES comics(id)
+    )
+    """
+)
+
+cursor.execute(
+    """
+    CREATE TABLE IF NOT EXISTS reading_progress (
+    comic_id TEXT PRIMARY KEY,
+    last_page_read INTEGER DEFAULT 0,
+    is_finished BOOLEAN DEFAULT 0,
+    last_read INTEGER DEFAULT (strftime('%s', 'now')),
+    FOREIGN KEY (comic_id) REFERENCES comics(id)
+    )
+    """
 )
 
 conn.commit()

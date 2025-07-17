@@ -2,6 +2,7 @@ import sqlite3
 from typing import Optional
 
 from helper_classes import ComicInfo
+from file_utils import normalise_publisher_name
 
 
 class MetadataInputting:
@@ -24,6 +25,10 @@ class MetadataInputting:
             """, self.clean_dict,
         )
         self.conn.commit()
+
+    # =====================
+    # Character Insertion
+    # =====================
 
     def get_character_by_name(self, name: str):
         self.cursor.execute(
@@ -110,9 +115,38 @@ class MetadataInputting:
 
             self.insert_comic_character(alias_id, character_id, certainity)
 
+    # ==================
+    # Teams Insertion
+    # ==================
+
+    def insert_new_teams(self) -> list[tuple[str, int]]:
+        teams_ids = []
+        for team in self.clean_info.teams:
+            self.cursor.execute("INSERT OR IGNORE INTO teams (name) VALUES (?)",
+                                (team,))
+            self.cursor.execute("SELECT id FROM teams WHERE name = ?",
+                                (team,))
+            row = self.cursor.fetchone()
+            if row:
+                teams_ids.append((team, row[0]))
+            return teams_ids
+
+    def insert_into_comic_teams(self, teams: list[tuple[str, int]]):
+        for team in teams:
+            self.cursor.execute(
+                """
+                INSERT INTO comic_teams
+                (comic_id, team_id)
+                VALUES
+                (?, ?)
+                """,
+                (self.comic_id, team[1],)
+            )
+
     # ====================
     # Creator Insertion
     # ====================
+
     def insert_new_creators(self) -> list[tuple[str, int]]:
         creators_ids = []
         for entry in self.clean_info.creators:
@@ -153,3 +187,15 @@ class MetadataInputting:
                 VALUES
                 (?, ?, ?)
                 """, (self.comic_id, id, role_id))
+
+
+def insert_new_publisher(publisher_name: str) -> None:
+    normalised_name = normalise_publisher_name(publisher_name)
+    conn = sqlite3.connect("comics.db")
+    cursor = conn.cursor()
+
+    cursor.execute("INSERT INTO publishers (name, normalised_name) VALUES (?, ?)",
+                   (publisher_name, normalised_name,))
+
+    conn.commit()
+    conn.close()

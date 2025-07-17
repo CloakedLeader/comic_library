@@ -6,6 +6,13 @@ from word2number import w2n
 
 from helper_classes import ComicInfo
 from db_utils import get_publisher_info
+from file_utils import normalise_publisher_name
+
+
+class PublisherNotKnown(KeyError):
+    def __init__(self, publisher_name):
+        self.publisher_name = publisher_name
+        super().__init__(f"Publisher: '{publisher_name}' not known.")
 
 
 class MetadataProcessing:
@@ -35,12 +42,6 @@ class MetadataProcessing:
     SPECIAL_PATTERN = re.compile(
         r"\bv(?P<volume>\d{1,3})\s+(?P<issue>\d{2,3})\b)", re.I
     )
-
-    @staticmethod
-    def normalise_publisher_name(name: str) -> str:
-        suffixes = ["comics", "publishing", "group", "press", "inc.", "inc", "llc"]
-        tokens = name.replace("&", "and").lower().split()
-        return " ".join([t for t in tokens if t not in suffixes])
 
     @staticmethod
     def title_case(title: str) -> str:
@@ -108,7 +109,7 @@ class MetadataProcessing:
         best_score = 0
         best_match = None
         raw_pub_name = self.raw_info.publisher
-        normalised_pub_name = self.normalise_publisher_name(raw_pub_name)
+        normalised_pub_name = normalise_publisher_name(raw_pub_name)
         for pub_id, pub_name, clean_name in known_publishers:
             score = fuzz.token_set_ratio(normalised_pub_name, clean_name)
             if score > best_score:
@@ -118,7 +119,7 @@ class MetadataProcessing:
             return best_match
         else:
             # TODO: Add the raw_pub_name to the database.
-            raise KeyError(f"Publisher '{raw_pub_name} not known.")
+            raise PublisherNotKnown(raw_pub_name)
 
     def title_parsing(self) -> dict[str, str | int]:
         """

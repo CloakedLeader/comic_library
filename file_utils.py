@@ -69,3 +69,9 @@ def get_name(path: str) -> str:
     Returns the filename of the specified filepath.
     """
     return Path(path).stem
+
+
+def normalise_publisher_name(name: str) -> str:
+    suffixes = ["comics", "publishing", "group", "press", "inc.", "inc", "llc"]
+    tokens = name.replace("&", "and").lower().split()
+    return " ".join([t for t in tokens if t not in suffixes])
