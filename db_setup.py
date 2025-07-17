@@ -117,10 +117,10 @@ SHARED_ALIASES = [
 ]
 for alias in SHARED_ALIASES:
     cursor.execute(
-     """
+        """
     UPDATE aliases SET shared_alias = 1 WHERE alias = ?
     """,
-     (alias,),
+        (alias,),
     )
 
 cursor.execute(

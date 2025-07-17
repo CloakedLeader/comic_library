@@ -4,9 +4,9 @@ import traceback
 from fuzzywuzzy import fuzz
 from word2number import w2n
 
-from helper_classes import ComicInfo
 from db_utils import get_publisher_info
 from file_utils import normalise_publisher_name
+from helper_classes import ComicInfo
 
 
 class PublisherNotKnown(KeyError):
@@ -108,7 +108,7 @@ class MetadataProcessing:
         known_publishers = get_publisher_info()
         best_score = 0
         best_match = None
-        raw_pub_name = self.raw_info.publisher
+        raw_pub_name = self.raw_info.publisher if self.raw_info.publisher else "Marvel"
         normalised_pub_name = normalise_publisher_name(raw_pub_name)
         for pub_id, pub_name, clean_name in known_publishers:
             score = fuzz.token_set_ratio(normalised_pub_name, clean_name)
@@ -146,9 +146,9 @@ class MetadataProcessing:
         ]
         out: dict[str, str | int] = {}
         common_title_words = {"tpb", "hc"}
-
-        title_raw = self.raw_info.title.lower()
-        series_raw = self.raw_info.series.lower()
+        if self.raw_info.title and self.raw_info.series:
+            title_raw = self.raw_info.title.lower()
+            series_raw = self.raw_info.series.lower()
 
         if ":" in series_raw:
             series_name, collection_title = map(str.strip, series_raw.split(":", 1))
@@ -173,8 +173,8 @@ class MetadataProcessing:
                 break
 
         volume_match = re.match(
-            r"(?:vol(?:ume)?|book)\.?\s*(\d+|one|two|three|four|five|six|"
-            / r"seven|eight|nine|ten|eleven|twelve)\s*[:\-]?\s*(.*)",
+            r"(?:vol(?:ume)?|book)\.?\s*(\d+|one|two|three|four|five|six|" +
+            r"seven|eight|nine|ten|eleven|twelve)\s*[:\-]?\s*(.*)",
             title_raw,
             re.I,
         )
@@ -195,11 +195,12 @@ class MetadataProcessing:
 
         if rest_title:
             collection_title = rest_title
+        if issue_number is not None:
 
-        out["title"] = self.title_case(collection_title)
-        out["series"] = self.title_case(series_name)
-        out["collection_type"] = collection_type
-        out["volume_num"] = issue_number
+            out["title"] = self.title_case(collection_title)
+            out["series"] = self.title_case(series_name)
+            out["collection_type"] = collection_type
+            out["volume_num"] = issue_number
 
         self.title_info = out
 
@@ -245,7 +246,8 @@ class MetadataProcessing:
         return f"{self.raw_info.month}/{self.raw_info.year}"
 
     def new_filename(self) -> str:
-        pass
+        return self.raw_info.original_filename
+    # Only for now to satisfy mypy.
 
     def run(self) -> ComicInfo:
         self.title_parsing()
@@ -255,17 +257,21 @@ class MetadataProcessing:
         date_str = self.create_date_string()
 
         try:
-            publisher_id, publisher_name = self.match_publisher(self.raw_info.publisher)
+            publisher_id, publisher_name = self.match_publisher()
         except KeyError:
             publisher_id = 0
         if publisher_id != 0:
 
-            return self.raw_info.model_copy(update={
-                "title": self.title_info["title"],
-                "series": self.title_info["series"],
-                "publisher": publisher_name,
-                "collection_type": self.title_info["collection_type"],
-                "volume_num": volume,
-                "date": date_str,
-                "publisher_id": publisher_id
-            })
+            return self.raw_info.model_copy(
+                update={
+                    "title": self.title_info["title"],
+                    "series": self.title_info["series"],
+                    "publisher": publisher_name,
+                    "collection_type": self.title_info["collection_type"],
+                    "volume_num": volume,
+                    "date": date_str,
+                    "publisher_id": publisher_id,
+                }
+            )
+        else:
+            return None

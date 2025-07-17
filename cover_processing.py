@@ -79,6 +79,8 @@ class ImageExtraction:
         t_height = 400
         b_height = 800
         variants: dict[str, bytes] = {}
+        if self.cover_bytes is None:
+            raise ValueError("cover_bytes cannot be None")
         with Image.open(BytesIO(self.cover_bytes)) as img:
             for name, height in [("thumbnail", t_height), ("browser", b_height)]:
                 w, h = img.size
@@ -105,9 +107,9 @@ class ImageExtraction:
                 assert isinstance(value, bytes), f"{key} has wrong type: {type(value)}"
                 file_dict["browser"] = (value, out_path_b)
 
-        for _, value in file_dict.items():
-            with open(value[1], "wb") as f:
-                f.write(value[0])
+        for _, (data, path) in file_dict.items():
+            with open(path, "wb") as f:
+                f.write(data)
 
         return file_dict["thumbnail"][1], file_dict["browser"][1]
 

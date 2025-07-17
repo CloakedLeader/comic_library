@@ -1,8 +1,8 @@
 import sqlite3
 from typing import Optional
 
+from file_utils import normalise_publisher_name, generate_uuid
 from helper_classes import ComicInfo
-from file_utils import normalise_publisher_name
 
 
 class MetadataInputting:
@@ -22,7 +22,8 @@ class MetadataInputting:
             release_date, description, type_id)
             VALUES (:primary_key, :title, :series, :volume_num, :publisher_id, :date,
             :description, :collection_type)
-            """, self.clean_dict,
+            """,
+            self.clean_dict,
         )
         self.conn.commit()
 
@@ -62,7 +63,7 @@ class MetadataInputting:
         if result:
             return result[0]
         else:
-            new_id = self.generate_uuid()
+            new_id = generate_uuid()
             self.cursor.execute(
                 """
                 INSERT INTO aliases (id, alias) VALUES (?, ?)
@@ -114,6 +115,7 @@ class MetadataInputting:
                 certainity = "high"
 
             self.insert_comic_character(alias_id, character_id, certainity)
+        return None
 
     # ==================
     # Teams Insertion
@@ -121,14 +123,15 @@ class MetadataInputting:
 
     def insert_new_teams(self) -> list[tuple[str, int]]:
         teams_ids = []
-        for team in self.clean_info.teams:
-            self.cursor.execute("INSERT OR IGNORE INTO teams (name) VALUES (?)",
-                                (team,))
-            self.cursor.execute("SELECT id FROM teams WHERE name = ?",
-                                (team,))
-            row = self.cursor.fetchone()
-            if row:
-                teams_ids.append((team, row[0]))
+        if self.clean_info.teams is not None:
+            for team in self.clean_info.teams:
+                self.cursor.execute(
+                    "INSERT OR IGNORE INTO teams (name) VALUES (?)", (team,)
+                )
+                self.cursor.execute("SELECT id FROM teams WHERE name = ?", (team,))
+                row = self.cursor.fetchone()
+                if row:
+                    teams_ids.append((team, row[0]))
             return teams_ids
 
     def insert_into_comic_teams(self, teams: list[tuple[str, int]]):
@@ -140,7 +143,10 @@ class MetadataInputting:
                 VALUES
                 (?, ?)
                 """,
-                (self.comic_id, team[1],)
+                (
+                    self.comic_id,
+                    team[1],
+                ),
             )
 
     # ====================
@@ -149,16 +155,17 @@ class MetadataInputting:
 
     def insert_new_creators(self) -> list[tuple[str, int]]:
         creators_ids = []
-        for entry in self.clean_info.creators:
-            name, _ = entry
-            self.cursor.execute("INSERT OR IGNORE INTO creators (real_name) VALUES (?)",
-                                (name,))
+        if self.clean_info.creators is not None:
+            for entry in self.clean_info.creators:
+                name, _ = entry
+                self.cursor.execute(
+                    "INSERT OR IGNORE INTO creators (real_name) VALUES (?)", (name,)
+                )
 
-            self.cursor.execute("SELECT id from creators WHERE real_name = ?",
-                                (name,))
-            row = self.cursor.fetchone()
-            if row:
-                creators_ids.append((name, row[0]))
+                self.cursor.execute("SELECT id from creators WHERE real_name = ?", (name,))
+                row = self.cursor.fetchone()
+                if row:
+                    creators_ids.append((name, row[0]))
         return creators_ids
 
     def get_role_ids(self) -> dict[str, int]:
@@ -170,9 +177,9 @@ class MetadataInputting:
         roles = self.get_role_ids()
         creator_role_pairs = self.clean_info.creators
         creator_role_id_tuples: list[tuple[str, str, int]] = []
-
-        for index, info in enumerate(creators):
-            creator_role_id_tuples.append(creator_role_pairs[index] + (info[0],))
+        if creator_role_pairs is not None:
+            for index, info in enumerate(creators):
+                creator_role_id_tuples.append(creator_role_pairs[index] + (info[1],))
 
         for entry in creator_role_id_tuples:
             _, role, id = entry
@@ -186,7 +193,9 @@ class MetadataInputting:
                 (comic_id, creator_id, role_id)
                 VALUES
                 (?, ?, ?)
-                """, (self.comic_id, id, role_id))
+                """,
+                (self.comic_id, id, role_id),
+            )
 
 
 def insert_new_publisher(publisher_name: str) -> None:
@@ -194,8 +203,13 @@ def insert_new_publisher(publisher_name: str) -> None:
     conn = sqlite3.connect("comics.db")
     cursor = conn.cursor()
 
-    cursor.execute("INSERT INTO publishers (name, normalised_name) VALUES (?, ?)",
-                   (publisher_name, normalised_name,))
+    cursor.execute(
+        "INSERT INTO publishers (name, normalised_name) VALUES (?, ?)",
+        (
+            publisher_name,
+            normalised_name,
+        ),
+    )
 
     conn.commit()
     conn.close()
