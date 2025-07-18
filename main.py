@@ -155,11 +155,11 @@ class HomePage(QMainWindow):
         body_widget.setLayout(body_layout)
 
         self.file_model = QFileSystemModel()
-        self.file_model.setRootPath(os.path.expanduser("D://Comics//Marvel"))
+        self.file_model.setRootPath(os.path.expanduser("D://adams-comics"))
         self.file_tree = QTreeView()
         self.file_tree.setModel(self.file_model)
         self.file_tree.setRootIndex(
-            self.file_model.index(os.path.expanduser("D://Comics//Marvel"))
+            self.file_model.index(os.path.expanduser("D://adams-comics"))
         )
         self.file_tree.setMaximumWidth(200)
         self.file_tree.setHeaderHidden(True)
@@ -173,18 +173,18 @@ class HomePage(QMainWindow):
         content_layout = QVBoxLayout(content_area)
 
         stats_bar = self.create_stats_bar()
-        # stats_bar.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
-        # stats_bar.setMaximumHeight(70)
+        stats_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        stats_bar.setMaximumHeight(60)
         continue_reading = self.create_continue_reading_area(dummy_data)
         # recommended = self.create_recommended_reading_area()
         need_review = self.create_review_area(dummy_data)
-        rss = self.create_rss_area()
+        rss = self.create_rss_area(12)
 
-        content_layout.addWidget(stats_bar)
-        content_layout.addWidget(continue_reading)
-        content_layout.addWidget(need_review)
-        content_layout.addWidget(rss)
-        body_layout.addWidget(content_area)
+        content_layout.addWidget(stats_bar, stretch=1)
+        content_layout.addWidget(continue_reading, stretch=3)
+        content_layout.addWidget(need_review, stretch=3)
+        content_layout.addWidget(rss, stretch=3)
+        body_layout.addWidget(content_area, stretch=1)
 
         self.setCentralWidget(body_widget)
 
@@ -342,7 +342,7 @@ class HomePage(QMainWindow):
             upon_clicked=self.print_hi,
         )
 
-    def create_rss_area(self) -> QScrollArea:
+    def create_rss_area(self, num: int = 8) -> QScrollArea:
         """
         Creates a scroll area for RSS feed comics.
 
@@ -352,7 +352,7 @@ class HomePage(QMainWindow):
         """
         repository = RSSRepository("comics.db")
         rss_cont = RSSController(repository)
-        recent_comics_list = rss_cont.run(6)
+        recent_comics_list = rss_cont.run(num)
         # self.rss_controller = DownloadControllerAsync(
         #     view=self, service=DownloadServiceAsync()
         # )
@@ -370,7 +370,7 @@ class HomePage(QMainWindow):
         Returns:
             A QWidget containing comic library statistics.
         """
-        files_num, storage_val = count_files_and_storage("D:\\Comics\\Marvel")
+        files_num, storage_val = count_files_and_storage("D:\\adams-comics")
 
         def create_stat_widget(title: str, image_path: str, value: str) -> QWidget:
             """
@@ -398,7 +398,7 @@ class HomePage(QMainWindow):
             pixmap = QPixmap(image_path)
             image_label = QLabel()
             image_label.setPixmap(
-                pixmap.scaled(50, 50, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                pixmap.scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             )
             image_label.setAlignment(Qt.AlignCenter)
 

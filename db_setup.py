@@ -34,20 +34,20 @@ cursor.execute(
 
 cursor.execute(
     """
-                CREATE TABLE IF NOT EXISTS creators (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                real_name TEXT NOT NULL UNIQUE
-                )
+    CREATE TABLE IF NOT EXISTS creators (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    real_name TEXT NOT NULL UNIQUE
+    )
 """
 )
 
 cursor.execute(
     """
-                CREATE TABLE IF NOT EXISTS roles (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                role_name TEXT NOT NULL UNIQUE
-                )
-"""
+    CREATE TABLE IF NOT EXISTS roles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    role_name TEXT NOT NULL UNIQUE
+    )
+    """
 )
 
 cursor.execute(
@@ -72,7 +72,16 @@ cursor.execute(
 cursor.execute(
     """
     CREATE TABLE IF NOT EXISTS characters (
-    id TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+    )
+    """
+)
+
+cursor.execute(
+    """
+    CREATE TABLE identities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     real_name TEXT NOT NULL UNIQUE
     )
     """
@@ -80,57 +89,12 @@ cursor.execute(
 
 cursor.execute(
     """
-    CREATE TABLE aliases (
-    id TEXT PRIMARY KEY,
-    alias TEXT NOT NULL UNIQUE
-    )
-    """
-)
-SHARED_ALIASES = [
-    "Robin",
-    "Green Lantern",
-    "Flash",
-    "Captain America",
-    "Batgirl",
-    "Spider-Man",
-    "Ant-Man",
-    "Hawkeye",
-    "Blue Beetle",
-    "Wolverine",
-    "Thor",
-    "Iron Fist",
-    "Hulk",
-    "Phoenix",
-    "Captain Marvel",
-    "Superboy",
-    "Black Panther",
-    "Venom",
-    "Spider-Woman",
-    "Ms. Marvel",
-    "Superman",
-    "Batman",
-    "Iron Man",
-    "Batwoman",
-    "Green Arrow",
-    "Atom",
-    "Starman",
-]
-for alias in SHARED_ALIASES:
-    cursor.execute(
-        """
-    UPDATE aliases SET shared_alias = 1 WHERE alias = ?
-    """,
-        (alias,),
-    )
-
-cursor.execute(
-    """
-    CREATE TABLE character_alias_links (
-    character_id TEXT NOT NULL,
-    alias_id TEXT NOT NULL,
-    PRIMARY KEY (character_id, alias_id),
+    CREATE TABLE character_identity_links (
+    character_id INTEGER NOT NULL,
+    identity_id INTEGER NOT NULL,
+    PRIMARY KEY (character_id, identity_id),
     FOREIGN KEY (character_id) REFERENCES characters(id),
-    FOREIGN KEY (alias_id) REFERENCES aliases(id)
+    FOREIGN KEY (identity_id) REFERENCES identities(id)
     )
     """
 )
@@ -139,12 +103,11 @@ cursor.execute(
     """
     CREATE TABLE comic_characters (
     comic_id TEXT NOT NULL,
-    alias_id TEXT NOT NULL,
-    character_id TEXT,
-    certainity TEXT,
-    PRIMARY KEY (comic_id, alias_id),
+    character_id INTEGER NOT NULL,
+    identity_id INTEGER,
+    PRIMARY KEY (comic_id, character_id),
     FOREIGN KEY (comic_id) REFERENCES comics(id),
-    FOREIGN KEY (alias_id) REFERENCES aliases(id),
+    FOREIGN KEY (identity_id) REFERENCES identity(id),
     FOREIGN KEY (character_id) REFERENCES characters(id)
     )
     """
@@ -154,7 +117,7 @@ cursor.execute(
     """
     CREATE TABLE IF NOT EXISTS teams (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
+    name TEXT NOT NULL
     )
     """
 )

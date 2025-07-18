@@ -4,16 +4,18 @@ import sqlite3
 import time
 import zipfile
 from typing import Optional
+import shutil
 
 from defusedxml import ElementTree as ET
 from watchdog.events import FileSystemEventHandler
-from watchdog.observers import Observer
+# from watchdog.observers import Observer
 
 from db_input import insert_new_publisher
 from extract_meta_xml import MetadataExtraction
 from file_utils import convert_cbz, generate_uuid, get_ext
 from helper_classes import ComicInfo
 from metadata_cleaning import MetadataProcessing, PublisherNotKnown
+from db_input import MetadataInputting
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -174,25 +176,22 @@ class MetadataController:
         self.primary_key = primary_key
         self.original_filepath = filepath
         self.original_filename = os.path.basename(filepath)
-        self.filepath: Optional[str] = None
-        self.filename: Optional[str] = None
+        self.filepath: Optional[str] = filepath
+        self.filename: Optional[str] = os.path.basename(filepath)
         self.comic_info: Optional[ComicInfo] = None
 
-    def rename_and_reformat(self) -> None:
+    def reformat(self) -> None:
         temp_filepath = self.original_filepath
         if get_ext(temp_filepath) == ".cbr":
             temp_filepath = convert_cbz(temp_filepath)
         elif get_ext(temp_filepath) != ".cbz":
             raise ValueError("Wrong filetype.")
 
-        directory = os.path.dirname(temp_filepath)
-        new_name = f"{self.primary_key}.cbz"
-        new_path = os.path.join(directory, new_name)
+        # directory = os.path.dirname(temp_filepath)
+        # new_name = f"{self.primary_key}.cbz"
+        # new_path = os.path.join(directory, new_name)
 
-        os.rename(temp_filepath, new_path)
-
-        self.filepath = new_path
-        self.filename = new_name
+        # os.rename(temp_filepath, new_path)
 
     def has_metadata(self) -> bool:
         """
@@ -234,12 +233,13 @@ class MetadataController:
                 return False
 
     def process(self):
-        self.rename_and_reformat()
+        self.reformat()
         self.comic_info = ComicInfo(
             primary_key=self.primary_key,
             filepath=self.filepath,
             original_filename=self.original_filename,
         )
+
         while True:
             if self.has_metadata():
                 with MetadataExtraction(self.comic_info) as extractor:
@@ -247,38 +247,63 @@ class MetadataController:
                 with MetadataProcessing(raw_comic_info) as cleaner:
                     try:
                         cleaned_comic_info = cleaner.run()
+                        new_name, publisher_int = cleaner.new_filename_and_folder()
+                        print(publisher_int)
                     except PublisherNotKnown as e:
                         print(e)
                         unknown_publisher = e.publisher_name
-                        # Start new publisher process.
                         insert_new_publisher(unknown_publisher)
                         continue
-
+                print(cleaned_comic_info.model_dump())
                 missing_fields = [
                     k for k, v in cleaned_comic_info.model_dump().items() if v is None
                 ]
                 if missing_fields:
-                    # Need to call the entire tagging process here.
-                    pass
-                # Then call the database insertion process.
-                break  # Finished successfully, exit the loop
+                    if "issue_num" in missing_fields:
+                        print("[INFO] Missing issue number.")
+                    else:
+                        print(f"Missing : {missing_fields}")
+                        # Need to call the entire tagging process here.
+                        return None
+                print("[INFO Starting inputting data to the database")
+                inputter = MetadataInputting(cleaned_comic_info)
+                # try:
+                #     inputter.run()
+                # except Exception as e:
+                #     print(f"[Error] {e}")
+                #     return None
+                print("[SUCCESS] Added all data to the database")
+                break
             else:
                 # Call the entire tagging process.
                 # Call the xml creation process.
                 # Call the database insertion process.
                 pass
+        for dirpath, dirnames, _ in os.walk("D://adams-comics"):
+            for dirname in dirnames:
+                if str(dirname)[0] == publisher_int:
+                    dir_path = os.path.join(dirpath, dirname)
+                    new_path = os.path.join(dir_path, new_name)
+                    shutil.move(self.original_filepath, new_path)
+                    inputter.insert_filepath(new_path)
+                    inputter.conn.close()
+                    break
 
-        # Now the file should have complete metdata and be in the database.
-        # Rename to permanent name.
-        # Move to correct folder or place.
 
+for dirpath, dirnames, filenames in os.walk("D://adams-comics"):
+    for filename in filenames:
+        print(f"Starting to process {filename}")
+        full_path = os.path.join(dirpath, filename)
+        new_id = generate_uuid()
+        cont = MetadataController(new_id, full_path)
+        cont.process()
 
-obs = Observer()
-obs.schedule(DownloadsHandler(), path_to_obs, recursive=False)
-obs.start()
-try:
-    while True:
-        time.sleep(1)
-except KeyboardInterrupt:
-    obs.stop()
-    obs.join()
+# obs = Observer()
+# obs.schedule(DownloadsHandler(), path_to_obs, recursive=False)
+# obs.start()
+# try:
+#     while True:
+#         time.sleep(1)
+# except KeyboardInterrupt:
+#     obs.stop()
+#     obs.join()
