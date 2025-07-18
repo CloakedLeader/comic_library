@@ -1,8 +1,38 @@
 import sqlite3
 from typing import Optional
 
-from file_utils import generate_uuid, normalise_publisher_name
+from file_utils import normalise_publisher_name
 from helper_classes import ComicInfo
+
+SHARED_ALIASES = [
+    "Robin",
+    "Green Lantern",
+    "Flash",
+    "Captain America",
+    "Batgirl",
+    "Spider-Man",
+    "Ant-Man",
+    "Hawkeye",
+    "Blue Beetle",
+    "Wolverine",
+    "Thor",
+    "Iron Fist",
+    "Hulk",
+    "Phoenix",
+    "Captain Marvel",
+    "Superboy",
+    "Black Panther",
+    "Venom",
+    "Spider-Woman",
+    "Ms. Marvel",
+    "Superman",
+    "Batman",
+    "Iron Man",
+    "Batwoman",
+    "Green Arrow",
+    "Atom",
+    "Starman",
+]
 
 
 class MetadataInputting:
@@ -15,7 +45,7 @@ class MetadataInputting:
         self.conn = sqlite3.connect("comics.db")
         self.cursor = self.conn.cursor()
 
-    def db_into_main_db_table(self):
+    def dict_into_main_db_table(self) -> None:
         self.cursor.execute(
             """
             INSERT INTO comics (id, title, series, volume_id, publisher_id,
@@ -31,91 +61,47 @@ class MetadataInputting:
     # Character Insertion
     # =====================
 
-    def get_character_by_name(self, name: str):
-        self.cursor.execute(
-            """
-            SELECT characters.id, characters.real_name, aliases.alias
-            FROM aliases
-            JOIN character_alias_links ON aliases.id = character_alias_links.alias_id
-            JOIN characters ON characters.id = character_alias_links.character_id
-            WHERE aliases.alias = ?
-        """,
-            (name,),
-        )
-        row = self.cursor.fetchone()
-        if row:
-            return row[0], row[1], row[2]
+    @staticmethod
+    def find_identity(character: str) -> Optional[tuple[str, int]]:
+        # TODO: Disambiguation logic goes here.
+        return None  # Unknown identity
 
-        self.cursor.execute(
-            """
-            SELECT id, real_name FROM characters WHERE real_name = ?
-        """,
-            (name,),
-        )
-        row = self.cursor.fetchone()
-        if row:
-            return row[0], row[1], None
-        return None
+    def insert_or_find_character(self) -> list[tuple[str, int]]:
+        character_ids = []
+        if self.clean_info.characters is None:
+            raise ValueError("characters cannot be empty")
+        for character in self.clean_info.characters:
+            identity_info = self.find_identity(character)
+            self.cursor.execute(
+                "INSERT OR IGNORE INTO characters (name) VALUES (?)", (character,)
+            )
+            self.cursor.execute("SELECT id FROM characters WHERE name = ?",
+                                (character,))
+            row = self.cursor.fetchone()
+            if row:
+                character_ids.append((character, row[0], identity_info))
+        self.conn.commit()
+        return character_ids
 
-    def get_or_create_alias(self, name: str) -> str:
-        self.cursor.execute("SELECT id FROM aliases WHERE alias = ?", (name,))
-        result = self.cursor.fetchone()
-        if result:
-            return result[0]
-        else:
-            new_id = generate_uuid()
+    def insert_into_comic_characters(
+            self,
+            characters: list[tuple[str, int, Optional[str]]]
+            ) -> None:
+        for character in characters:
+            _, character_id, identity_info = character
+            identity_id = identity_info[1] if identity_info else None
             self.cursor.execute(
                 """
-                INSERT INTO aliases (id, alias) VALUES (?, ?)
-            """,
-                (new_id, name),
+                INSERT INTO comic_characters
+                (comic_id, character_id, identity_id)
+                VALUES
+                (?, ?, ?)
+                """,
+                (self.comic_id,
+                 character_id,
+                 identity_id,)
             )
-            self.conn.commit()
-            return new_id
-
-    def is_shared_alias(self, alias_id: str) -> bool:
-        self.cursor.execute(
-            "SELECT shared_alias FROM aliases WHERE id = ?", (alias_id,)
-        )
-        return self.cursor.fetchone()[0]
-
-    def resolve_character_id(self, alias_id: str) -> Optional[str]:
-        self.cursor.execute(
-            """
-            SELECT character_id
-            FROM character_alias_links
-            WHERE alias_id = ?
-            """,
-            (alias_id,),
-        )
-        link_row = self.cursor.fetchone()
-        character_id = link_row[0] if link_row else None
-        return character_id
-
-    def insert_comic_character(self, alias_id: str, character_id: str, certainity: str):
-        self.cursor.execute(
-            """
-            INSERT OR IGNORE INTO comic_characters
-                (comic_id, alias_id, character_id, certainity)
-            VALUES (?, ?, ?, ?)""",
-            (self.comic_id, alias_id, character_id, certainity),
-        )
-
-    def db_into_characters(self):
-        for character in self.clean_info["characters"]:
-            alias_id = self.get_or_create_alias(character)
-
-            shared = self.is_shared_alias(alias_id)
-
-            if shared:
-                character_id = None
-                certainity = "low"
-            else:
-                character_id = self.resolve_character_id(alias_id)
-                certainity = "high"
-
-            self.insert_comic_character(alias_id, character_id, certainity)
-        return None
+        self.conn.commit()
 
     # ==================
     # Teams Insertion
@@ -133,6 +119,7 @@ class MetadataInputting:
             row = self.cursor.fetchone()
             if row:
                 teams_ids.append((team, row[0]))
+        self.conn.commit()
         return teams_ids
 
     def insert_into_comic_teams(self, teams: list[tuple[str, int]]):
@@ -149,6 +136,7 @@ class MetadataInputting:
                     team[1],
                 ),
             )
+        self.conn.commit()
 
     # ====================
     # Creator Insertion
@@ -169,6 +157,7 @@ class MetadataInputting:
                 row = self.cursor.fetchone()
                 if row:
                     creators_ids.append((name, row[0]))
+        self.conn.commit()
         return creators_ids
 
     def get_role_ids(self) -> dict[str, int]:
@@ -199,6 +188,32 @@ class MetadataInputting:
                 """,
                 (self.comic_id, id, role_id),
             )
+        self.conn.commit()
+
+    # ==============
+    # Run Function
+    # ==============
+
+    def run(self):
+        self.open_connection()
+        self.dict_into_main_db_table()
+        character_info = self.insert_or_find_character()
+        self.insert_into_comic_characters(character_info)
+        team_info = self.insert_new_teams()
+        self.insert_into_comic_teams(team_info)
+        creator_info = self.insert_new_creators()
+        self.insert_into_comic_creators(creator_info)
+        self.conn.commit()
+
+    def insert_filepath(self, filepath):
+        self.cursor.execute(
+            """
+            UPDATE comics
+            SET file_path = (?) 
+            WHERE id = (?)
+            """, (filepath, self.comic_id)
+        )
+        self.conn.commit()
 
 
 def insert_new_publisher(publisher_name: str) -> None:

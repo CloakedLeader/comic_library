@@ -2,9 +2,7 @@ import os
 import shutil
 import tempfile
 import zipfile
-from typing import Optional
 
-from defusedxml import Element
 from defusedxml import ElementTree as ET
 
 from helper_classes import ComicInfo
@@ -16,7 +14,7 @@ class MetadataExtraction:
         self.filepath: str = comic_info.filepath
         self.temp_dir: str = tempfile.mkdtemp()
         self.extracted: bool = False
-        self.metadata_root: Optional[Element] = None
+        self.metadata_root = None
 
     def __enter__(self):
         self.extract()
@@ -70,7 +68,11 @@ class MetadataExtraction:
         if element is not None and element.text:
             return element.text.strip()
         else:
-            raise KeyError(f"No info inside tag: {tag}.")
+            if tag in ["Editor", "Letterer", "Inker",
+                       "Colorist", "CoverArtist", "Teams"]:
+                return ""
+            else:
+                raise KeyError(f"No info inside tag: {tag}.")
 
     def easy_parsing(self, field: str, as_type: type = str) -> str | int:
         """
@@ -108,6 +110,8 @@ class MetadataExtraction:
         seen = set()
         out = []
         list_string = self.easy_parsing(field)
+        if list_string == "":
+            return []
         if isinstance(list_string, str):
             items = [p.strip() for p in list_string.split(",")]
         else:
@@ -135,6 +139,8 @@ class MetadataExtraction:
         seen_per_role: dict[str, set] = {field: set() for field in fields}
         for field in fields:
             list_string = self.easy_parsing(field, str)
+            if list_string == "":
+                continue
             if isinstance(list_string, str):
                 people_raw = [p.strip() for p in list_string.split(",")]
             else:

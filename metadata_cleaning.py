@@ -1,5 +1,6 @@
 import re
 import traceback
+import calendar
 
 from fuzzywuzzy import fuzz
 from word2number import w2n
@@ -7,6 +8,13 @@ from word2number import w2n
 from db_utils import get_publisher_info
 from file_utils import normalise_publisher_name
 from helper_classes import ComicInfo
+
+SERIES_OVERRIDES = [
+            ("tpb", 1, "TPB"),
+            ("omnibus", 2, "Omni"),
+            ("modern era epic collection", 4, "MEC"),
+            ("epic collection", 3, "EC"),
+        ]
 
 
 class PublisherNotKnown(KeyError):
@@ -18,7 +26,7 @@ class PublisherNotKnown(KeyError):
 class MetadataProcessing:
     def __init__(self, raw_dict: ComicInfo) -> None:
         self.raw_info = raw_dict
-        self.filepath = raw_dict["filepath"]
+        self.filepath = raw_dict.filepath
         self.title_info: dict[str, str | int] = {}
 
     def __enter__(self):
@@ -40,7 +48,7 @@ class MetadataProcessing:
     ]
 
     SPECIAL_PATTERN = re.compile(
-        r"\bv(?P<volume>\d{1,3})\s+(?P<issue>\d{2,3})\b)", re.I
+        r"\bv(?P<volume>\d{1,3})\s+(?P<issue>\d{2,3})\b", re.I
     )
 
     @staticmethod
@@ -96,15 +104,6 @@ class MetadataProcessing:
         Raises:
             KeyError: If no known publisher matches closely enough.
         """
-        # known_publishers = [
-        #     (1, "Marvel Comics", "marvel"),
-        #     (2, "DC Comics", "dc"),
-        #     (3, "Image Comics", "image"),
-        #     (4, "Dark Horse Comics", "dark horse"),
-        #     (5, "IDW Comics", "idw"),
-        #     (6, "Valiant Comics", "valiant"),
-        #     (7, "2000AD Comics", "2000ad"),
-        # ]
         known_publishers = get_publisher_info()
         best_score = 0
         best_match = None
@@ -138,12 +137,7 @@ class MetadataProcessing:
         Raises:
             If issue number is zero, this signifies an error in the processing.
         """
-        series_overrides = [
-            ("tpb", 1),
-            ("omnibus", 2),
-            ("modern era epic collection", 4),
-            ("epic collection", 3),
-        ]
+
         out: dict[str, str | int] = {}
         common_title_words = {"tpb", "hc"}
         if self.raw_info.title and self.raw_info.series:
@@ -164,7 +158,7 @@ class MetadataProcessing:
                 collection_title = series_name
 
         collection_type = 1
-        for keyword, type_id in series_overrides:
+        for keyword, type_id, _ in SERIES_OVERRIDES:
             if keyword in series_name.lower():
                 collection_type = type_id
                 break
@@ -180,6 +174,7 @@ class MetadataProcessing:
         )
 
         issue_number = None
+        rest_title = None
 
         if volume_match:
             num_text = volume_match.group(1).lower()
@@ -195,20 +190,27 @@ class MetadataProcessing:
 
         if rest_title:
             collection_title = rest_title
-        if issue_number is not None:
 
+        if issue_number is None:
+            self.title_info["title"] = self.raw_info.title
+            self.title_info["series"] = self.raw_info.series
+            self.title_info["collection_type"] = collection_type
+            self.title_info["volume_num"] = self.raw_info.volume_num
+            return self.title_info
+
+        else:
             out["title"] = self.title_case(collection_title)
             out["series"] = self.title_case(series_name)
             out["collection_type"] = collection_type
             out["volume_num"] = issue_number
-
-        self.title_info = out
-
-        return out
+            self.title_info = out
+            return out
 
     def check_issue_numbers_match(self) -> bool:
         if self.title_info is None:
             self.title_parsing()
+        if "volume_num" not in self.title_info:
+            return False
         return self.raw_info.volume_num == self.title_info["volume_num"]
 
     def extract_volume_num_from_filepath(self) -> tuple[int, int]:
@@ -245,11 +247,6 @@ class MetadataProcessing:
     def create_date_string(self) -> str:
         return f"{self.raw_info.month}/{self.raw_info.year}"
 
-    def new_filename(self) -> str:
-        return self.raw_info.original_filename
-
-    # Only for now to satisfy mypy.
-
     def run(self) -> None | ComicInfo:
         self.title_parsing()
 
@@ -257,22 +254,30 @@ class MetadataProcessing:
 
         date_str = self.create_date_string()
 
-        try:
-            publisher_id, publisher_name = self.match_publisher()
-        except KeyError:
-            publisher_id = 0
-        if publisher_id != 0:
+        publisher_id, publisher_name = self.match_publisher()
 
-            return self.raw_info.model_copy(
-                update={
-                    "title": self.title_info["title"],
-                    "series": self.title_info["series"],
-                    "publisher": publisher_name,
-                    "collection_type": self.title_info["collection_type"],
-                    "volume_num": volume,
-                    "date": date_str,
-                    "publisher_id": publisher_id,
-                }
-            )
-        else:
-            return None
+        self.out_data = self.raw_info.model_copy(
+            update={
+                "title": self.title_info["title"],
+                "series": self.title_info["series"],
+                "publisher": publisher_name,
+                "collection_type": self.title_info["collection_type"],
+                "volume_num": volume,
+                "date": date_str,
+                "publisher_id": publisher_id,
+            })
+        return self.out_data
+
+    def new_filename_and_folder(self) -> tuple[str, int]:
+        date_suffix = f"{calendar.month_abbr[self.out_data.month]} {self.out_data.year}"
+        volume_num = self.out_data.volume_num
+        collection_id = self.out_data.collection_type
+        for _, val, abbr in SERIES_OVERRIDES:
+            if val == collection_id:
+                collection_name = abbr
+                break
+        series_name = self.out_data.series
+        title_name = self.out_data.title
+        filename = f"{series_name} - {title_name} {collection_name}"
+        f"#0{volume_num} ({date_suffix})"
+        return filename, self.out_data.publisher_id
