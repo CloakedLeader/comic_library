@@ -267,6 +267,12 @@ class MetadataProcessing:
         )
         return self.out_data
 
+    @staticmethod
+    def sanitise(filename: str) -> str:
+        santised = re.sub(r'[<>:"/\\|?*]', "-", filename)
+        santised = santised.rstrip(" .")
+        return santised
+
     def new_filename_and_folder(self) -> tuple[str, int]:
         date_suffix = f"{calendar.month_abbr[self.out_data.month]} {self.out_data.year}"
         volume_num = self.out_data.volume_num
@@ -275,8 +281,7 @@ class MetadataProcessing:
             if val == collection_id:
                 collection_name = abbr
                 break
-        series_name = self.out_data.series
-        title_name = self.out_data.title
-        filename = f"{series_name} - {title_name} {collection_name}"
-        f"#0{volume_num} ({date_suffix})"
+        series_name = self.sanitise(self.out_data.series)
+        title_name = self.sanitise(self.out_data.title)
+        filename = f"{series_name} - {title_name} {collection_name} #0{volume_num} ({date_suffix}).cbz"
         return filename, self.out_data.publisher_id

@@ -40,8 +40,6 @@ class MetadataInputting:
         self.clean_info = comicinfo
         self.clean_dict = comicinfo.model_dump()
         self.comic_id = comicinfo.primary_key
-
-    def open_connection(self):
         self.conn = sqlite3.connect("comics.db")
         self.cursor = self.conn.cursor()
 
@@ -197,7 +195,6 @@ class MetadataInputting:
     # ==============
 
     def run(self):
-        self.open_connection()
         self.dict_into_main_db_table()
         character_info = self.insert_or_find_character()
         self.insert_into_comic_characters(character_info)
@@ -208,14 +205,17 @@ class MetadataInputting:
         self.conn.commit()
 
     def insert_filepath(self, filepath):
+        print(f"[DEBUG] Updating comic ID {self.comic_id} with path {filepath}")
         self.cursor.execute(
             """
             UPDATE comics
-            SET file_path = (?)
-            WHERE id = (?)
+            SET file_path = ?
+            WHERE id = ?
             """,
             (filepath, self.comic_id),
         )
+        print("[DEBUG] SQL executed")
+        print(f"[DEBUG] Rows updated: {self.cursor.rowcount}")
         self.conn.commit()
 
 
@@ -233,4 +233,3 @@ def insert_new_publisher(publisher_name: str) -> None:
     )
 
     conn.commit()
-    conn.close()
