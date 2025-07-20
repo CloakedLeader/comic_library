@@ -22,7 +22,7 @@ class RepoWorker:
         for id in ids:
             self.cursor.execute(
                 """
-                SELECT series, title, filepath
+                SELECT series, title, file_path
                 FROM comics
                 WHERE id = ?
                 """,
@@ -62,7 +62,7 @@ class RepoWorker:
 
         self.cursor.execute(
             """
-            SELECT comic_id
+            SELECT rp.comic_id
             FROM reading_progress rp
             LEFT JOIN reviews r ON rp.comic_id = r.comic_id
             WHERE rp.is_finished = 1 AND (r.comic_id IS NULL OR r.review IS NULL)

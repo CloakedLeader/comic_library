@@ -299,8 +299,11 @@ class MetadataController:
 
 
 VALID_EXTENSIONS = {".cbz", ".cbr", ".zip"}
-
+EXCLUDE = {"0 - Downloads", "1 - Marvel Comics", "2 - DC Comics",
+           "3 - Image Comics", "4 - Dark Horse Comics", "5 - IDW Comics",
+           "6 - Valiant Comics", "7 - 2000AD Comics", "8 - Urban Comics"}
 for dirpath, dirnames, filenames in os.walk("D://adams-comics"):
+    dirnames[:] = [d for d in dirnames if d not in EXCLUDE]
     for filename in filenames:
         if not any(filename.lower().endswith(ext) for ext in VALID_EXTENSIONS):
             continue
