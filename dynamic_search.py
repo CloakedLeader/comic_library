@@ -1,6 +1,5 @@
 import sqlite3
 from typing import Optional
-import os
 
 
 class ComicSearchEngine:
@@ -9,63 +8,66 @@ class ComicSearchEngine:
         self.cursor = self.setup_cursor()
 
     def setup_cursor(self):
-        connection = sqlite3.connect(self.db_path)
-        return connection.cursor()
-    
-    def flatten_comic(self, comic_id: int) -> Optional[dict[str, str]]:
-        self.cursor.execute("""
-            SELECT comics.title
-            FROM comics
-            WHERE comics.id = ?
-        """, (comic_id,))
-        row = self.cursor.fetchone()
+        self.connection = sqlite3.connect(self.db_path)
+        return self.connection.cursor()
 
-        if not row:
-            return None
-        title, = row
+    def get_character_names(self, comic_id: str) -> list[str]:
+        self.cursor.execute(
+            """
+            SELECT c.name
+            FROM comic_characters cc
+            LEFT JOIN characters c ON cc.character_id = c.id
+            WHERE cc.comic_id = ?
+            """, (comic_id,)
+        )
+        return [row[0] for row in self.cursor.fetchall()]
 
-        # def flatten_from_junction(join_table: str, entity_table: str, entity_col: str) -> str:
-        #     self.cursor.execute(f"""
-        #         SELECT {entity_table}.name
-        #         FROM {join_table}
-        #         JOIN {entity_table} ON {entity_table}.id = {join_table}.{entity_col}
-        #         WHERE {join_table}.comic_id = ?
-        #     """, (comic_id,))
-        #     return ", ".join(r[0] for r in self.cursor.fetchall())
+    def get_creators_names(self, comic_id: str) -> list[str]:
+        self.cursor.execute(
+            """
+            SELECT c.name
+            FROM comic_creators cc
+            LEFT JOIN creators c ON cc.creator_id = c.id
+            WHERE cc.comic_id = ?
+            """, (comic_id,)
+        )
+        return [row[0] for row in self.cursor.fetchall()]
 
-        # characters = flatten_from_junction("comic_characters", "characters", "characters_id")
-        # creators = flatten_from_junction("comic_creators", "creators", "creator_id")
+    def get_publisher(self, comic_id: str) -> str:
+        self.cursor.execute(
+            """
+            SELECT p.name
+            FROM comics c
+            LEFT JOIN publishers p ON c.publisher_id = p.id
+            WHERE c.id = ?
+            """, (comic_id,)
+        )
+        return self.cursor.fetchone()[0]
 
-        return {
-            "id": comic_id,
-            "title": title or "",
-            "series": "",
-            "publisher": "",
-            "characters": "",
-            "creators": "",
-        }
+    def rebuild_fts5(self):
+        comics = self.connection.execute("SELECT id, title FROM comics").fetchall()
 
-    def index_comic_for_search(self, comic_id: int) -> None:
-        connection = sqlite3.connect("comics.db")
-        cursor = connection.cursor()
-        data = self.flatten_comic(comic_id)
-        if data is None:
-            return None
-        cursor.execute("""
-            INSERT OR REPLACE INTO comic_search (rowid, title, series, publisher, characters, creators)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (
-            data["id"],
-            data["title"],
-            data["series"],
-            data["publisher"],
-            data["characters"],
-            data["creators"]
-        ))
-        connection.commit()
-        connection.close()
+        for comic in comics:
+            comic_id, title = comic
 
-    def search_comics(self, user_input: str, limit: int = 20) -> Optional[list[dict[str, str | int]]]:
+            creators = self.get_creators_names(comic_id)
+            creators_text = " ".join(creators)
+
+            characters = self.get_character_names(comic_id)
+            characters_text = " ".join(characters)
+
+            publisher = self.get_publisher(comic_id).strip()
+
+            self.cursor.execute(
+                """
+                INSERT INTO comic_search (rowid, title, publisher, creators, characters)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (comic_id, title, publisher, creators_text, characters_text)
+            )
+        self.connection.commit()
+
+    def search_comics(self, user_input: str, limit: int = 20) -> Optional[list[dict]]:
         """
         Search the fts5 database for directly matching reslts.
 
@@ -123,34 +125,25 @@ class ComicSearchEngine:
         creators:"claremont"'
         """
         field_aliases = {
-            "#": "tags",
             "&": "publisher",
             "char:": "characters",
             "cre:": "creators",
-            "ser:": "series",
-            "gen:": "genre"
         }
 
         tokens = user_input.strip().split()
         terms = []
-       
+
         for token in tokens:
             matched = False
             for prefix, field in field_aliases.items():
                 if token.lower().startswith(prefix):
                     value = token[len(prefix):]
-                    terms.append(f'{field}: "{value}"')
+                    terms.append(f'{field}:{value}')
                     matched = True
                     break
             if not matched:
-                terms.append(f'title: "{token}"')
+                terms.append(f'title:{token}')
         return ' AND '.join(terms)
-    
-    def index_all_comics(self):
-        self.cursor.execute("SELECT id FROM comics")
-        comic_ids = [row[0] for row in self.cursor.fetchall()]
-        for comic_id in comic_ids:
-            self.index_comic_for_search(comic_id)
 
 
 def create_virtual_table() -> None:
@@ -162,8 +155,7 @@ def create_virtual_table() -> None:
                     publisher,
                     creators,
                     characters,
-                    series,
-                    content_rowid='id',
+                    content= '',
                     tokenize='porter'
                 )
 """)
