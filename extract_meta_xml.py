@@ -68,8 +68,14 @@ class MetadataExtraction:
         if element is not None and element.text:
             return element.text.strip()
         else:
-            if tag in ["Editor", "Letterer", "Inker",
-                       "Colorist", "CoverArtist", "Teams"]:
+            if tag in [
+                "Editor",
+                "Letterer",
+                "Inker",
+                "Colorist",
+                "CoverArtist",
+                "Teams",
+            ]:
                 return ""
             else:
                 raise KeyError(f"No info inside tag: {tag}.")

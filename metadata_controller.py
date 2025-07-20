@@ -1,21 +1,22 @@
 import logging
 import os
+import shutil
 import sqlite3
 import time
 import zipfile
 from typing import Optional
-import shutil
 
 from defusedxml import ElementTree as ET
 from watchdog.events import FileSystemEventHandler
-# from watchdog.observers import Observer
 
-from db_input import insert_new_publisher
+from db_input import MetadataInputting, insert_new_publisher
 from extract_meta_xml import MetadataExtraction
 from file_utils import convert_cbz, generate_uuid, get_ext
 from helper_classes import ComicInfo
 from metadata_cleaning import MetadataProcessing, PublisherNotKnown
-from db_input import MetadataInputting
+
+# from watchdog.observers import Observer
+
 
 logging.basicConfig(
     level=logging.DEBUG,
