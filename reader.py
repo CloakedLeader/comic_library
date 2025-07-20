@@ -17,14 +17,10 @@ from PySide6.QtWidgets import (
     QToolButton,
     QWidget,
 )
+from helper_classes import GUIComicInfo
 
 # from metadata_gui_panel import MetadataDialog
 from file_utils import get_name
-
-
-def sort_imgs(filename: str) -> int:
-    # TODO: Write this function, issue #7 on GitHub.
-    return -1  # Placeholder until issue closed.
 
 
 class ComicError(Exception):

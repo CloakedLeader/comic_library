@@ -26,6 +26,8 @@ from PySide6.QtWidgets import (
 from reader_controller import ReadingController
 from rss_controller import RSSController
 from rss_repository import RSSRepository
+from gui_repo_worker import RepoWorker
+from helper_classes import GUIComicInfo
 
 
 class ClickableComicWidget(QWidget):
@@ -172,18 +174,21 @@ class HomePage(QMainWindow):
         content_area = QWidget()
         content_layout = QVBoxLayout(content_area)
 
+        with RepoWorker("D://adams-comics//.covers") as repo:
+            continue_list, review_list = repo.run()
+
         stats_bar = self.create_stats_bar()
         stats_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         stats_bar.setMaximumHeight(60)
-        continue_reading = self.create_continue_reading_area(dummy_data)
+        continue_reading = self.create_continue_reading_area(continue_list)
         # recommended = self.create_recommended_reading_area()
-        need_review = self.create_review_area(dummy_data)
-        rss = self.create_rss_area(12)
+        need_review = self.create_review_area(review_list)
+        # rss = self.create_rss_area(12)
 
         content_layout.addWidget(stats_bar, stretch=1)
         content_layout.addWidget(continue_reading, stretch=3)
         content_layout.addWidget(need_review, stretch=3)
-        content_layout.addWidget(rss, stretch=3)
+        # content_layout.addWidget(rss, stretch=3)
         body_layout.addWidget(content_area, stretch=1)
 
         self.setCentralWidget(body_widget)
@@ -217,7 +222,7 @@ class HomePage(QMainWindow):
 
     def create_scroll_area(
         self,
-        list_of_dicts: list,
+        list_of_dicts: list[GUIComicInfo],
         header: str,
         upon_clicked: Callable,
         links: bool = False,
@@ -259,13 +264,13 @@ class HomePage(QMainWindow):
 
         for comic in list_of_dicts:
 
-            if links:
-                pixmap = self.load_pixmap_from_url(comic["cover_link"])
+            if links and comic.cover_link is not None:
+                pixmap = self.load_pixmap_from_url(comic.cover_link)
 
             else:
-                pixmap = QPixmap(comic["cover_path"])
+                pixmap = QPixmap(comic.cover_path)
 
-            title_name = comic.get("title")
+            title_name = comic.title
             comic_button = ClickableComicWidget(
                 title_name, pixmap, img_width, img_height
             )
@@ -293,11 +298,11 @@ class HomePage(QMainWindow):
         cont = ReadingController(comic)
         cont.read_comic()
 
-    def print_hi(self, comic_dict: dict) -> None:
-        print("Hi " + comic_dict["title"] + "!")
+    def print_hi(self, comic_dict: GUIComicInfo) -> None:
+        print("Hi " + comic_dict.title + "!")
 
     def create_continue_reading_area(
-        self, list_of_comics_marked_as_read: list[dict]
+        self, list_of_comics_marked_as_read: list[GUIComicInfo]
     ) -> QScrollArea:
         """
         Creates a scroll area for comics marked as continue reading.
@@ -312,7 +317,7 @@ class HomePage(QMainWindow):
         )
 
     def create_recommended_reading_area(
-        self, list_of_recommended_comics: list[dict]
+        self, list_of_recommended_comics: list[GUIComicInfo]
     ) -> QScrollArea:
         """
         Creates a scroll area for comics marked as recommended.
@@ -327,7 +332,8 @@ class HomePage(QMainWindow):
             upon_clicked=self.open_reader,
         )
 
-    def create_review_area(self, list_of_unreviewed_comics: list[dict]) -> QScrollArea:
+    def create_review_area(self, list_of_unreviewed_comics: list[GUIComicInfo]
+                           ) -> QScrollArea:
         """
         Creates a scroll area for comics marked as requiring
         review.
@@ -482,20 +488,6 @@ def count_files_and_storage(directory: str) -> tuple[int, float]:
     total_size = total_size / (1024**3)
     return file_count, total_size
 
-
-dummy_data = [
-    {
-        "title": "Mr Miracle TPB",
-        "cover_path": "D:\\Comics\\.yacreaderlibrary\\covers\\"
-        "1f7c63fb2bf06fcd4293fad5928354e591542fb9459630961.jpg",
-        "filepath": "D://Comics//DC//Misc//Mister Miracle TPB (February 2019).cbz",
-    },
-    {
-        "title": "Daredevil: The Man Witout Fear",
-        "cover_path": "D:\\Comics\\.yacreaderlibrary\\covers\\"
-        "051a70f024954f92e2b2c0699f00859ac772e865685497443.jpg",
-    },
-]
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

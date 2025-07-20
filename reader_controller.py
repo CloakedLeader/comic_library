@@ -1,6 +1,6 @@
-from typing import Any
-
 from reader import Comic, SimpleReader
+
+from helper_classes import GUIComicInfo
 
 
 class ReadingController:
@@ -13,7 +13,7 @@ class ReadingController:
     functionality to close them all at once.
     """
 
-    def __init__(self, comic: dict[str, Any]) -> None:
+    def __init__(self, comic: GUIComicInfo) -> None:
         """
         Intialise the reading controller.
 
@@ -21,7 +21,7 @@ class ReadingController:
             comic: Dictionary containing comic information
         including 'filepath' key.
         """
-        self.filepath = comic["filepath"]
+        self.filepath = comic.filepath
         self.open_windows: list[SimpleReader] = []
 
     def read_comic(self) -> None:
