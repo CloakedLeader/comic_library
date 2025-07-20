@@ -8,7 +8,11 @@ cursor.execute(
     UPDATE comic_creators
     SET role_id = (?)
     WHERE creator_id = (?)
-    """, (7, 8,)
+    """,
+    (
+        7,
+        8,
+    ),
 )
 
 conn.commit()

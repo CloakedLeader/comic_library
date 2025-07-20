@@ -1,6 +1,6 @@
+import calendar
 import re
 import traceback
-import calendar
 
 from fuzzywuzzy import fuzz
 from word2number import w2n
@@ -10,11 +10,11 @@ from file_utils import normalise_publisher_name
 from helper_classes import ComicInfo
 
 SERIES_OVERRIDES = [
-            ("tpb", 1, "TPB"),
-            ("omnibus", 2, "Omni"),
-            ("modern era epic collection", 4, "MEC"),
-            ("epic collection", 3, "EC"),
-        ]
+    ("tpb", 1, "TPB"),
+    ("omnibus", 2, "Omni"),
+    ("modern era epic collection", 4, "MEC"),
+    ("epic collection", 3, "EC"),
+]
 
 
 class PublisherNotKnown(KeyError):
@@ -47,9 +47,7 @@ class MetadataProcessing:
         re.compile(r"\bvol(?:ume)?\.?\s*(?P<num>\d{1,3})\b", re.I),
     ]
 
-    SPECIAL_PATTERN = re.compile(
-        r"\bv(?P<volume>\d{1,3})\s+(?P<issue>\d{2,3})\b", re.I
-    )
+    SPECIAL_PATTERN = re.compile(r"\bv(?P<volume>\d{1,3})\s+(?P<issue>\d{2,3})\b", re.I)
 
     @staticmethod
     def title_case(title: str) -> str:
@@ -265,7 +263,8 @@ class MetadataProcessing:
                 "volume_num": volume,
                 "date": date_str,
                 "publisher_id": publisher_id,
-            })
+            }
+        )
         return self.out_data
 
     def new_filename_and_folder(self) -> tuple[str, int]:

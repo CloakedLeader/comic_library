@@ -75,8 +75,9 @@ class MetadataInputting:
             self.cursor.execute(
                 "INSERT OR IGNORE INTO characters (name) VALUES (?)", (character,)
             )
-            self.cursor.execute("SELECT id FROM characters WHERE name = ?",
-                                (character,))
+            self.cursor.execute(
+                "SELECT id FROM characters WHERE name = ?", (character,)
+            )
             row = self.cursor.fetchone()
             if row:
                 character_ids.append((character, row[0], identity_info))
@@ -84,9 +85,8 @@ class MetadataInputting:
         return character_ids
 
     def insert_into_comic_characters(
-            self,
-            characters: list[tuple[str, int, Optional[str]]]
-            ) -> None:
+        self, characters: list[tuple[str, int, Optional[str]]]
+    ) -> None:
         for character in characters:
             _, character_id, identity_info = character
             identity_id = identity_info[1] if identity_info else None
@@ -97,9 +97,11 @@ class MetadataInputting:
                 VALUES
                 (?, ?, ?)
                 """,
-                (self.comic_id,
-                 character_id,
-                 identity_id,)
+                (
+                    self.comic_id,
+                    character_id,
+                    identity_id,
+                ),
             )
         self.conn.commit()
 
@@ -209,9 +211,10 @@ class MetadataInputting:
         self.cursor.execute(
             """
             UPDATE comics
-            SET file_path = (?) 
+            SET file_path = (?)
             WHERE id = (?)
-            """, (filepath, self.comic_id)
+            """,
+            (filepath, self.comic_id),
         )
         self.conn.commit()
 
