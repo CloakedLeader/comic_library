@@ -245,7 +245,7 @@ class MetadataProcessing:
     def create_date_string(self) -> str:
         return f"{self.raw_info.month}/{self.raw_info.year}"
 
-    def run(self) -> None | ComicInfo:
+    def run(self) -> ComicInfo:
         self.title_parsing()
 
         volume = self.volume_number_parsing()

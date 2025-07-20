@@ -6,7 +6,7 @@ from pydantic import BaseModel
 class ComicInfo(BaseModel):
     primary_key: str  #
     filepath: str
-    original_filename: str
+    original_filename: Optional[str] = None
     title: Optional[str] = None  #
     series: Optional[str] = None  #
     volume_num: Optional[int] = None  #
