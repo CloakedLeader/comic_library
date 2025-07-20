@@ -11,8 +11,10 @@ from PIL import Image
 
 
 class ImageExtraction:
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, output_dir: str, primary_key: str) -> None:
         self.filepath = path
+        self.output_folder = output_dir
+        self.primary_key = primary_key
         self.image_names: list[str] = self.get_namelist()
         self.cover_bytes: Optional[bytes] = None
 
@@ -64,14 +66,10 @@ class ImageExtraction:
             with zf.open(cover_file_name) as img_file:
                 self.cover_bytes = img_file.read()
 
-    def save_cover(self, out_dir: str, primary_key: str) -> tuple[str, str]:
+    def save_cover(self) -> tuple[str, str]:
         """
         Saves two copies of the same image with different sizes
         and suffixes to their filename.
-
-        Args:
-            primary_key: The primary key id of the comic from the database.
-            out_dir: The output directory.
 
         Returns:
             A tuple containing the file path of two images (smaller, bigger).
@@ -99,10 +97,12 @@ class ImageExtraction:
         file_dict: dict[str, tuple[bytes, str]] = {}
         for key, value in variants.items():
             if key == "thumbnail":
-                out_path_t = os.path.join(out_dir, f"{primary_key}_t.jpg")
+                out_path_t = os.path.join(self.output_folder,
+                                          f"{self.primary_key}_t.jpg")
                 file_dict["thumbnail"] = (value, out_path_t)
             elif key == "browser":
-                out_path_b = os.path.join(out_dir, f"{primary_key}_b.jpg")
+                out_path_b = os.path.join(self.output_folder,
+                                          f"{self.primary_key}_b.jpg")
                 file_dict["browser"] = (value, out_path_b)
 
         for _, (data, path) in file_dict.items():
@@ -144,3 +144,11 @@ class ImageExtraction:
             return next(iter(not_matching_files))
         else:
             return None
+
+    def run(self):
+        try:
+            self.extract_image_bytes()
+            self.save_cover()
+            print("[INFO] Cover saved!")
+        except Exception as e:
+            print(f"[ERROR] {e}")

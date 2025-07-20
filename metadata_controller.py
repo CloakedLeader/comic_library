@@ -14,6 +14,7 @@ from extract_meta_xml import MetadataExtraction
 from file_utils import convert_cbz, generate_uuid, get_ext
 from helper_classes import ComicInfo
 from metadata_cleaning import MetadataProcessing, PublisherNotKnown
+from cover_processing import ImageExtraction
 
 # from watchdog.observers import Observer
 
@@ -255,7 +256,6 @@ class MetadataController:
                         unknown_publisher = e.publisher_name
                         insert_new_publisher(unknown_publisher)
                         continue
-                print(cleaned_comic_info.model_dump())
                 missing_fields = [
                     k for k, v in cleaned_comic_info.model_dump().items() if v is None
                 ]
@@ -268,12 +268,17 @@ class MetadataController:
                         return None
                 print("[INFO Starting inputting data to the database")
                 inputter = MetadataInputting(cleaned_comic_info)
-                # try:
-                #     inputter.run()
-                # except Exception as e:
-                #     print(f"[Error] {e}")
-                #     return None
+                try:
+                    inputter.run()
+                except Exception as e:
+                    print(f"[Error] {e}")
+                    return None
                 print("[SUCCESS] Added all data to the database")
+                print("[INFO] Starting cover extraction")
+                image_proc = ImageExtraction(self.filepath,
+                                             "D://adams-comics//.covers",
+                                             self.primary_key)
+                image_proc.run()
                 break
             else:
                 # Call the entire tagging process.
@@ -282,17 +287,23 @@ class MetadataController:
                 pass
         for dirpath, dirnames, _ in os.walk("D://adams-comics"):
             for dirname in dirnames:
-                if str(dirname)[0] == publisher_int:
+                if str(dirname).startswith(str(publisher_int)):
                     dir_path = os.path.join(dirpath, dirname)
                     new_path = os.path.join(dir_path, new_name)
                     shutil.move(self.original_filepath, new_path)
+                    print(f"[INFO] Moved file to {dir_path}")
                     inputter.insert_filepath(new_path)
+                    print("[INFO] Inserted filepath to database")
                     inputter.conn.close()
                     break
 
 
+VALID_EXTENSIONS = {".cbz", ".cbr", ".zip"}
+
 for dirpath, dirnames, filenames in os.walk("D://adams-comics"):
     for filename in filenames:
+        if not any(filename.lower().endswith(ext) for ext in VALID_EXTENSIONS):
+            continue
         print(f"Starting to process {filename}")
         full_path = os.path.join(dirpath, filename)
         new_id = generate_uuid()
