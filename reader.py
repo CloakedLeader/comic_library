@@ -1,5 +1,4 @@
 import os
-import sys
 import zipfile
 from collections import OrderedDict
 from functools import partial
@@ -9,7 +8,6 @@ from PIL import Image
 from PySide6.QtCore import Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import (
-    QApplication,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -21,8 +19,8 @@ from PySide6.QtWidgets import (
 
 # from metadata_gui_panel import MetadataDialog
 from file_utils import get_name
-
-
+from gui_repo_worker import RepoWorker
+from helper_classes import GUIComicInfo
 class ComicError(Exception):
     """Base exception for Comic-related issues."""
 
@@ -37,10 +35,13 @@ class ImageLoadError(ComicError):
 
 class Comic:
 
-    def __init__(self, filepath: str, max_cache: int = 10) -> None:
-        self.path = filepath
-        self.filename = get_name(filepath)
-        self.zip = zipfile.ZipFile(filepath, "r")
+    def __init__(self,
+                 comic_info: GUIComicInfo,
+                 start_index: int = 0,
+                 max_cache: int = 10) -> None:
+        self.path = comic_info.filepath
+        self.filename = get_name(comic_info.filepath)
+        self.zip = zipfile.ZipFile(comic_info.filepath, "r")
         self.image_names = sorted(
             name
             for name in self.zip.namelist()
@@ -49,10 +50,11 @@ class Comic:
         if not self.image_names:
             raise ComicError("No images found in the file.")
         self.total_pages = len(self.image_names)
-        self.size = os.path.getsize(filepath)
+        self.size = os.path.getsize(comic_info.filepath)
         self.cache: OrderedDict[str, bytes] = OrderedDict()
         self.max_cache = max_cache
-        self.current_index = 0
+        self.current_index: int = start_index
+        self.id = comic_info.primary_id
 
     def get_image_data(self, index: int) -> bytes:
         if index < 0 or index >= self.total_pages:
@@ -118,10 +120,12 @@ class ImagePreloader(QThread):
 
 
 class SimpleReader(QMainWindow):
+    closed = Signal(str, int)
+
     def __init__(self, comic: Comic):
         super().__init__()
         self.comic = comic
-        self.current_index = 0
+        self.current_index: int = comic.current_index
         self._threads: list[ImagePreloader] = []
 
         self.setWindowTitle("Comic Reader")
@@ -194,7 +198,7 @@ class SimpleReader(QMainWindow):
         if index + 1 < self.comic.total_pages:
             self.preload_page(index + 1)
 
-    def cleanup_thread(self, thread):
+    def cleanup_thread(self, thread: ImagePreloader):
         if thread in self._threads:
             self._threads.remove(thread)
             thread.deleteLater()
@@ -257,13 +261,6 @@ class SimpleReader(QMainWindow):
                 self.hide_menu_timer.start(1500)
         super().mouseMoveEvent(event)
 
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    reader = Comic(
-        r"""D://comic_library//comic_examples//Juggernaut -
-    No Stopping Now TPB (March 2021).cbz"""
-    )
-    window = SimpleReader(reader)
-    window.showMaximized()
-    sys.exit(app.exec())
+    def closeEvent(self, event) -> None:
+        self.closed.emit(self.comic.id, self.current_index)
+        super().closeEvent(event)

@@ -1,6 +1,6 @@
 from reader import Comic, SimpleReader
-
 from helper_classes import GUIComicInfo
+from gui_repo_worker import RepoWorker
 
 
 class ReadingController:
@@ -21,6 +21,7 @@ class ReadingController:
             comic: Dictionary containing comic information
         including 'filepath' key.
         """
+        self.comic = comic
         self.filepath = comic.filepath
         self.open_windows: list[SimpleReader] = []
 
@@ -32,10 +33,25 @@ class ReadingController:
         displays the reader window and tracks it in the open window list for
         management.
         """
-        comic_data = Comic(self.filepath)
+        with RepoWorker("D://adams-comics//.covers") as pager:
+            val = pager.get_recent_page(self.comic.primary_id)
+        if val:
+            comic_data = Comic(self.comic, start_index=val)
+        else:
+            comic_data = Comic(self.comic, start_index=0)
         comic_reader = SimpleReader(comic_data)
+        comic_reader.closed.connect(self.save_current_page)
         comic_reader.show()
         self.open_windows.append(comic_reader)
+
+    def save_current_page(self, primary_id: str, page: int) -> None:
+        if page == 0:
+            return None
+        # elif page == self.comic.total_pages:
+            # Remove row from reading_progress and mark as finished.
+            # pass
+        with RepoWorker("D://adams-comics//.covers") as saver:
+            saver.save_last_page(primary_id, page)
 
     def close_all_windows(self) -> None:
         """

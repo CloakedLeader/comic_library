@@ -27,8 +27,7 @@ class GUIComicInfo(BaseModel):
     primary_id: str
     title: str
     filepath: str
-    cover_link: Optional[str] = None
-    cover_path: Optional[str] = None
+    cover_path: str
 
 
 class RSSComicInfo(BaseModel):
