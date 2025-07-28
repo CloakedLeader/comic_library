@@ -27,7 +27,7 @@ from reader_controller import ReadingController
 from rss_controller import RSSController
 from rss_repository import RSSRepository
 from gui_repo_worker import RepoWorker
-from helper_classes import GUIComicInfo
+from helper_classes import GUIComicInfo, RSSComicInfo
 
 
 class ClickableComicWidget(QWidget):
@@ -50,7 +50,6 @@ class ClickableComicWidget(QWidget):
         pixmap: QPixmap,
         img_width=20,
         img_height=20,
-        parent: QWidget | None = None,
     ) -> None:
         """
         Intialise the clickable comic widget.
@@ -62,7 +61,7 @@ class ClickableComicWidget(QWidget):
             img_height: Height to scale the cover image to.
             Parent: Parent widget to embed it in, optional.
         """
-        super().__init__(parent)
+        super().__init__()
 
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignCenter)
@@ -173,9 +172,8 @@ class HomePage(QMainWindow):
 
         content_area = QWidget()
         content_layout = QVBoxLayout(content_area)
-
-        with RepoWorker("D://adams-comics//.covers") as repo:
-            continue_list, review_list = repo.run()
+        with RepoWorker("D://adams-comics//.covers") as repo_worker:
+            continue_list, review_list = repo_worker.run()
 
         stats_bar = self.create_stats_bar()
         stats_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
@@ -183,12 +181,12 @@ class HomePage(QMainWindow):
         continue_reading = self.create_continue_reading_area(continue_list)
         # recommended = self.create_recommended_reading_area()
         need_review = self.create_review_area(review_list)
-        # rss = self.create_rss_area(12)
+        rss = self.create_rss_area(12)
 
         content_layout.addWidget(stats_bar, stretch=1)
         content_layout.addWidget(continue_reading, stretch=3)
         content_layout.addWidget(need_review, stretch=3)
-        # content_layout.addWidget(rss, stretch=3)
+        content_layout.addWidget(rss, stretch=3)
         body_layout.addWidget(content_area, stretch=1)
 
         self.setCentralWidget(body_widget)
@@ -222,10 +220,9 @@ class HomePage(QMainWindow):
 
     def create_scroll_area(
         self,
-        list_of_dicts: list[GUIComicInfo],
+        list_of_info: list[GUIComicInfo | RSSComicInfo],
         header: str,
         upon_clicked: Callable,
-        links: bool = False,
     ) -> QScrollArea:
         """
         Create a horizontal scroll area populated with comic widgets.
@@ -262,11 +259,10 @@ class HomePage(QMainWindow):
                              font-weight: bold; padding: 10px;"""
         )
 
-        for comic in list_of_dicts:
+        for comic in list_of_info:
 
-            if links and comic.cover_link is not None:
-                pixmap = self.load_pixmap_from_url(comic.cover_link)
-
+            if isinstance(comic, RSSComicInfo):
+                pixmap = self.load_pixmap_from_url(comic.cover_url)
             else:
                 pixmap = QPixmap(comic.cover_path)
 
@@ -287,7 +283,7 @@ class HomePage(QMainWindow):
         scroll_area.setWidget(final_widget)
         return scroll_area
 
-    def open_reader(self, comic: dict) -> None:
+    def open_reader(self, comic: GUIComicInfo) -> None:
         """
         Open a comic reader for the specified comic.
 
@@ -298,8 +294,8 @@ class HomePage(QMainWindow):
         cont = ReadingController(comic)
         cont.read_comic()
 
-    def print_hi(self, comic_dict: GUIComicInfo) -> None:
-        print("Hi " + comic_dict.title + "!")
+    def print_hi(self, comic_info: GUIComicInfo) -> None:
+        print("Hi " + comic_info.title + "!")
 
     def create_continue_reading_area(
         self, list_of_comics_marked_as_read: list[GUIComicInfo]
@@ -364,7 +360,6 @@ class HomePage(QMainWindow):
         # )
         return self.create_scroll_area(
             recent_comics_list,
-            links=True,
             header="GetComics RSS Feed",
             upon_clicked=self.print_hi,  # self.rss_controller.handle_rss_comic_clicked,
         )

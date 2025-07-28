@@ -78,3 +78,25 @@ class RepoWorker:
         review_info = self.create_basemodel(review_ids)
 
         return continue_info, review_info
+
+    def get_recent_page(self, primary_key: str) -> None | int:
+        self.cursor.execute(
+            "SELECT last_page_read FROM reading_progress WHERE comic_id = ?",
+            (primary_key,))
+        row = self.cursor.fetchone()
+        return row[0] if row else None
+
+    def save_last_page(self, primary_key: str, last_page: int) -> None:
+        if self.get_recent_page(primary_key):
+            self.cursor.execute(
+                "UPDATE reading_progress SET last_page_read = ? WHERE comic_id = ?",
+                (last_page, primary_key)
+            )
+        else:
+            self.cursor.execute(
+                """
+                INSERT INTO reading_progress (comic_id, last_page_read, is_finished)
+                VALUES (?, ?, ?)
+                """,
+                (primary_key, last_page, 0)
+            )

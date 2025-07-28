@@ -80,7 +80,7 @@ class RSSRepository:
         # Need to add extra data here eventually, maybe the download link
         self.cursor.execute(
             """
-            SELECT title, cover_url
+            SELECT url, title, cover_url
             FROM rss_entries
             WHERE pub_epoch IS NOT NULL
             ORDER BY pub_epoch DESC

@@ -1,5 +1,6 @@
 from rss import rss_scrape
 from rss_repository import RSSRepository
+from helper_classes import RSSComicInfo
 
 
 class RSSController:
@@ -30,7 +31,7 @@ class RSSController:
         self.repo.delete_old_entries()
         self.repo.insert_entries(self.rss_results)
 
-    def get_recent_comic_info(self, number_of_entries: int) -> list[dict[str, str]]:
+    def get_recent_comic_info(self, number_of_entries: int) -> list[RSSComicInfo]:
         """
         Retrieves recent comic information from the database.
 
@@ -42,11 +43,12 @@ class RSSController:
         """
         entries = self.repo.get_recent_entries(limit=number_of_entries)
         output = []
-        for title, cover_url in entries:
-            output.append({"title": title, "cover_link": cover_url})
+        for url, title, cover_url in entries:
+            output.append(
+                RSSComicInfo(url=url, title=title, cover_url=cover_url))
         return output
 
-    def run(self, num: int) -> list[dict[str, str]]:
+    def run(self, num: int) -> list[RSSComicInfo]:
         """
         Orchestrates the update and retrieval process.
 
