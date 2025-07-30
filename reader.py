@@ -16,11 +16,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-
 # from metadata_gui_panel import MetadataDialog
 from file_utils import get_name
-from gui_repo_worker import RepoWorker
 from helper_classes import GUIComicInfo
+
+
 class ComicError(Exception):
     """Base exception for Comic-related issues."""
 
@@ -127,6 +127,7 @@ class SimpleReader(QMainWindow):
         self.comic = comic
         self.current_index: int = comic.current_index
         self._threads: list[ImagePreloader] = []
+        self.image_cache: dict[int,  QPixmap] = {}
 
         self.setWindowTitle("Comic Reader")
 
@@ -169,34 +170,61 @@ class SimpleReader(QMainWindow):
         self.current_toolbar = self.navigation_toolbar
 
         self.image_label.setFocusPolicy(Qt.StrongFocus)
-
         self.setCentralWidget(self.image_label)
-        self.image_label.setFocusPolicy(Qt.StrongFocus)
 
-        self.preload_page(self.current_index)
+        self.display_current_page()
 
-    def preload_page(self, index: int) -> None:
-        try:
-            thread = ImagePreloader(self.comic, index)
-            thread.image_ready.connect(self.display_page)
-            thread.finished.connect(lambda: self.cleanup_thread(thread))
-            self._threads.append(thread)
-            thread.start()
-        except PageIndexError as e:
-            print(f"Invalid page index: {e}")
+    def preload_page(self, index: int, show_when_ready: bool = False) -> None:
+        if index < 0 or index >= self.comic.total_pages:
+            return
+        if index in self.image_cache:
+            if show_when_ready and index == self.current_index:
+                self.render_pixmap(index, self.image_cache[index])
+                return
+        thread = ImagePreloader(self.comic, index)
+        thread.image_ready.connect(
+            lambda idx, pixmap: self.handle_preloaded_page(idx, pixmap, show_when_ready))
+        thread.finished.connect(lambda: self.cleanup_thread(thread))
+        self._threads.append(thread)
+        thread.start()
 
-    def display_page(self, index: int, pixmap: QPixmap) -> None:
-        if index != self.current_index:
-            raise PageIndexError("Reader and page loader not in sync")
+    def display_current_page(self) -> None:
+        index = self.current_index
+        print(index)
+        if index in self.image_cache:
+            pixmap = self.image_cache[index]
+            self.render_pixmap(index, pixmap)
+        else:
+            self.preload_page(index, show_when_ready=True)
 
+        # scaled = pixmap.scaledToHeight(
+        #     self.image_label.height(), Qt.SmoothTransformation
+        # )
+        # self.image_label.setPixmap(scaled)
+        # self.page_label.setText(f"Page {index + 1} / {self.comic.total_pages}")
+
+        # if index + 1 < self.comic.total_pages:
+        #     self.preload_page(index + 1)
+    def handle_preloaded_page(self, index: int, pixmap: QPixmap, show: bool) -> None:
+        self.image_cache[index] = pixmap
+
+        if show and index == self.current_index:
+            self.render_pixmap(index, pixmap)
+
+    def render_pixmap(self, index: int, pixmap: QPixmap) -> None:
         scaled = pixmap.scaledToHeight(
             self.image_label.height(), Qt.SmoothTransformation
         )
         self.image_label.setPixmap(scaled)
         self.page_label.setText(f"Page {index + 1} / {self.comic.total_pages}")
 
-        if index + 1 < self.comic.total_pages:
-            self.preload_page(index + 1)
+        self.preload_surrounding_pages()
+
+    def preload_surrounding_pages(self) -> None:
+        for offset in [-2, -1, 1, 2]:
+            index = self.current_index + offset
+            if index not in self.image_cache:
+                self.preload_page(index)
 
     def cleanup_thread(self, thread: ImagePreloader):
         if thread in self._threads:
@@ -234,12 +262,12 @@ class SimpleReader(QMainWindow):
     def next_page(self):
         if self.current_index + 1 < self.comic.total_pages:
             self.current_index += 1
-            self.preload_page(self.current_index)
+            self.display_current_page()
 
     def prev_page(self):
         if self.current_index > 0:
             self.current_index -= 1
-            self.preload_page(self.current_index)
+            self.display_current_page()
 
     def keyPressEvent(self, event):
         key = event.key()

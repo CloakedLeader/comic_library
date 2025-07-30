@@ -100,3 +100,24 @@ class RepoWorker:
                 """,
                 (primary_key, last_page, 0)
             )
+
+    def get_folder_info(self, pub_int: int) -> list[GUIComicInfo]:
+        info = []
+        self.cursor.execute(
+            """SELECT id, title, series, file_path
+            FROM comics
+            WHERE publisher_id = ?
+            ORDER BY volume_id ASC
+            """,
+            (pub_int,)
+        )
+        rows = self.cursor.fetchall()
+        for row in rows:
+            gui_info = GUIComicInfo(
+                primary_id=row[0],
+                title=f"{row[1]}: {row[2]}",
+                filepath=row[3],
+                cover_path=f"{self.cover_folder}//{row[0]}_b.jpg"
+            )
+            info.append(gui_info)
+        return info

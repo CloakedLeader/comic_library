@@ -28,6 +28,7 @@ from rss_controller import RSSController
 from rss_repository import RSSRepository
 from gui_repo_worker import RepoWorker
 from helper_classes import GUIComicInfo, RSSComicInfo
+from comic_grid_view import ComicGridView
 
 
 class ClickableComicWidget(QWidget):
@@ -128,6 +129,8 @@ class HomePage(QMainWindow):
         super().__init__()
         self.setWindowTitle("Comic Library Homepage")
 
+        self.comic_windows = []
+
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu("File")
         file_menu.addAction("Browse..")
@@ -162,6 +165,7 @@ class HomePage(QMainWindow):
         self.file_tree.setRootIndex(
             self.file_model.index(os.path.expanduser("D://adams-comics"))
         )
+        self.file_tree.clicked.connect(self.on_folder_select)
         self.file_tree.setMaximumWidth(200)
         self.file_tree.setHeaderHidden(True)
 
@@ -446,6 +450,23 @@ class HomePage(QMainWindow):
         final_layout.addWidget(stats)
 
         return final_widget
+
+    def on_folder_select(self, index):
+        folder_path = self.file_model.fileName(index)
+        pub_id = folder_path[0]
+        if pub_id.isdigit():
+            pub_id = int(pub_id)
+            if pub_id != 0:
+                with RepoWorker("D://adams-comics//.covers") as folder_info_getter:
+                    grid_view_data = folder_info_getter.get_folder_info(pub_id)
+
+                    window = QMainWindow()
+                    window.setWindowTitle(f"Comics in {folder_path}")
+                    grid_view = ComicGridView(grid_view_data)
+                    window.setCentralWidget(grid_view)
+                    window.show()
+                    self.comic_windows
+                    self.comic_windows.append(window)
 
     def update_status(self, message: str) -> None:
         """
