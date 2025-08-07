@@ -1,6 +1,6 @@
-from reader import Comic, SimpleReader
-from helper_classes import GUIComicInfo
 from gui_repo_worker import RepoWorker
+from helper_classes import GUIComicInfo
+from reader import Comic, SimpleReader
 
 
 class ReadingController:
@@ -48,8 +48,8 @@ class ReadingController:
         if page == 0:
             return None
         # elif page == self.comic.total_pages:
-            # Remove row from reading_progress and mark as finished.
-            # pass
+        # Remove row from reading_progress and mark as finished.
+        # pass
         with RepoWorker("D://adams-comics//.covers") as saver:
             saver.save_last_page(primary_id, page)
 

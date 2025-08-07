@@ -9,12 +9,12 @@ from typing import Optional
 from defusedxml import ElementTree as ET
 from watchdog.events import FileSystemEventHandler
 
+from cover_processing import ImageExtraction
 from db_input import MetadataInputting, insert_new_publisher
 from extract_meta_xml import MetadataExtraction
 from file_utils import convert_cbz, generate_uuid, get_ext
 from helper_classes import ComicInfo
 from metadata_cleaning import MetadataProcessing, PublisherNotKnown
-from cover_processing import ImageExtraction
 
 # from watchdog.observers import Observer
 
@@ -275,9 +275,9 @@ class MetadataController:
                     return None
                 print("[SUCCESS] Added all data to the database")
                 print("[INFO] Starting cover extraction")
-                image_proc = ImageExtraction(self.filepath,
-                                             "D://adams-comics//.covers",
-                                             self.primary_key)
+                image_proc = ImageExtraction(
+                    self.filepath, "D://adams-comics//.covers", self.primary_key
+                )
                 image_proc.run()
                 break
             else:
@@ -299,9 +299,17 @@ class MetadataController:
 
 
 VALID_EXTENSIONS = {".cbz", ".cbr", ".zip"}
-EXCLUDE = {"0 - Downloads", "1 - Marvel Comics", "2 - DC Comics",
-           "3 - Image Comics", "4 - Dark Horse Comics", "5 - IDW Comics",
-           "6 - Valiant Comics", "7 - 2000AD Comics", "8 - Urban Comics"}
+EXCLUDE = {
+    "0 - Downloads",
+    "1 - Marvel Comics",
+    "2 - DC Comics",
+    "3 - Image Comics",
+    "4 - Dark Horse Comics",
+    "5 - IDW Comics",
+    "6 - Valiant Comics",
+    "7 - 2000AD Comics",
+    "8 - Urban Comics",
+}
 for dirpath, dirnames, filenames in os.walk("D://adams-comics"):
     dirnames[:] = [d for d in dirnames if d not in EXCLUDE]
     for filename in filenames:

@@ -97,12 +97,14 @@ class ImageExtraction:
         file_dict: dict[str, tuple[bytes, str]] = {}
         for key, value in variants.items():
             if key == "thumbnail":
-                out_path_t = os.path.join(self.output_folder,
-                                          f"{self.primary_key}_t.jpg")
+                out_path_t = os.path.join(
+                    self.output_folder, f"{self.primary_key}_t.jpg"
+                )
                 file_dict["thumbnail"] = (value, out_path_t)
             elif key == "browser":
-                out_path_b = os.path.join(self.output_folder,
-                                          f"{self.primary_key}_b.jpg")
+                out_path_b = os.path.join(
+                    self.output_folder, f"{self.primary_key}_b.jpg"
+                )
                 file_dict["browser"] = (value, out_path_b)
 
         for _, (data, path) in file_dict.items():

@@ -12,7 +12,8 @@ cursor.execute(
     VALUES
     (?, ?, ?)
     """,
-    ("a8a55710-d1b2-45ac-8bd6-e664696e9f1a", 0, 0))
+    ("a8a55710-d1b2-45ac-8bd6-e664696e9f1a", 0, 0),
+)
 
 conn.commit()
 conn.close()
