@@ -2,7 +2,7 @@ import os
 import os.path
 import sys
 from io import BytesIO
-from typing import Callable
+from typing import Callable, Optional
 
 import requests
 from PySide6.QtCore import Qt, Signal
@@ -130,6 +130,7 @@ class HomePage(QMainWindow):
         system view, content area and RSS feed integration.
         """
         super().__init__()
+        self.metadata_panel: Optional[MetadataPanel] = None
         self.setWindowTitle("Comic Library Homepage")
 
         menu_bar = self.menuBar()
@@ -214,7 +215,10 @@ class HomePage(QMainWindow):
         lay = QVBoxLayout(container)
         lay.addWidget(self.splitter)
         lay.setContentsMargins(0, 0, 0, 0)
-        self.splitter.setSizes([150, 650])
+        self.splitter.setSizes([100, 650])
+
+        self.browse_splitter = QSplitter()
+        self.stack.addWidget(self.browse_splitter)
 
         self.setCentralWidget(container)
 
@@ -482,27 +486,54 @@ class HomePage(QMainWindow):
     def on_folder_select(self, index):
         folder_path = self.file_model.fileName(index)
         pub_id = folder_path[0]
+
         if pub_id.isdigit():
             pub_id = int(pub_id)
             if pub_id != 0:
                 with RepoWorker("D://adams-comics//.covers") as folder_info_getter:
                     grid_view_data = folder_info_getter.get_folder_info(pub_id)
 
+                    if hasattr(self, "grid_view") and self.grid_view is not None:
+                        space = self.browse_splitter.indexOf(self.grid_view)
+                        if space != -1:
+                            widget = self.browse_splitter.widget(space)
+                            widget.setParent(None)
+                            widget.deleteLater()
+
                     self.grid_view = ComicGridView(grid_view_data)
-                    self.grid_layout = QHBoxLayout()
                     self.grid_view.metadata_requested.connect(self.show_metadata_panel)
-                    self.grid_layout.addWidget(self.grid_view)
-                    container = QWidget()
-                    container.setLayout(self.grid_layout)
-                    self.stack.addWidget(container)
-                    self.stack.setCurrentWidget(container)
+
+                    if self.browse_splitter.count() == 0:
+                        self.browse_splitter.addWidget(self.grid_view)
+                    else:
+                        self.browse_splitter.insertWidget(0, self.grid_view)
+                    self.stack.setCurrentWidget(self.browse_splitter)
 
     def show_metadata_panel(self, comic_info: GUIComicInfo):
         with RepoWorker("D://adams-comics//.covers") as info_getter:
             comic_metadata = info_getter.get_complete_metadata(comic_info.primary_id)
+
+        if hasattr(self, "metadata_panel") and self.metadata_panel is not None:
+            index = self.browse_splitter.indexOf(self.metadata_panel)
+            if index != -1:
+                old = self.browse_splitter.widget(index)
+                old.setParent(None)
+                old.deleteLater()
+
         self.metadata_panel = MetadataPanel(comic_metadata)
-        self.toggle_sidebar()
-        self.grid_layout.addWidget(self.metadata_panel)
+
+        if self.browse_splitter.count() == 1:
+            self.browse_splitter.addWidget(self.metadata_panel)
+        elif self.browse_splitter.count() == 2:
+            self.browse_splitter.insertWidget(1, self.metadata_panel)
+
+        total = sum(self.browse_splitter.sizes())
+        self.browse_splitter.setSizes([int(total * 0.8), int(total * 0.2)])
+
+        file_tree_sizes = self.splitter.sizes()
+        if len(file_tree_sizes) == 2:
+            total = file_tree_sizes[0] + file_tree_sizes[1]
+            self.splitter.setSizes([0, total])
 
     def toggle_sidebar(self):
         sizes = self.splitter.sizes()

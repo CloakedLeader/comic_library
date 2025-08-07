@@ -3,12 +3,14 @@ import re
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
+    QCheckBox,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QMainWindow,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -138,16 +140,22 @@ class MetadataPanel(QWidget):
     def __init__(self, comic_metadata: MetadataInfo):
         super().__init__()
         layout = QVBoxLayout()
-        panel = QWidget()
-        panel.setLayout(layout)
+        layout.setSpacing(10)
+        layout.setContentsMargins(10, 10, 10, 10)
 
         quick_icons = QWidget()
-        quick_icons_layout = QHBoxLayout()
-        quick_icons.setLayout(quick_icons_layout)
-        if comic_metadata.reviews:
-            quick_icons_layout.addWidget(QLabel("Read"))
-        else:
-            quick_icons_layout.addWidget(QLabel("Unread"))
+        quick_icons_layout = QHBoxLayout(quick_icons)
+        quick_icons_layout.setContentsMargins(10, 10, 10, 10)
+        quick_icons_layout.setSpacing(10)
+
+        read_status = QLabel("Read" if comic_metadata.reviews else "Unread")
+        read_status.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        quick_icons_layout.addWidget(read_status)
+
+        liked_box = QCheckBox("Liked")
+        liked_box.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        quick_icons_layout.addWidget(liked_box)
+
         rating = int(comic_metadata.rating / 2)
         full_star = "★"
         empty_star = "☆"
@@ -159,17 +167,25 @@ class MetadataPanel(QWidget):
             else:
                 stars += f"""
                 <span style="color: lightgray; font-size: 20pt;">{empty_star}</span>"""
-        quick_icons_layout.addWidget(QLabel(stars))
+        stars_label = QLabel(stars)
+        stars_label.setTextFormat(Qt.RichText)
+        stars_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        quick_icons_layout.addWidget(stars_label)
+
+        layout.addWidget(quick_icons)
 
         display_text = f"#{comic_metadata.volume_num} - {comic_metadata.name}"
         title_widget = QLabel(display_text)
+        title_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        layout.addWidget(title_widget)
 
-        formatted_desc = comic_metadata.description
+        formatted_desc = comic_metadata.description or ""
         clean_desc = re.sub(r"\s+", " ", formatted_desc).strip()
         desc_widget = QLabel(clean_desc)
+        desc_widget.setWordWrap(True)
+        desc_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-        layout.addWidget(quick_icons)
-        layout.addWidget(title_widget)
         layout.addWidget(desc_widget)
 
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setLayout(layout)
