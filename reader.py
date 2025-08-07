@@ -18,7 +18,9 @@ from PySide6.QtWidgets import (
 
 # from metadata_gui_panel import MetadataDialog
 from file_utils import get_name
+from gui_repo_worker import RepoWorker
 from helper_classes import GUIComicInfo
+from metadata_gui_panel import MetadataDialog
 
 
 class ComicError(Exception):
@@ -35,10 +37,9 @@ class ImageLoadError(ComicError):
 
 class Comic:
 
-    def __init__(self,
-                 comic_info: GUIComicInfo,
-                 start_index: int = 0,
-                 max_cache: int = 10) -> None:
+    def __init__(
+        self, comic_info: GUIComicInfo, start_index: int = 0, max_cache: int = 10
+    ) -> None:
         self.path = comic_info.filepath
         self.filename = get_name(comic_info.filepath)
         self.zip = zipfile.ZipFile(comic_info.filepath, "r")
@@ -55,6 +56,7 @@ class Comic:
         self.max_cache = max_cache
         self.current_index: int = start_index
         self.id = comic_info.primary_id
+        self.info = comic_info
 
     def get_image_data(self, index: int) -> bytes:
         if index < 0 or index >= self.total_pages:
@@ -127,7 +129,7 @@ class SimpleReader(QMainWindow):
         self.comic = comic
         self.current_index: int = comic.current_index
         self._threads: list[ImagePreloader] = []
-        self.image_cache: dict[int,  QPixmap] = {}
+        self.image_cache: dict[int, QPixmap] = {}
 
         self.setWindowTitle("Comic Reader")
 
@@ -183,7 +185,8 @@ class SimpleReader(QMainWindow):
                 return
         thread = ImagePreloader(self.comic, index)
         thread.image_ready.connect(
-            lambda idx, pixmap: self.handle_preloaded_page(idx, pixmap, show_when_ready))
+            lambda idx, pixmap: self.handle_preloaded_page(idx, pixmap, show_when_ready)
+        )
         thread.finished.connect(lambda: self.cleanup_thread(thread))
         self._threads.append(thread)
         thread.start()
@@ -205,6 +208,7 @@ class SimpleReader(QMainWindow):
 
         # if index + 1 < self.comic.total_pages:
         #     self.preload_page(index + 1)
+
     def handle_preloaded_page(self, index: int, pixmap: QPixmap, show: bool) -> None:
         self.image_cache[index] = pixmap
 
@@ -252,9 +256,8 @@ class SimpleReader(QMainWindow):
         self.switch_toolbar(self.comments_toolbar)
 
     def open_metadata_panel(self):
-        print("Not yet implemented.")
-        # dialog = MetadataDialog(self)
-        # dialog.exec()
+        self.metadata_popup = MetadataDialog(self.comic.info)
+        self.metadata_popup.show()
 
     def resizeEvent(self, event):
         self.preload_page(self.current_index)
@@ -290,5 +293,10 @@ class SimpleReader(QMainWindow):
         super().mouseMoveEvent(event)
 
     def closeEvent(self, event) -> None:
-        self.closed.emit(self.comic.id, self.current_index)
-        super().closeEvent(event)
+        self.save_progress()
+        event.accept()
+
+    def save_progress(self):
+        page = self.current_index
+        with RepoWorker("D://adams-comics//.covers") as page_saver:
+            page_saver.save_last_page(self.comic.id, page)

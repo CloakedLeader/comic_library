@@ -16,6 +16,8 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QScrollArea,
     QSizePolicy,
+    QSplitter,
+    QStackedWidget,
     QStatusBar,
     QToolBar,
     QTreeView,
@@ -23,12 +25,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from comic_grid_view import ComicGridView
+from gui_repo_worker import RepoWorker
+from helper_classes import GUIComicInfo, RSSComicInfo
 from reader_controller import ReadingController
 from rss_controller import RSSController
 from rss_repository import RSSRepository
-from gui_repo_worker import RepoWorker
-from helper_classes import GUIComicInfo, RSSComicInfo
-from comic_grid_view import ComicGridView
 
 
 class ClickableComicWidget(QWidget):
@@ -129,8 +131,6 @@ class HomePage(QMainWindow):
         super().__init__()
         self.setWindowTitle("Comic Library Homepage")
 
-        self.comic_windows = []
-
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu("File")
         file_menu.addAction("Browse..")
@@ -139,8 +139,16 @@ class HomePage(QMainWindow):
 
         toolbar = QToolBar("Metadata")
         self.addToolBar(toolbar)
+        self.home_action = toolbar.addAction("Home")
+        self.home_action.triggered.connect(self.go_home)
+        self.home_action.setShortcut("Ctrl+H")
+        self.home_action.setToolTip("Go back to Homescreen")
         toolbar.addAction("Edit")
         toolbar.addAction("Retag")
+        self.toggle_action = toolbar.addAction("Toggle Sidebar")
+        self.toggle_action.triggered.connect(self.toggle_sidebar)
+        self.toggle_action.setShortcut("Ctrl+B")
+        self.toggle_action.setToolTip("Toggle file tree sidebar")
 
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -166,16 +174,22 @@ class HomePage(QMainWindow):
             self.file_model.index(os.path.expanduser("D://adams-comics"))
         )
         self.file_tree.clicked.connect(self.on_folder_select)
-        self.file_tree.setMaximumWidth(200)
         self.file_tree.setHeaderHidden(True)
 
         for i in range(1, self.file_model.columnCount()):
             self.file_tree.hideColumn(i)
 
-        body_layout.addWidget(self.file_tree, stretch=1)
+        left_widget = QWidget()
+        left_layout = QVBoxLayout()
+        left_widget.setLayout(left_layout)
+        random_box = QLabel("This is temporary.")
+        left_layout.addWidget(self.file_tree, 1)
+        left_layout.addWidget(random_box, 1)
+        self.splitter = QSplitter()
+        self.splitter.addWidget(left_widget)
 
-        content_area = QWidget()
-        content_layout = QVBoxLayout(content_area)
+        self.content_area = QWidget()
+        content_layout = QVBoxLayout(self.content_area)
         with RepoWorker("D://adams-comics//.covers") as repo_worker:
             continue_list, review_list = repo_worker.run()
 
@@ -191,9 +205,17 @@ class HomePage(QMainWindow):
         content_layout.addWidget(continue_reading, stretch=3)
         content_layout.addWidget(need_review, stretch=3)
         content_layout.addWidget(rss, stretch=3)
-        body_layout.addWidget(content_area, stretch=1)
 
-        self.setCentralWidget(body_widget)
+        self.stack = QStackedWidget()
+        self.stack.addWidget(self.content_area)
+        self.splitter.addWidget(self.stack)
+        container = QWidget()
+        lay = QVBoxLayout(container)
+        lay.addWidget(self.splitter)
+        lay.setContentsMargins(0, 0, 0, 0)
+        self.splitter.setSizes([150, 650])
+
+        self.setCentralWidget(container)
 
     def load_pixmap_from_url(self, url: str) -> QPixmap:
         """
@@ -332,8 +354,9 @@ class HomePage(QMainWindow):
             upon_clicked=self.open_reader,
         )
 
-    def create_review_area(self, list_of_unreviewed_comics: list[GUIComicInfo]
-                           ) -> QScrollArea:
+    def create_review_area(
+        self, list_of_unreviewed_comics: list[GUIComicInfo]
+    ) -> QScrollArea:
         """
         Creates a scroll area for comics marked as requiring
         review.
@@ -460,13 +483,21 @@ class HomePage(QMainWindow):
                 with RepoWorker("D://adams-comics//.covers") as folder_info_getter:
                     grid_view_data = folder_info_getter.get_folder_info(pub_id)
 
-                    window = QMainWindow()
-                    window.setWindowTitle(f"Comics in {folder_path}")
-                    grid_view = ComicGridView(grid_view_data)
-                    window.setCentralWidget(grid_view)
-                    window.show()
-                    self.comic_windows
-                    self.comic_windows.append(window)
+                    self.grid_view = ComicGridView(grid_view_data)
+                    self.stack.addWidget(self.grid_view)
+                    self.stack.setCurrentWidget(self.grid_view)
+
+    def toggle_sidebar(self):
+        sizes = self.splitter.sizes()
+        if sizes[0] > 0:
+            self.sidebar_width = sizes[0]
+            self.splitter.setSizes([0, sizes[1] + sizes[0]])
+        else:
+            previous = getattr(self, "sidebar_width", 150)
+            self.splitter.setSizes([previous, sizes[1]])
+
+    def go_home(self):
+        self.stack.setCurrentWidget(self.content_area)
 
     def update_status(self, message: str) -> None:
         """

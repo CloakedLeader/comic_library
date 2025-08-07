@@ -1,6 +1,6 @@
+from helper_classes import RSSComicInfo
 from rss import rss_scrape
 from rss_repository import RSSRepository
-from helper_classes import RSSComicInfo
 
 
 class RSSController:
@@ -44,8 +44,7 @@ class RSSController:
         entries = self.repo.get_recent_entries(limit=number_of_entries)
         output = []
         for url, title, cover_url in entries:
-            output.append(
-                RSSComicInfo(url=url, title=title, cover_url=cover_url))
+            output.append(RSSComicInfo(url=url, title=title, cover_url=cover_url))
         return output
 
     def run(self, num: int) -> list[RSSComicInfo]:

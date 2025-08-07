@@ -69,7 +69,7 @@ class MetadataInputting:
         if self.clean_info.characters is None:
             raise ValueError("characters cannot be empty")
         for character in self.clean_info.characters:
-            identity_info = self.find_identity(character)
+            # identity_info = self.find_identity(character)
             self.cursor.execute(
                 "INSERT OR IGNORE INTO characters (name) VALUES (?)", (character,)
             )
@@ -78,7 +78,7 @@ class MetadataInputting:
             )
             row = self.cursor.fetchone()
             if row:
-                character_ids.append((character, row[0], identity_info))
+                character_ids.append((character, int(row[0])))
         self.conn.commit()
         return character_ids
 

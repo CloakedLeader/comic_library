@@ -190,10 +190,12 @@ class MetadataProcessing:
             collection_title = rest_title
 
         if issue_number is None:
-            self.title_info["title"] = self.raw_info.title
-            self.title_info["series"] = self.raw_info.series
+            self.title_info["title"] = str(self.raw_info.title)
+            self.title_info["series"] = str(self.raw_info.series)
             self.title_info["collection_type"] = collection_type
-            self.title_info["volume_num"] = self.raw_info.volume_num
+            self.title_info["volume_num"] = (
+                0 if self.raw_info.volume_num is None else self.raw_info.volume_num
+            )
             return self.title_info
 
         else:
@@ -212,7 +214,11 @@ class MetadataProcessing:
         return self.raw_info.volume_num == self.title_info["volume_num"]
 
     def extract_volume_num_from_filepath(self) -> tuple[int, int]:
-        fname = self.raw_info.original_filename
+        fname = (
+            self.raw_info.original_filename
+            if self.raw_info.original_filename is not None
+            else ""
+        )
 
         for pat in self.PATTERNS:
             m = pat.search(fname)
@@ -283,5 +289,7 @@ class MetadataProcessing:
                 break
         series_name = self.sanitise(self.out_data.series)
         title_name = self.sanitise(self.out_data.title)
-        filename = f"{series_name} - {title_name} {collection_name} #0{volume_num} ({date_suffix}).cbz"
+        filename = f"""
+        {series_name} - {title_name} {collection_name} #0
+        {volume_num} ({date_suffix}).cbz"""
         return filename, self.out_data.publisher_id

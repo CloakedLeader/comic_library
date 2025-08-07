@@ -34,3 +34,17 @@ class RSSComicInfo(BaseModel):
     url: str
     title: str
     cover_url: str
+
+
+class MetadataInfo(BaseModel):
+    primary_id: str
+    name: str
+    volume_num: int
+    publisher: str
+    date: str
+    description: str
+    creators: list[tuple[str, list[str]]]
+    characters: list[str]
+    teams: list[str]
+    rating: int
+    reviews: list[tuple[str, int, str]]

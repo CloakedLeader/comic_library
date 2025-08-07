@@ -65,7 +65,7 @@ class RSSRepository:
         )
         self.connection.commit()
 
-    def get_recent_entries(self, limit: int = 10) -> list[tuple[str, str]]:
+    def get_recent_entries(self, limit: int = 10) -> list[tuple[str, str, str]]:
         """
         Fetch a limited number of recent entries with title and cover URL.
 
