@@ -1,8 +1,11 @@
+import re
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QGridLayout,
     QGroupBox,
+    QHBoxLayout,
     QLabel,
     QMainWindow,
     QPushButton,
@@ -11,7 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from gui_repo_worker import RepoWorker
-from helper_classes import GUIComicInfo
+from helper_classes import GUIComicInfo, MetadataInfo
 
 
 class DashboardBox(QGroupBox):
@@ -116,7 +119,7 @@ class MetadataDialog(QMainWindow):
         empty_star = "☆"
         stars = ""
 
-        filled = int(rating)
+        filled = int(rating / 2)
         for i in range(max_stars):
             if i < filled:
                 stars += f"""
@@ -129,3 +132,44 @@ class MetadataDialog(QMainWindow):
         label.setText(stars)
         label.setTextFormat(Qt.RichText)
         return label
+
+
+class MetadataPanel(QWidget):
+    def __init__(self, comic_metadata: MetadataInfo):
+        super().__init__()
+        layout = QVBoxLayout()
+        panel = QWidget()
+        panel.setLayout(layout)
+
+        quick_icons = QWidget()
+        quick_icons_layout = QHBoxLayout()
+        quick_icons.setLayout(quick_icons_layout)
+        if comic_metadata.reviews:
+            quick_icons_layout.addWidget(QLabel("Read"))
+        else:
+            quick_icons_layout.addWidget(QLabel("Unread"))
+        rating = int(comic_metadata.rating / 2)
+        full_star = "★"
+        empty_star = "☆"
+        stars = ""
+        for i in range(5):
+            if i < rating:
+                stars += f"""
+                <span style="color: gold; font-size: 20pt;">{full_star}</span>"""
+            else:
+                stars += f"""
+                <span style="color: lightgray; font-size: 20pt;">{empty_star}</span>"""
+        quick_icons_layout.addWidget(QLabel(stars))
+
+        display_text = f"#{comic_metadata.volume_num} - {comic_metadata.name}"
+        title_widget = QLabel(display_text)
+
+        formatted_desc = comic_metadata.description
+        clean_desc = re.sub(r"\s+", " ", formatted_desc).strip()
+        desc_widget = QLabel(clean_desc)
+
+        layout.addWidget(quick_icons)
+        layout.addWidget(title_widget)
+        layout.addWidget(desc_widget)
+
+        self.setLayout(layout)

@@ -2,7 +2,14 @@ import os
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QGridLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QGridLayout,
+    QLabel,
+    QScrollArea,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
 
 from helper_classes import GUIComicInfo
 from reader_controller import ReadingController
@@ -50,7 +57,11 @@ class ComicWidget(QWidget):
 
 
 class ComicGridView(QWidget):
-    def __init__(self, comics: list[GUIComicInfo], colums: int = 5):
+    metadata_requested = Signal(GUIComicInfo)
+
+    def __init__(
+        self, comics: list[GUIComicInfo], colums: int = 5, max_items: int = 20
+    ):
         super().__init__()
         self.comic_widgets = []
         layout = QVBoxLayout()
@@ -59,14 +70,22 @@ class ComicGridView(QWidget):
         grid_layout = QGridLayout(grid_widget)
         grid_widget.setLayout(grid_layout)
         grid_layout.setSpacing(10)
+        grid_layout.setContentsMargins(10, 10, 10, 10)
+
+        width = 150
+        height = 225
 
         row = col = 0
         for comic in comics:
             comic_widget = ComicWidget(comic)
-            comic_widget.clicked.connect(lambda c=comic: print(f"Clicked: {c.title}"))
+            comic_widget.setFixedSize(width, height)
+            comic_widget.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            comic_widget.clicked.connect(lambda c=comic: self.metadata_panel(c))
             comic_widget.doubleClicked.connect(lambda c=comic: self.open_reader(c))
             self.comic_widgets.append(comic_widget)
-            grid_layout.addWidget(comic_widget, row, col)
+            grid_layout.addWidget(
+                comic_widget, row, col, alignment=Qt.AlignTop | Qt.AlignLeft
+            )
 
             col += 1
             if col >= colums:
@@ -83,3 +102,6 @@ class ComicGridView(QWidget):
     def open_reader(self, comic_info: GUIComicInfo):
         cont = ReadingController(comic_info)
         cont.read_comic()
+
+    def metadata_panel(self, comic_info: GUIComicInfo):
+        self.metadata_requested.emit(comic_info)

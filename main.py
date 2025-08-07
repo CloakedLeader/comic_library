@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 from comic_grid_view import ComicGridView
 from gui_repo_worker import RepoWorker
 from helper_classes import GUIComicInfo, RSSComicInfo
+from metadata_gui_panel import MetadataPanel
 from reader_controller import ReadingController
 from rss_controller import RSSController
 from rss_repository import RSSRepository
@@ -474,6 +475,10 @@ class HomePage(QMainWindow):
 
         return final_widget
 
+    # ==================
+    # These Need Work!
+    # ==================
+
     def on_folder_select(self, index):
         folder_path = self.file_model.fileName(index)
         pub_id = folder_path[0]
@@ -484,8 +489,20 @@ class HomePage(QMainWindow):
                     grid_view_data = folder_info_getter.get_folder_info(pub_id)
 
                     self.grid_view = ComicGridView(grid_view_data)
-                    self.stack.addWidget(self.grid_view)
-                    self.stack.setCurrentWidget(self.grid_view)
+                    self.grid_layout = QHBoxLayout()
+                    self.grid_view.metadata_requested.connect(self.show_metadata_panel)
+                    self.grid_layout.addWidget(self.grid_view)
+                    container = QWidget()
+                    container.setLayout(self.grid_layout)
+                    self.stack.addWidget(container)
+                    self.stack.setCurrentWidget(container)
+
+    def show_metadata_panel(self, comic_info: GUIComicInfo):
+        with RepoWorker("D://adams-comics//.covers") as info_getter:
+            comic_metadata = info_getter.get_complete_metadata(comic_info.primary_id)
+        self.metadata_panel = MetadataPanel(comic_metadata)
+        self.toggle_sidebar()
+        self.grid_layout.addWidget(self.metadata_panel)
 
     def toggle_sidebar(self):
         sizes = self.splitter.sizes()
