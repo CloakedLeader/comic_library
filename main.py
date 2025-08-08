@@ -1,3 +1,5 @@
+import asyncio
+import inspect
 import os
 import os.path
 import sys
@@ -24,8 +26,10 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from qasync import QEventLoop
 
 from comic_grid_view import ComicGridView
+from download_controller import DownloadControllerAsync, DownloadServiceAsync
 from gui_repo_worker import RepoWorker
 from helper_classes import GUIComicInfo, RSSComicInfo
 from metadata_gui_panel import MetadataPanel
@@ -290,6 +294,15 @@ class HomePage(QMainWindow):
                              font-weight: bold; padding: 10px;"""
         )
 
+        def make_click_handler(func, comic):
+            def handler():
+                if inspect.iscoroutinefunction(func):
+                    asyncio.create_task(func(comic))
+                else:
+                    func(comic)
+
+            return handler
+
         for comic in list_of_info:
 
             if isinstance(comic, RSSComicInfo):
@@ -301,7 +314,7 @@ class HomePage(QMainWindow):
             comic_button = ClickableComicWidget(
                 title_name, pixmap, img_width, img_height
             )
-            comic_button.clicked.connect(lambda c=comic: upon_clicked(c))
+            comic_button.clicked.connect(make_click_handler(upon_clicked, comic))
 
             layout.addWidget(comic_button)
 
@@ -387,13 +400,13 @@ class HomePage(QMainWindow):
         repository = RSSRepository("comics.db")
         rss_cont = RSSController(repository)
         recent_comics_list = rss_cont.run(num)
-        # self.rss_controller = DownloadControllerAsync(
-        #     view=self, service=DownloadServiceAsync()
-        # )
+        self.rss_controller = DownloadControllerAsync(
+            view=self, service=DownloadServiceAsync()
+        )
         return self.create_scroll_area(
             recent_comics_list,
             header="GetComics RSS Feed",
-            upon_clicked=self.print_hi,  # self.rss_controller.handle_rss_comic_clicked,
+            upon_clicked=self.rss_controller.handle_rss_comic_clicked,
         )
 
     def create_stats_bar(self) -> QWidget:
@@ -584,8 +597,15 @@ def count_files_and_storage(directory: str) -> tuple[int, float]:
     return file_count, total_size
 
 
-if __name__ == "__main__":
+async def main():
     app = QApplication(sys.argv)
+    loop = QEventLoop(app)
+    asyncio.set_event_loop(loop)
     window = HomePage()
     window.show()
-    sys.exit(app.exec())
+    with loop:
+        await loop.run_forever()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

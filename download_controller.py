@@ -1,12 +1,13 @@
 import os
 import re
 from typing import Optional
-from urllib.parse import urlparse
 
 import aiofiles
 import aiohttp
 import requests
 from bs4 import BeautifulSoup
+
+from helper_classes import RSSComicInfo
 
 
 class DownloadControllerAsync:
@@ -18,7 +19,7 @@ class DownloadControllerAsync:
     download workflow including status updates and error handling.
     """
 
-    def __init__(self, view, service) -> None:
+    def __init__(self, view, service: "DownloadServiceAsync") -> None:
         """
         Initialise the download controller.
 
@@ -30,7 +31,7 @@ class DownloadControllerAsync:
         self.download_service = service
         self.comic_dict: dict[str, str] = {}
 
-    async def handle_rss_comic_clicked(self, comic_dict: dict) -> None:
+    async def handle_rss_comic_clicked(self, comic_info: RSSComicInfo) -> None:
         """
         Handle the event when an RSS comic is clicked for download.
 
@@ -53,16 +54,13 @@ class DownloadControllerAsync:
             aiohttp.ClientError: If there are issues with the async HTTP client.
             IOError: If there are file system issues during download.
         """
-        self.comic_dict = comic_dict
-        self.view.update_status(f"Starting download of: {comic_dict['title']}")
+        self.comic_info = comic_info
+        self.view.update_status(f"Starting download of: {comic_info.title}")
         try:
-            download_link = self.download_service.get_download_links(
-                comic_dict.get("link")
-            )
+            download_link = self.download_service.get_download_links(comic_info.url)
             filepath = await self.download_service.download_comic(download_link)
             self.view.update_status(
-                f"""Successfully downloaded:
-                {comic_dict.get('title')} to {filepath}"""
+                f"Successfully downloaded: {comic_info.title} to {filepath}"
             )
         except (requests.RequestException, aiohttp.ClientError, IOError) as e:
             self.view.update_status(f"Failed: {e}")
@@ -77,7 +75,9 @@ class DownloadServiceAsync:
     It provides robust error handling and supports various comic file formats.
     """
 
-    def __init__(self, download_folder: str = "D://Comics//To Be Sorted") -> None:
+    def __init__(
+        self, download_folder: str = "D://adams-comics//0 - Downloads"
+    ) -> None:
         """
         Initialise the download service.
 
@@ -104,10 +104,14 @@ class DownloadServiceAsync:
         quoted and unquoted filename values.
 
         """
-        fname = re.findall('filename="?([^"]+)"?', content_disposition)
-        if len(fname) == 0:
+        if content_disposition:
+            fname = re.findall('filename="?([^"]+)"?', content_disposition)
+            if fname:
+                return fname[0]
+            else:
+                return None
+        else:
             return None
-        return fname[0]
 
     def get_download_links(self, comic_article_link: str) -> str:
         """
@@ -141,8 +145,6 @@ class DownloadServiceAsync:
                 title = link.get("title", "").strip()
                 download_links.append((title, href))
 
-        for title, link in download_links:
-            print(f"{title}: {link}")
         if not download_links:
             raise ValueError("No download links found on the page")
         return download_links[0][1]
@@ -167,7 +169,7 @@ class DownloadServiceAsync:
         """
         async with aiohttp.ClientSession() as session:
             async with session.get(comic_download_link) as response:
-                if response.status_code != 200:
+                if response.status != 200:
                     raise Exception(
                         f"Download failed with status code {response.status}"
                     )
@@ -175,8 +177,7 @@ class DownloadServiceAsync:
                 filename = self.get_filename_from_header(
                     response.headers.get("content-disposition")
                 )
-                if not filename:
-                    filename = os.path.basename(urlparse(comic_download_link).path)
+
                 if not filename:
                     filename = "downloaded_comic.cbz"
 
