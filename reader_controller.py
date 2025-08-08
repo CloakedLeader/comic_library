@@ -40,18 +40,18 @@ class ReadingController:
         else:
             comic_data = Comic(self.comic, start_index=0)
         comic_reader = SimpleReader(comic_data)
-        comic_reader.closed.connect(self.save_current_page)
+        # comic_reader.closed.connect(self.save_current_page)
         comic_reader.show()
         self.open_windows.append(comic_reader)
 
-    def save_current_page(self, primary_id: str, page: int) -> None:
-        if page == 0:
-            return None
-        # elif page == self.comic.total_pages:
-        # Remove row from reading_progress and mark as finished.
-        # pass
-        with RepoWorker("D://adams-comics//.covers") as saver:
-            saver.save_last_page(primary_id, page)
+    # def save_current_page(self, primary_id: str, page: int) -> None:
+    #     with RepoWorker("D://adams-comics//.covers") as saver:
+    #         if page == 0:
+    #             return None
+    #         elif page == self.comic.total_pages:
+    #             saver.mark_finished(primary_id)
+    #             Remove row from reading_progress and mark as finished.
+    #             saver.save_last_page(primary_id, page)
 
     def close_all_windows(self) -> None:
         """

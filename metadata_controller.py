@@ -7,6 +7,7 @@ import zipfile
 from typing import Optional
 
 from defusedxml import ElementTree as ET
+from dotenv import load_dotenv
 from watchdog.events import FileSystemEventHandler
 
 from cover_processing import ImageExtraction
@@ -16,6 +17,8 @@ from file_utils import convert_cbz, generate_uuid, get_ext
 from helper_classes import ComicInfo
 from metadata_cleaning import MetadataProcessing, PublisherNotKnown
 
+# from tagging import run_tagging_process
+
 # from watchdog.observers import Observer
 
 
@@ -24,6 +27,9 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[logging.StreamHandler(), logging.FileHandler("log.txt")],
 )
+
+load_dotenv()
+API_KEY = os.getenv("API_KEY")
 
 
 def get_comicid_from_path(
@@ -281,7 +287,7 @@ class MetadataController:
                 image_proc.run()
                 break
             else:
-                # Call the entire tagging process.
+                # search_results = run_tagging_process(self.filepath, API_KEY)
                 # Call the xml creation process.
                 # Call the database insertion process.
                 pass

@@ -105,6 +105,29 @@ class RepoWorker:
                 (primary_key, last_page, 0),
             )
 
+    def mark_as_finished(self, primary_id: str, last_page: int) -> None:
+        if self.get_recent_page(primary_id) is not None:
+            self.cursor.execute(
+                """
+                UPDATE reading_progress
+                SET (last_page_read, is_finished) = (?, ?)
+                WHERE comic_id = ?
+                """,
+                (
+                    last_page,
+                    1,
+                    primary_id,
+                ),
+            )
+        else:
+            self.cursor.execute(
+                """
+                INSERT INTO reading_progress (comic_id, last_page_read, is_finished)
+                VALUES (?, ?, ?)
+                """,
+                (primary_id, last_page, 1),
+            )
+
     def get_folder_info(self, pub_int: int) -> list[GUIComicInfo]:
         info = []
         self.cursor.execute(

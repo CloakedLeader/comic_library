@@ -1,6 +1,7 @@
 import calendar
 import os
 import re
+import xml.etree.ElementTree as ET  # nosec
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -11,7 +12,6 @@ from typing import Callable, Optional, Protocol
 
 import imagehash
 import requests
-from defusedxml import ElementTree as ET
 from dotenv import load_dotenv
 from fuzzywuzzy import fuzz
 from PIL import Image
@@ -1078,10 +1078,12 @@ class TagApplication:
             "year": year,
             "filepath": None,
             "description": self.issue_data["description"],
-            "characters": self.character_or_team_parsing(
-                self.issue_data["character_credits"]
+            "characters": ", ".join(
+                self.character_or_team_parsing(self.issue_data["character_credits"])
             ),
-            "teams": self.character_or_team_parsing(self.issue_data["team_credits"]),
+            "teams": ", ".join(
+                self.character_or_team_parsing(self.issue_data["team_credits"])
+            ),
         }
         information.update(
             self.creators_entry_parsing(self.issue_data["person_credits"])
@@ -1121,7 +1123,7 @@ class TagApplication:
             peoples.append(str(i["name"]))
         return peoples
 
-    def create_xml(self, output_path: str):
+    def create_xml(self) -> bytes:
         root = ET.Element("ComicInfo")
 
         if self.final_info is None:
@@ -1130,8 +1132,17 @@ class TagApplication:
             child = ET.SubElement(root, key)
             child.text = str(value)
 
+        xml_bytes_io = BytesIO()
         tree = ET.ElementTree(root)
-        tree.write(output_path, encoding="utf-8", xml_declaration=True)
+        tree.write(xml_bytes_io, encoding="utf-8", xml_declaration=True)
+        return xml_bytes_io.getvalue()
+
+    def insert_xml_into_cbz(self, cbz_path: str):
+        if not os.path.exists(cbz_path):
+            raise FileNotFoundError(f"{cbz_path} does not exist")
+        xml_content = self.create_xml()
+        with zipfile.ZipFile(cbz_path, "a") as cbz:
+            cbz.writestr("ComicInfo.xml", xml_content)
 
 
 def run_tagging_process(filepath, api_key):
@@ -1155,8 +1166,10 @@ def run_tagging_process(filepath, api_key):
     final_result = tagger.run()
     print(final_result)
 
-    # inserter = TagApplication(final_result, api_key)
-    # inserter.get_request()
+    inserter = TagApplication(final_result, api_key)
+    inserter.get_request()
+    inserter.create_metadata_dict()
+    inserter.insert_xml_into_cbz(filepath)
 
 
 final_match = run_tagging_process(
