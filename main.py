@@ -36,6 +36,7 @@ from metadata_gui_panel import MetadataPanel
 from reader_controller import ReadingController
 from rss_controller import RSSController
 from rss_repository import RSSRepository
+from search import text_search
 
 
 class ClickableComicWidget(QWidget):
@@ -163,6 +164,9 @@ class HomePage(QMainWindow):
         self.search_bar = QLineEdit()
         self.search_bar.setPlaceholderText("Search comics..")
         self.search_bar.setFixedWidth(200)
+        self.search_bar.editingFinished.connect(
+            lambda: self.search(self.search_bar.text())
+        )
         toolbar.addWidget(self.search_bar)
 
         self.status = QStatusBar()
@@ -223,6 +227,11 @@ class HomePage(QMainWindow):
 
         self.browse_splitter = QSplitter()
         self.stack.addWidget(self.browse_splitter)
+
+        self.search_layout = QVBoxLayout()
+        self.search_display = QWidget()
+        self.search_display.setLayout(self.search_layout)
+        self.stack.addWidget(self.search_display)
 
         self.setCentralWidget(container)
 
@@ -559,6 +568,17 @@ class HomePage(QMainWindow):
 
     def go_home(self):
         self.stack.setCurrentWidget(self.content_area)
+
+    def search(self, text):
+        display_info = text_search(text)
+        search_view = ComicGridView(display_info)
+        for i in reversed(range(self.search_layout.count())):
+            widget_to_remove = self.search_layout.itemAt(i).widget()
+            if widget_to_remove:
+                widget_to_remove.setParent(None)
+
+        self.search_layout.addWidget(search_view)
+        self.stack.setCurrentWidget(self.search_display)
 
     def update_status(self, message: str) -> None:
         """

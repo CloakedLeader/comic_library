@@ -3,17 +3,22 @@ import sqlite3
 conn = sqlite3.connect("comics.db")
 cursor = conn.cursor()
 
+# cursor.execute("DROP TABLe comics_fts5")
 
-# cursor.execute("DELETE FROM reading_progress")
+# cursor.execute(
+#     """
+#     CREATE VIRTUAL TABLE comics_fts5 USING fts5(
+#     id UNINDEXED,
+#     title
+#     )
+#     """
+# )
+
 cursor.execute(
     """
-    INSERT INTO reading_progress
-    (comic_id, last_page_read, is_finished)
-    VALUES
-    (?, ?, ?)
-    """,
-    ("a8a55710-d1b2-45ac-8bd6-e664696e9f1a", 0, 0),
+    INSERT INTO comics_fts5(id, title)
+    SELECT id, title FROM comics
+    """
 )
 
 conn.commit()
-conn.close()
