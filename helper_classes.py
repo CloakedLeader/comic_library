@@ -47,4 +47,4 @@ class MetadataInfo(BaseModel):
     characters: list[str]
     teams: list[str]
     rating: int
-    reviews: list[tuple[str, int, str]]
+    reviews: list[tuple[str, str, int]]
