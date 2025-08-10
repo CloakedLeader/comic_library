@@ -207,11 +207,10 @@ class HomePage(QMainWindow):
         stats_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         stats_bar.setMaximumHeight(60)
         continue_reading = self.create_continue_reading_area(continue_list)
-        # recommended = self.create_recommended_reading_area()
         need_review = self.create_review_area(review_list)
-        rss = self.create_rss_area(12)
+        rss = self.create_rss_area(20)
 
-        content_layout.addWidget(stats_bar, stretch=1)
+        content_layout.addWidget(stats_bar, stretch=2)
         content_layout.addWidget(continue_reading, stretch=3)
         content_layout.addWidget(need_review, stretch=3)
         content_layout.addWidget(rss, stretch=3)
