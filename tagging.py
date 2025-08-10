@@ -917,7 +917,7 @@ class TaggingPipeline:
             results = self.http.get_request("search")
             self.validator = ResponseValidator(results, self.data)
 
-            print(f"There are {len(results["results"])} results returned.")
+            print(f"There are {len(results['results'])} results returned.")
             results = self.validator.issue_count_filter()
             self.validator.results = results
             # results = self.validator.title_checker()
