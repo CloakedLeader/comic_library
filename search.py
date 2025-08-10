@@ -22,7 +22,7 @@ def text_search(text) -> list[GUIComicInfo] | None:
         primary_key = result[0]
         title = result[1]
         filepath = get_filepath(primary_key)
-        cover_path = f"D:adams-comics//.covers//{primary_key}_b.jpg"
+        cover_path = f"D://adams-comics//.covers//{primary_key}_b.jpg"
         if filepath is None:
             continue
         comic_info = GUIComicInfo(
