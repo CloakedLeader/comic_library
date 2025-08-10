@@ -301,7 +301,7 @@ class SimpleReader(QMainWindow):
         with RepoWorker("D://adams-comics//.covers") as page_saver:
             if page == 0:
                 return None
-            elif page == self.comic.total_pages:
+            elif page == self.comic.total_pages - 1:
                 page_saver.mark_as_finished(self.comic.id, page)
                 return None
             page_saver.save_last_page(self.comic.id, page)
