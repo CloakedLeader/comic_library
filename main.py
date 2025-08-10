@@ -210,7 +210,7 @@ class HomePage(QMainWindow):
         need_review = self.create_review_area(review_list)
         rss = self.create_rss_area(20)
 
-        content_layout.addWidget(stats_bar, stretch=2)
+        content_layout.addWidget(stats_bar, stretch=1)
         content_layout.addWidget(continue_reading, stretch=3)
         content_layout.addWidget(need_review, stretch=3)
         content_layout.addWidget(rss, stretch=3)

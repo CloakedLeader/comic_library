@@ -180,6 +180,7 @@ class RepoWorker:
         review_info = [
             (row[1], row[2], row[3], row[4]) for row in self.cursor.fetchall()
         ]
+        # iteration, rating, review_text, date
 
         title = comic_info[1]
         series = comic_info[2]
@@ -205,7 +206,7 @@ class RepoWorker:
             teams.append(team)
         if review_info:
             rating = review_info[0][1]
-            reviews = [(r[2], r[3], r[0]) for r in review_info]
+            reviews = [(r[2] or "", r[3], r[0]) for r in review_info]
         else:
             rating = 0
             reviews = []
