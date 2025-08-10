@@ -32,7 +32,7 @@ from comic_grid_view import ComicGridView
 from download_controller import DownloadControllerAsync, DownloadServiceAsync
 from gui_repo_worker import RepoWorker
 from helper_classes import GUIComicInfo, RSSComicInfo
-from metadata_gui_panel import MetadataPanel
+from metadata_gui_panel import MetadataDialog, MetadataPanel
 from reader_controller import ReadingController
 from rss_controller import RSSController
 from rss_repository import RSSRepository
@@ -395,7 +395,7 @@ class HomePage(QMainWindow):
         return self.create_scroll_area(
             list_of_unreviewed_comics,
             header="Write a review...",
-            upon_clicked=self.print_hi,
+            upon_clicked=self.open_review_panel,
         )
 
     def create_rss_area(self, num: int = 8) -> QScrollArea:
@@ -579,6 +579,10 @@ class HomePage(QMainWindow):
 
         self.search_layout.addWidget(search_view)
         self.stack.setCurrentWidget(self.search_display)
+
+    def open_review_panel(self, comic_info: GUIComicInfo):
+        self.metadata_popup = MetadataDialog(comic_info)
+        self.metadata_popup.show()
 
     def update_status(self, message: str) -> None:
         """
