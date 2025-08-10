@@ -1,5 +1,7 @@
 import os
 import re
+import urllib.parse
+from email.header import decode_header
 from typing import Optional
 
 import aiofiles
@@ -57,8 +59,7 @@ class DownloadControllerAsync:
         self.comic_info = comic_info
         self.view.update_status(f"Starting download of: {comic_info.title}")
         try:
-            download_link = self.download_service.get_download_links(comic_info.url)
-            filepath = await self.download_service.download_comic(download_link)
+            filepath = await self.download_service.download_comic(comic_info.url)
             self.view.update_status(
                 f"Successfully downloaded: {comic_info.title} to {filepath}"
             )
@@ -89,7 +90,7 @@ class DownloadServiceAsync:
         self.download_folder = download_folder
         os.makedirs(download_folder, exist_ok=True)
 
-    def get_filename_from_header(self, content_disposition: str) -> Optional[str]:
+    def get_filename(self, content_disposition: str) -> Optional[str]:
         """
         Extract filename from Content-Disposition header.
 
@@ -104,14 +105,29 @@ class DownloadServiceAsync:
         quoted and unquoted filename values.
 
         """
-        if content_disposition:
-            fname = re.findall('filename="?([^"]+)"?', content_disposition)
-            if fname:
-                return fname[0]
-            else:
-                return None
-        else:
+        if not content_disposition:
             return None
+
+        filename_star = re.search(
+            r"filename\*\s*=\s*UTF-8\'\'(.+)", content_disposition, flags=re.IGNORECASE
+        )
+        if filename_star:
+            return urllib.parse.unquote(filename_star.group(1))
+
+        match = re.search(
+            r'filename\s*=\s*"?(=\?.+\?=)"?', content_disposition, flags=re.IGNORECASE
+        )
+        if match:
+            decoded_parts = decode_header(match.group(1))
+            return "".join(
+                part.decode(encoding or "utf-8") if isinstance(part, bytes) else part
+                for part, encoding in decoded_parts
+            )
+
+        filename = re.search(
+            r'filename\s*=\s*"?(?P<name>[^";]+)"?', content_disposition, re.IGNORECASE
+        )
+        return filename.group("name") if filename else None
 
     def get_download_links(self, comic_article_link: str) -> str:
         """
@@ -131,6 +147,7 @@ class DownloadServiceAsync:
         and extracts download links from anchor tags within them. Prints all found links
         for debugging.
         """
+        # TODO: Scrape comic title from website for fallback naming.
         headers = {"User-Agent": "Mozilla/5.0"}
 
         response = requests.get(comic_article_link, headers, timeout=30)
@@ -149,7 +166,7 @@ class DownloadServiceAsync:
             raise ValueError("No download links found on the page")
         return download_links[0][1]
 
-    async def download_comic(self, comic_download_link: str) -> str:
+    async def download_comic(self, comic_article_link: str) -> str:
         """
         Download comic file asynchronously.
 
@@ -167,23 +184,56 @@ class DownloadServiceAsync:
         Attempts to get filename from Content-Disposition header, falls back
         to URL path, finally, uses "downloaded_comic.cbz" as a last resort.
         """
-        async with aiohttp.ClientSession() as session:
-            async with session.get(comic_download_link) as response:
+        comic_download_link = self.get_download_links(comic_article_link)
+
+        headers = {"User-Agent": "Mozilla/5.0"}
+
+        async with aiohttp.ClientSession(headers=headers) as session:
+            await session.get(comic_article_link)
+
+            async with session.get(
+                comic_download_link, allow_redirects=True
+            ) as response:
+                print("\n=== Redirect history ===")
+                for i, r in enumerate(response.history, start=1):
+                    print(f"\nHop {i}: {r.url}")
+                    print(r.headers)
+
+                print("\n=== Final response ===")
+                print(response.url)
+                print(response.headers)
+
                 if response.status != 200:
                     raise Exception(
                         f"Download failed with status code {response.status}"
                     )
 
-                filename = self.get_filename_from_header(
-                    response.headers.get("content-disposition")
-                )
+                filename = None
+
+                for r in response.history:
+                    loc = r.headers.get("Location")
+                    if loc:
+                        parsed_loc = urllib.parse.urlparse(loc)
+                        last_segment = os.path.basename(parsed_loc.path)
+                        if last_segment:
+                            filename = urllib.parse.unquote(last_segment)
+                            break
 
                 if not filename:
+                    last_segment = os.path.basename(response.url.path)
+                    if last_segment:
+                        filename = urllib.parse.unquote(last_segment)
+
+                if not filename:
+                    print("Could not determine filename from redirects or final URL")
                     filename = "downloaded_comic.cbz"
 
+                if not os.path.splitext(filename)[1]:
+                    filename += ".cbz"
                 filepath = os.path.join(self.download_folder, filename)
 
                 async with aiofiles.open(filepath, "wb") as f:
                     async for chunk in response.content.iter_chunked(8192):
                         await f.write(chunk)
+
                 return filepath
