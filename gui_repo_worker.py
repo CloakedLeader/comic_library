@@ -149,6 +149,27 @@ class RepoWorker:
             info.append(gui_info)
         return info
 
+    def input_review_column(self, review_text: str, primary_key: str) -> None:
+
+        self.cursor.execute(
+            "SELECT iteration FROM reviews WHERE comic_id = ? ORDER BY iteration DESC",
+            (primary_key,),
+        )
+        raw_highest_iteration = self.cursor.fetchone()
+        if raw_highest_iteration:
+            highest_iteration = raw_highest_iteration[0]
+        else:
+            highest_iteration = 1
+
+        self.cursor.execute(
+            """INSERT INTO reviews
+            (comic_id, iteration, review)
+            VALUES
+            (?, ?, ?)
+            """,
+            (primary_key, highest_iteration + 1, review_text),
+        )
+
     def get_complete_metadata(self, primary_id: str) -> MetadataInfo:
         role_info = {
             1: "Writer",
