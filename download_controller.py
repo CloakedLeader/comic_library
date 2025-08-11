@@ -2,7 +2,7 @@ import os
 import re
 import urllib.parse
 from email.header import decode_header
-from typing import Optional
+from typing import Callable, Optional
 
 import aiofiles
 import aiohttp
@@ -59,12 +59,18 @@ class DownloadControllerAsync:
         self.comic_info = comic_info
         self.view.update_status(f"Starting download of: {comic_info.title}")
         try:
-            filepath = await self.download_service.download_comic(comic_info.url)
+            filepath = await self.download_service.download_comic(
+                comic_info.url,
+                progress_callback=self.progress_update,
+            )
             self.view.update_status(
                 f"Successfully downloaded: {comic_info.title} to {filepath}"
             )
         except (requests.RequestException, aiohttp.ClientError, IOError) as e:
             self.view.update_status(f"Failed: {e}")
+
+    def progress_update(self, percent: int):
+        self.view.update_progress_bar(percent)
 
 
 class DownloadServiceAsync:
@@ -166,7 +172,9 @@ class DownloadServiceAsync:
             raise ValueError("No download links found on the page")
         return download_links[0][1]
 
-    async def download_comic(self, comic_article_link: str) -> str:
+    async def download_comic(
+        self, comic_article_link: str, progress_callback: Optional[Callable]
+    ) -> str:
         """
         Download comic file asynchronously.
 
@@ -208,6 +216,9 @@ class DownloadServiceAsync:
                         f"Download failed with status code {response.status}"
                     )
 
+                max_size = int(response.headers.get("Content-Length", 0))
+                downloaded = 0
+
                 filename = None
 
                 for r in response.history:
@@ -235,5 +246,9 @@ class DownloadServiceAsync:
                 async with aiofiles.open(filepath, "wb") as f:
                     async for chunk in response.content.iter_chunked(8192):
                         await f.write(chunk)
+                        downloaded += len(chunk)
+                        percent = int(downloaded * 100 / max_size)
+                        if progress_callback:
+                            progress_callback(percent)
 
                 return filepath
