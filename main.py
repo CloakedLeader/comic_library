@@ -7,7 +7,7 @@ from io import BytesIO
 from typing import Callable, Optional
 
 import requests
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -16,11 +16,11 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QProgressBar,
     QScrollArea,
     QSizePolicy,
     QSplitter,
     QStackedWidget,
-    QStatusBar,
     QToolBar,
     QTreeView,
     QVBoxLayout,
@@ -169,8 +169,11 @@ class HomePage(QMainWindow):
         )
         toolbar.addWidget(self.search_bar)
 
-        self.status = QStatusBar()
-        self.setStatusBar(self.status)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setMaximum(100)
+        self.progress_bar.setValue(0)
+        self.statusBar().addPermanentWidget(self.progress_bar)
+        self.progress_bar.hide()
 
         body_layout = QHBoxLayout()
         body_widget = QWidget()
@@ -591,7 +594,14 @@ class HomePage(QMainWindow):
             message: The message to display in the
         status bar.
         """
-        self.status.showMessage(message, 4000)
+        self.statusBar().showMessage(message, 4000)
+
+    def update_progress_bar(self, value: int):
+        self.progress_bar.show()
+        self.progress_bar.setValue(value)
+        if value >= 100:
+            QTimer.singleShot(1500, self.progress_bar.hide)
+            self.progress_bar.setValue(0)
 
 
 def count_files_and_storage(directory: str) -> tuple[int, float]:
