@@ -99,9 +99,9 @@ class MetadataDialog(QMainWindow):
         current_review = QWidget()
         current_review_layout = QVBoxLayout()
         current_review.setLayout(current_review_layout)
-        text_edit = QTextEdit()
+        self.text_edit = QTextEdit()
         review_area = QScrollArea()
-        text_edit.setPlaceholderText("Write your review here...")
+        self.text_edit.setPlaceholderText("Write your review here...")
         if len(metadata.reviews) != 0:
             for review, date, iteration in metadata.reviews:
                 if not review:
@@ -116,11 +116,12 @@ class MetadataDialog(QMainWindow):
 
         save_button = QPushButton("Save")
         undo_button = QPushButton("Undo")
-        undo_button.clicked.connect(text_edit.undo)
+        undo_button.clicked.connect(self.text_edit.undo)
+        save_button.clicked.connect(self.save_current_review)
         button_layout.addWidget(save_button)
         button_layout.addWidget(undo_button)
         current_review_layout.addWidget(button_container, stretch=1)
-        current_review_layout.addWidget(text_edit, stretch=5)
+        current_review_layout.addWidget(self.text_edit, stretch=5)
         review_layout.addWidget(current_review)
         review_area.setWidget(review_container)
         review_area.setWidgetResizable(True)
@@ -163,19 +164,34 @@ class MetadataDialog(QMainWindow):
         empty_star = "☆"
         stars = ""
 
-        filled = int(rating / 2)
-        for i in range(max_stars):
-            if i < filled:
-                stars += f"""
-                <span style="color: gold; font-size: 20pt;">{full_star}</span>"""
-            else:
-                stars += f"""
-                <span style="color: lightgray; font-size: 20pt;">{empty_star}</span>"""
+        if not rating:
+            empty_star_str = f"""
+            <span style="color: lightgray; font-size: 20pt;">{empty_star}</span>"""
+            for _ in range(5):
+                stars += empty_star_str
+        else:
+            filled = int(rating / 2)
+            for i in range(max_stars):
+                if i < filled:
+                    stars += f"""
+                    <span style="color: gold; font-size: 20pt;">{full_star}</span>"""
+                else:
+                    stars += f"""
+                    <span style="color: lightgray; font-size: 20pt;">
+                    {empty_star}</span>"""
 
         label = QLabel()
         label.setText(stars)
         label.setTextFormat(Qt.RichText)
         return label
+
+    def save_current_review(self) -> None:
+        current_text = self.text_edit.toPlainText()
+        with RepoWorker("D://adams-comics//.covers") as review_saver:
+            review_saver.input_review_column(
+                primary_key=self.primary_id, review_text=current_text
+            )
+        return None
 
 
 class MetadataPanel(QWidget):
@@ -198,7 +214,7 @@ class MetadataPanel(QWidget):
         liked_box.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         quick_icons_layout.addWidget(liked_box)
 
-        rating = int(comic_metadata.rating / 2)
+        rating = int(comic_metadata.rating / 2) if comic_metadata.rating else 0
         full_star = "★"
         empty_star = "☆"
         stars = ""
