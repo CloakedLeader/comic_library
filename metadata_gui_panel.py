@@ -1,4 +1,5 @@
 import re
+from textwrap import dedent
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
@@ -10,7 +11,9 @@ from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -20,8 +23,9 @@ from helper_classes import GUIComicInfo, MetadataInfo
 
 
 class DashboardBox(QGroupBox):
-    def __init__(self, title):
+    def __init__(self, title, wrap: bool = False):
         super().__init__(title)
+        self.wrap = wrap
         layout = QVBoxLayout()
         self.setLayout(layout)
 
@@ -30,6 +34,7 @@ class DashboardBox(QGroupBox):
 
     def add_content(self, content):
         label = QLabel(content)
+        label.setWordWrap(self.wrap)
         label.setAlignment(Qt.AlignCenter)
         self.layout().addWidget(label)
 
@@ -81,8 +86,44 @@ class MetadataDialog(QMainWindow):
         for role, people in metadata.creators:
             creators_box.add_role_box(RoleBox(role, people))
 
-        description_box = DashboardBox("Description")
-        description_box.add_content(metadata.description)
+        description_box = DashboardBox("Description", True)
+        clean_desc = metadata.description.translate(str.maketrans("", "", "\n\t\r"))
+        description_box.add_content(clean_desc)
+
+        review_container = QWidget()
+        review_layout = QVBoxLayout()
+        review_container.setLayout(review_layout)
+        button_container = QWidget()
+        button_layout = QHBoxLayout()
+        button_container.setLayout(button_layout)
+        current_review = QWidget()
+        current_review_layout = QVBoxLayout()
+        current_review.setLayout(current_review_layout)
+        text_edit = QTextEdit()
+        review_area = QScrollArea()
+        text_edit.setPlaceholderText("Write your review here...")
+        if len(metadata.reviews) != 0:
+            for review, date, iteration in metadata.reviews:
+                if not review:
+                    continue
+                preset_text = dedent(
+                    f"""
+                    <u>Review No. {iteration} Date: {date}</u><br>
+                    {review}<br><br>
+                """
+                )
+                review_layout.addWidget(QLabel(preset_text))
+
+        save_button = QPushButton("Save")
+        undo_button = QPushButton("Undo")
+        undo_button.clicked.connect(text_edit.undo)
+        button_layout.addWidget(save_button)
+        button_layout.addWidget(undo_button)
+        current_review_layout.addWidget(button_container, stretch=1)
+        current_review_layout.addWidget(text_edit, stretch=5)
+        review_layout.addWidget(current_review)
+        review_area.setWidget(review_container)
+        review_area.setWidgetResizable(True)
 
         thumbnail_filename = f"{self.primary_id}_t.jpg"
         thumbnail_pix = QPixmap("D://adams-comics//.covers//" + thumbnail_filename)
@@ -102,6 +143,7 @@ class MetadataDialog(QMainWindow):
         content_layout.addWidget(creators_box, 1, 0, -1, 1)
         content_layout.addWidget(description_box, 0, 1, 1, 2)
         content_layout.addWidget(stars, 0, 3, 1, 1)
+        content_layout.addWidget(review_area, 1, 1, 1, 2)
 
         close_button = QPushButton("Close")
         close_button.clicked.connect(self.close)
