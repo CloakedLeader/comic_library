@@ -152,23 +152,30 @@ class RepoWorker:
     def input_review_column(self, review_text: str, primary_key: str) -> None:
 
         self.cursor.execute(
-            "SELECT iteration FROM reviews WHERE comic_id = ? ORDER BY iteration DESC",
+            "SELECT iteration, review FROM reviews"
+            "WHERE comic_id = ? ORDER BY iteration DESC",
             (primary_key,),
         )
-        raw_highest_iteration = self.cursor.fetchone()
-        if raw_highest_iteration:
-            highest_iteration = raw_highest_iteration[0]
+        query_result = self.cursor.fetchone()
+        if query_result:
+            highest_iteration = query_result[0]
         else:
             highest_iteration = 1
 
-        self.cursor.execute(
-            """INSERT INTO reviews
-            (comic_id, iteration, review)
-            VALUES
-            (?, ?, ?)
-            """,
-            (primary_key, highest_iteration + 1, review_text),
-        )
+        review = query_result[1]
+
+        if review == review_text:
+            return None
+        else:
+            self.cursor.execute(
+                """INSERT INTO reviews
+                (comic_id, iteration, review)
+                VALUES
+                (?, ?, ?)
+                """,
+                (primary_key, highest_iteration + 1, review_text),
+            )
+            return None
 
     def get_complete_metadata(self, primary_id: str) -> MetadataInfo:
         role_info = {

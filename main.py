@@ -444,8 +444,6 @@ class HomePage(QMainWindow):
             """
             widget = QWidget()
             layout = QVBoxLayout()
-            # layout.setSpacing(2)
-            # layout.setContentsMargins(0,0,0,0)
             layout.setAlignment(Qt.AlignCenter)
             widget.setLayout(layout)
 
@@ -489,8 +487,6 @@ class HomePage(QMainWindow):
 
         final_widget = QWidget()
         final_layout = QVBoxLayout()
-        # final_layout.setSpacing(3)
-        # final_layout.setContentsMargins(0,0,0,0)
         final_widget.setLayout(final_layout)
         title = QLabel("Your Statistics")
         title.setAlignment(Qt.AlignCenter)
@@ -502,10 +498,6 @@ class HomePage(QMainWindow):
         final_layout.addWidget(stats)
 
         return final_widget
-
-    # ==================
-    # These Need Work!
-    # ==================
 
     def on_folder_select(self, index):
         folder_path = self.file_model.fileName(index)
