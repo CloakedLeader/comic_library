@@ -87,11 +87,12 @@ class MetadataDialog(QMainWindow):
             creators_box.add_role_box(RoleBox(role, people))
 
         description_box = DashboardBox("Description", True)
-        clean_desc = metadata.description.translate(str.maketrans("", "", "\n\t\r"))
+        clean_desc = re.sub(r"\n\s*\n", "<br><br>", metadata.description).strip()
+        # clean_desc = metadata.description.translate(str.maketrans("", "", "\n\t\r"))
         description_box.add_content(clean_desc)
 
         review_container = QWidget()
-        review_layout = QVBoxLayout()
+        review_layout = QVBoxLayout(review_container)
         review_container.setLayout(review_layout)
         button_container = QWidget()
         button_layout = QHBoxLayout()
@@ -242,8 +243,17 @@ class MetadataPanel(QWidget):
         desc_widget = QLabel(clean_desc)
         desc_widget.setWordWrap(True)
         desc_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-
         layout.addWidget(desc_widget)
+
+        total_creator_info = ""
+        for role, creators_list in comic_metadata.creators:
+            if role not in ["Editor", "Letterer", "Inker"]:
+                temp_string = f"{role}: "
+                temp_string += ", ".join(creators_list)
+                temp_string += "\n"
+                total_creator_info += temp_string
+        creator_widget = QLabel(total_creator_info)
+        layout.addWidget(creator_widget)
 
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setLayout(layout)
