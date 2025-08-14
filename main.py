@@ -57,8 +57,8 @@ class ClickableComicWidget(QWidget):
         self,
         title: str,
         pixmap: QPixmap,
-        img_width=20,
-        img_height=20,
+        # img_width=20,
+        img_height=400,
     ) -> None:
         """
         Intialise the clickable comic widget.
@@ -74,21 +74,27 @@ class ClickableComicWidget(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignCenter)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
 
         cover_label = QLabel()
-        cover_label.setPixmap(
-            pixmap.scaled(
-                img_width, img_height, Qt.KeepAspectRatio, Qt.SmoothTransformation
-            )
-        )
         cover_label.setAlignment(Qt.AlignCenter)
-
-        title_label = QLabel(title)
-        title_label.setAlignment(Qt.AlignCenter)
-        title_label.setWordWrap(True)
+        cover_label.setFixedHeight(img_height)
+        cover_label.setPixmap(
+            pixmap.scaledToHeight(img_height, Qt.SmoothTransformation)
+            # pixmap.scaled(
+            #     img_width, img_height, Qt.KeepAspectRatio, Qt.SmoothTransformation
+        )
+        cover_label.setSizePolicy(
+            cover_label.sizePolicy().horizontalPolicy(), QSizePolicy.Fixed
+        )
+        cover_label.setToolTip(title)
+        # title_label = QLabel(title)
+        # title_label.setAlignment(Qt.AlignCenter)
+        # title_label.setWordWrap(True)
 
         layout.addWidget(cover_label)
-        layout.addWidget(title_label)
+        # layout.addWidget(title_label)
 
         self.setStyleSheet(
             """
@@ -195,9 +201,7 @@ class HomePage(QMainWindow):
         left_widget = QWidget()
         left_layout = QVBoxLayout()
         left_widget.setLayout(left_layout)
-        random_box = QLabel("This is temporary.")
-        left_layout.addWidget(self.file_tree, 1)
-        left_layout.addWidget(random_box, 1)
+        left_layout.addWidget(self.file_tree, stretch=1)
         self.splitter = QSplitter()
         self.splitter.addWidget(left_widget)
 
@@ -206,14 +210,15 @@ class HomePage(QMainWindow):
         with RepoWorker("D://adams-comics//.covers") as repo_worker:
             continue_list, review_list = repo_worker.run()
 
-        stats_bar = self.create_stats_bar()
-        stats_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        stats_bar.setMaximumHeight(60)
+        # stats_bar = self.create_stats_bar()
+        # stats_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        # stats_bar.setMaximumHeight(60)
+        # left_layout.addWidget(stats_bar, stretch=2)
         continue_reading = self.create_continue_reading_area(continue_list)
         need_review = self.create_review_area(review_list)
         rss = self.create_rss_area(20)
 
-        content_layout.addWidget(stats_bar, stretch=1)
+        # content_layout.addWidget(stats_bar, stretch=1)
         content_layout.addWidget(continue_reading, stretch=3)
         content_layout.addWidget(need_review, stretch=3)
         content_layout.addWidget(rss, stretch=3)
@@ -288,7 +293,7 @@ class HomePage(QMainWindow):
         Each comic displays a cover image and title, and connects to the
         provided callback function when clicked.
         """
-        img_width, img_height = 120, 180
+        img_height = 150
 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
@@ -322,21 +327,18 @@ class HomePage(QMainWindow):
                 pixmap = QPixmap(comic.cover_path)
 
             title_name = comic.title
-            comic_button = ClickableComicWidget(
-                title_name, pixmap, img_width, img_height
-            )
+            comic_button = ClickableComicWidget(title_name, pixmap, img_height)
             comic_button.clicked.connect(make_click_handler(upon_clicked, comic))
 
             layout.addWidget(comic_button)
 
-        final_layout = QVBoxLayout()
-        final_widget = QWidget()
-        final_widget.setLayout(final_layout)
-        final_layout.addWidget(title)
-        final_layout.addWidget(container)
+        scroll_area.setWidget(container)
+        wrapper_widget = QWidget()
+        wrapper_layout = QVBoxLayout(wrapper_widget)
+        wrapper_layout.addWidget(title)
+        wrapper_layout.addWidget(scroll_area)
 
-        scroll_area.setWidget(final_widget)
-        return scroll_area
+        return wrapper_widget
 
     def open_reader(self, comic: GUIComicInfo) -> None:
         """
@@ -468,6 +470,7 @@ class HomePage(QMainWindow):
 
         stats = QWidget()
         layout = QHBoxLayout(stats)
+        layout.setContentsMargins(0, 0, 0, 0)
 
         layout.addWidget(
             create_stat_widget(
