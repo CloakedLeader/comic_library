@@ -16,11 +16,7 @@ from extract_meta_xml import MetadataExtraction
 from file_utils import convert_cbz, generate_uuid, get_ext
 from helper_classes import ComicInfo
 from metadata_cleaning import MetadataProcessing, PublisherNotKnown
-
-# from tagging import run_tagging_process
-
-# from watchdog.observers import Observer
-
+from tagging_controller import run_tagging_process
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -195,12 +191,6 @@ class MetadataController:
         elif get_ext(temp_filepath) != ".cbz":
             raise ValueError("Wrong filetype.")
 
-        # directory = os.path.dirname(temp_filepath)
-        # new_name = f"{self.primary_key}.cbz"
-        # new_path = os.path.join(directory, new_name)
-
-        # os.rename(temp_filepath, new_path)
-
     def has_metadata(self) -> bool:
         """
         Checks that the required metadata fields are complete with some info
@@ -212,7 +202,6 @@ class MetadataController:
         Returns:
         True if all required info is present, else False.
         """
-
         required_fields = ["Title", "Series", "Year", "Number", "Writer", "Summary"]
         if self.filepath is None:
             raise ValueError("Filename must not be None")
@@ -247,50 +236,63 @@ class MetadataController:
             filepath=self.filepath,
             original_filename=self.original_filename,
         )
+        if self.has_metadata():
+            self.process_with_metadata()
+        else:
+            self.process_without_metadata()
 
+    def process_with_metadata(self):
         while True:
-            if self.has_metadata():
-                with MetadataExtraction(self.comic_info) as extractor:
-                    raw_comic_info = extractor.run()
-                with MetadataProcessing(raw_comic_info) as cleaner:
-                    try:
-                        cleaned_comic_info = cleaner.run()
-                        new_name, publisher_int = cleaner.new_filename_and_folder()
-                        print(publisher_int)
-                    except PublisherNotKnown as e:
-                        print(e)
-                        unknown_publisher = e.publisher_name
-                        insert_new_publisher(unknown_publisher)
-                        continue
-                missing_fields = [
-                    k for k, v in cleaned_comic_info.model_dump().items() if v is None
-                ]
-                if missing_fields:
-                    if "issue_num" in missing_fields:
-                        print("[INFO] Missing issue number.")
-                    else:
-                        print(f"Missing : {missing_fields}")
-                        # Need to call the entire tagging process here.
-                        return None
-                print("[INFO Starting inputting data to the database")
-                inputter = MetadataInputting(cleaned_comic_info)
+            with MetadataExtraction(self.comic_info) as extractor:
+                raw_comic_info = extractor.run()
+            with MetadataProcessing(raw_comic_info) as cleaner:
                 try:
-                    inputter.run()
-                except Exception as e:
-                    print(f"[Error] {e}")
+                    cleaned_comic_info = cleaner.run()
+                    new_name, publisher_int = cleaner.new_filename_and_folder()
+                except PublisherNotKnown as e:
+                    print(f"[WARN] Publisher unknown: {e.publisher_name}")
+                    insert_new_publisher(e.publisher_name)
+                    continue
+
+            missing_fields = [
+                k for k, v in cleaned_comic_info.model_dump().items() if v is None
+            ]
+            if missing_fields:
+                if "issue_num" in missing_fields:
+                    print("[INFO] Missing issue number.")
+                else:
+                    print(f"Missing : {missing_fields}")
+                    # Need to call the entire tagging process here.
+                    self.process_without_metadata()
                     return None
-                print("[SUCCESS] Added all data to the database")
-                print("[INFO] Starting cover extraction")
-                image_proc = ImageExtraction(
-                    self.filepath, "D://adams-comics//.covers", self.primary_key
-                )
-                image_proc.run()
-                break
-            else:
-                # search_results = run_tagging_process(self.filepath, API_KEY)
-                # Call the xml creation process.
-                # Call the database insertion process.
-                pass
+
+            self.insert_into_db(cleaned_comic_info)
+            self.extract_cover()
+            self.move_to_publisher_folder(new_name, publisher_int)
+            break
+
+    def process_without_metadata(self):
+        run_tagging_process(self.filepath, API_KEY)
+        self.process()
+
+    def insert_into_db(self, cleaned_comic_info):
+        print("[INFO Starting inputting data to the database")
+        inputter = MetadataInputting(cleaned_comic_info)
+        try:
+            inputter.run()
+        except Exception as e:
+            print(f"[Error] {e}")
+        print("[SUCCESS] Added all data to the database")
+        self.inputter = inputter
+
+    def extract_cover(self):
+        print("[INFO] Starting cover extraction")
+        image_proc = ImageExtraction(
+            self.filepath, "D://adams-comics//.covers", self.primary_key
+        )
+        image_proc.run()
+
+    def move_to_publisher_folder(self, new_name, publisher_int):
         for dirpath, dirnames, _ in os.walk("D://adams-comics"):
             for dirname in dirnames:
                 if str(dirname).startswith(str(publisher_int)):
@@ -298,10 +300,10 @@ class MetadataController:
                     new_path = os.path.join(dir_path, new_name)
                     shutil.move(self.original_filepath, new_path)
                     print(f"[INFO] Moved file to {dir_path}")
-                    inputter.insert_filepath(new_path)
+                    self.inputter.insert_filepath(new_path)
                     print("[INFO] Inserted filepath to database")
-                    inputter.conn.close()
-                    break
+                    self.inputter.conn.close()
+                    return
 
 
 VALID_EXTENSIONS = {".cbz", ".cbr", ".zip"}
@@ -316,23 +318,13 @@ EXCLUDE = {
     "7 - 2000AD Comics",
     "8 - Urban Comics",
 }
-for dirpath, dirnames, filenames in os.walk("D://adams-comics"):
-    dirnames[:] = [d for d in dirnames if d not in EXCLUDE]
-    for filename in filenames:
-        if not any(filename.lower().endswith(ext) for ext in VALID_EXTENSIONS):
-            continue
-        print(f"Starting to process {filename}")
-        full_path = os.path.join(dirpath, filename)
-        new_id = generate_uuid()
-        cont = MetadataController(new_id, full_path)
-        cont.process()
-
-# obs = Observer()
-# obs.schedule(DownloadsHandler(), path_to_obs, recursive=False)
-# obs.start()
-# try:
-#     while True:
-#         time.sleep(1)
-# except KeyboardInterrupt:
-#     obs.stop()
-#     obs.join()
+# for dirpath, dirnames, filenames in os.walk("D://adams-comics"):
+#     dirnames[:] = [d for d in dirnames if d not in EXCLUDE]
+#     for filename in filenames:
+#         if not any(filename.lower().endswith(ext) for ext in VALID_EXTENSIONS):
+#             continue
+#         print(f"Starting to process {filename}")
+#         full_path = os.path.join(dirpath, filename)
+#         new_id = generate_uuid()
+#         cont = MetadataController(new_id, full_path)
+#         cont.process()

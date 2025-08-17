@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET  # nosec
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from difflib import SequenceMatcher
 from enum import Enum, auto
 from io import BytesIO
 from pathlib import Path
@@ -15,6 +16,9 @@ import requests
 from dotenv import load_dotenv
 from fuzzywuzzy import fuzz
 from PIL import Image
+
+from helper_classes import ComicInfo
+from metadata_cleaning import MetadataProcessing
 
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
@@ -247,27 +251,27 @@ class Lexer:
         self.backup()
         return initial != self.pos
 
-    def match(self, s: str) -> bool:
-        """
-        If the upcoming characters match the given string 's',
-        consume them and return True.
-        Otherwise, leave input untouched and return False.
-        """
-        end = self.pos + len(s)
-        if self.input[self.pos : end].lower() == s.lower():
-            self.pos = end
-            return True
-        return False
+    # def match(self, s: str) -> bool:
+    #     """
+    #     If the upcoming characters match the given string 's',
+    #     consume them and return True.
+    #     Otherwise, leave input untouched and return False.
+    #     """
+    #     end = self.pos + len(s)
+    #     if self.input[self.pos : end].lower() == s.lower():
+    #         self.pos = end
+    #         return True
+    #     return False
 
-    def match_any(self, options: list[str]) -> str | None:
-        """
-        Tries to match any of the strings in 'options'.
-        Returns the matched string if successful, else None.
-        """
-        for s in options:
-            if self.match(s):
-                return s
-        return None
+    # def match_any(self, options: list[str]) -> str | None:
+    #     """
+    #     Tries to match any of the strings in 'options'.
+    #     Returns the matched string if successful, else None.
+    #     """
+    #     for s in options:
+    #         if self.match(s):
+    #             return s
+    #     return None
 
     def scan_number(self) -> bool:
         """
@@ -315,11 +319,17 @@ def run_lexer(lex: Lexer) -> Optional[LexerFunc]:
             return run_lexer
 
     elif r.lower() == "v":
-        if lex.peek().isdigit():
-            return lex_volume_number
-        elif lex.match("ol.") or lex.match("ol") or lex.match("olume"):
+        if lex.peek().lower() == "o":
+            lex.get()  # consume 'o'
+        if lex.peek().lower() == "l":
+            lex.get()  # consume 'l'
+            if lex.peek() == ".":
+                lex.get()  # consume '.'
             return lex_volume_number_full
-        return lex_text
+        elif lex.peek().isdigit():
+            return lex_volume_number
+        else:
+            return lex_text
 
     elif r.lower() == "b":
         lex.backup()
@@ -514,10 +524,11 @@ def lex_volume_number(lex: Lexer) -> LexerFunc:
 
 def lex_volume_number_full(lex: Lexer) -> LexerFunc:
     lex.accept_run(is_space)
-    lex.accept_run(str.isdigit)
-
-    if lex.pos > lex.start:
+    if lex.peek().isdigit():
+        lex.accept_run(str.isdigit)
         lex.emit(ItemType.VolumeNumber)
+    # if lex.pos > lex.start:
+    #     lex.emit(ItemType.VolumeNumber)
     else:
         lex.emit(ItemType.Text)
 
@@ -596,12 +607,13 @@ class Parser:
             i += 1
 
         if self.buffer:
-            self.metadata["series"] = " ".join(self.buffer).strip()
+            tokens = " ".join(self.buffer).split()
+            self.metadata["series"] = " ".join(tokens)
 
         if title_parts:
             title = " ".join(title_parts).strip().lstrip("-").strip()
             if title:
-                self.metadata["title"] = title
+                self.metadata["title"] = " ".join(title.split())
 
         return self.metadata
 
@@ -618,7 +630,7 @@ class RequestData:
     ):
         self.series = series
         self.title = title
-        self.unclean_title = series + title
+        self.unclean_title = (series or "") + (title or "")
         self.num = issue_num
         self.pub_year = year
         self.publisher = publisher
@@ -754,6 +766,21 @@ class ResponseValidator:
     def fuzzy_match(a, b, threshold=65):
         return fuzz.token_sort_ratio(a, b) >= threshold
 
+    def pick_best_volumes(self, number: int = 5):
+        def score_name(item):
+            score = 0.0
+            name = item["name"]
+            if name:
+                score += SequenceMatcher(
+                    None, name.lower(), self.expected_info.series.lower()
+                ).ratio()
+            return score
+
+        scored_volumes = [(i, score_name(item)) for i, item in enumerate(self.results)]
+        scored_volumes.sort(key=lambda x: x[1], reverse=True)
+        top_indices = [i for i, _ in scored_volumes[:number]]
+        return [self.results[i] for i in top_indices]
+
     def title_checker(self):
         def check_title(item):
             used_fallback = False
@@ -788,10 +815,6 @@ class ResponseValidator:
             )
 
         return self.filter_results(check_title)
-
-    # def vol_title_checker(self):
-    #     def check_title(item):
-    #         title = item["name"]
 
     def pub_checker(self, results: list):
         foriegn_keywords = {
@@ -907,7 +930,7 @@ class TaggingPipeline:
 
     def run(self):
         queries = [
-            f"{self.data.series} {self.data.title}".strip(),
+            f"{self.data.series} {self.data.title or ''}".strip(),
             self.data.series,
             self.data.title,
         ]
@@ -920,8 +943,8 @@ class TaggingPipeline:
             print(f"There are {len(results['results'])} results returned.")
             results = self.validator.issue_count_filter()
             self.validator.results = results
-            # results = self.validator.title_checker()
-            # self.validator.results = results
+            results = self.validator.pick_best_volumes(number=5)
+            self.validator.results = results
             results = self.validator.pub_checker(results)
             self.validator.results = results
             print(
@@ -932,7 +955,6 @@ class TaggingPipeline:
 
             if len(final_results) == 0:
                 continue
-                # No results - need to come up with logic/a solution here.
 
             print(f"There are {len(final_results)} volumes to check")
             vol_info = []
@@ -1017,12 +1039,13 @@ class TaggingPipeline:
 
 
 class TagApplication:
-    def __init__(self, comicvine_dict: dict, api_key: str):
+    def __init__(self, comicvine_dict: dict, api_key: str, filename: str):
         entry = comicvine_dict[0]
         self.link = entry["api_detail_url"]
         self.issue_id = entry["id"]
         self.volume_id = entry["volume"]["id"]
         self.api_key = api_key
+        self.filename = filename
         self.url: Optional[str] = None
         self.issue_data = None
         self.final_info: Optional[dict] = None
@@ -1067,16 +1090,26 @@ class TagApplication:
         date_obj = datetime.strptime(date_str, "%Y-%m-%d")
         year = date_obj.year
         month = date_obj.month
+        simple_info = ComicInfo(
+            primary_key="temp",
+            filepath="temp",
+            original_filename=self.filename,
+            title=self.issue_data["name"],
+            series=self.issue_data["volume"]["name"],
+            volume_num=self.issue_data["issue_number"],
+        )
+        processor = MetadataProcessing(simple_info)
+        clean_title_info = processor.title_parsing()
+
         information: dict = {
-            "title": self.issue_data["name"],
-            "series": self.issue_data["volume"]["name"],
-            "volume_num": self.issue_data["issue_number"],
+            "title": clean_title_info["title"],
+            "series": clean_title_info["series"],
+            "volume_num": clean_title_info["volume_num"],
             # "publisher": self.issue_data[""]
             # TODO: Cannot get publisher info from issue_data,
             # have to pass it into this class.
             "month": month,
             "year": year,
-            "filepath": None,
             "description": self.issue_data["description"],
             "characters": ", ".join(
                 self.character_or_team_parsing(self.issue_data["character_credits"])
@@ -1145,35 +1178,29 @@ class TagApplication:
             cbz.writestr("ComicInfo.xml", xml_content)
 
 
-def run_tagging_process(filepath, api_key):
+def run_tagging_process(filepath, api_key) -> None:
     filename = Path(filepath).stem
     lexer_instance = Lexer(filename)
     state: Optional[LexerFunc] = run_lexer
     while state is not None:
         state = state(lexer_instance)
+    print(lexer_instance.items)
     parser_instance = Parser(lexer_instance.items)
     comic_info = parser_instance.construct_metadata()
     print(comic_info)
     series = comic_info["series"]
-    num = comic_info.get("issue") or comic_info.get("volume")
+    num = comic_info.get("issue", 0) or comic_info.get("volume", 0)
     year = comic_info["year"]
     title = comic_info.get("title")
 
-    data = RequestData(num, year, series, title)
+    data = RequestData(int(num), int(year), str(series), str(title))
 
     tagger = TaggingPipeline(data=data, path=filepath, size=100, api_key=api_key)
 
     final_result = tagger.run()
     print(final_result)
 
-    inserter = TagApplication(final_result, api_key)
+    inserter = TagApplication(final_result, api_key, filename)
     inserter.get_request()
     inserter.create_metadata_dict()
     inserter.insert_xml_into_cbz(filepath)
-
-
-final_match = run_tagging_process(
-    "D:\\Comics\\To Be Sorted\\New Mutants Epic Collection v04 "
-    "- Fallen Angels (2025) (Digital) (Shan-Empire).cbz",
-    api_key=API_KEY,
-)
