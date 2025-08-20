@@ -83,22 +83,27 @@ class MetadataInputting:
         return character_ids
 
     def insert_into_comic_characters(
-        self, characters: list[tuple[str, int, Optional[str]]]
+        self,
+        characters: list[
+            tuple[
+                str,
+                int,
+            ]
+        ],
     ) -> None:
         for character in characters:
-            _, character_id, identity_info = character
-            identity_id = identity_info[1] if identity_info else None
+            _, character_id = character
+            # identity_id = identity_info[1] if identity_info else None
             self.cursor.execute(
                 """
                 INSERT INTO comic_characters
-                (comic_id, character_id, identity_id)
+                (comic_id, character_id)
                 VALUES
-                (?, ?, ?)
+                (?, ?)
                 """,
                 (
                     self.comic_id,
                     character_id,
-                    identity_id,
                 ),
             )
         self.conn.commit()

@@ -285,11 +285,10 @@ class MetadataProcessing:
         collection_id = self.out_data.collection_type
         for _, val, abbr in SERIES_OVERRIDES:
             if val == collection_id:
-                collection_name = abbr
+                collection_name = abbr.strip()
                 break
-        series_name = self.sanitise(self.out_data.series)
-        title_name = self.sanitise(self.out_data.title)
-        filename = f"""
-        {series_name} - {title_name} {collection_name} #0
-        {volume_num} ({date_suffix}).cbz"""
+        series_name = self.sanitise(self.out_data.series).strip()
+        title_name = self.sanitise(self.out_data.title).strip()
+        filename = f"{series_name} - {title_name} {collection_name} #0{volume_num} ({date_suffix}).cbz"  # noqa: E501
+        filename = self.sanitise(filename).strip()
         return filename, self.out_data.publisher_id
