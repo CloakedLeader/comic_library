@@ -195,6 +195,29 @@ class MetadataInputting:
             )
         self.conn.commit()
 
+    def flatten_data(self) -> dict[str, str]:
+        if self.clean_info.characters is None:
+            characters = ""
+        else:
+            characters = " ".join(self.clean_info.characters)
+        if self.clean_info.teams is None:
+            teams = ""
+        else:
+            teams = " ".join(self.clean_info.teams)
+        if self.clean_info.creators is None:
+            creators = ""
+        else:
+            creators_list = [name for name, _ in self.clean_info.creators]
+            creators = " ".join(creators_list)
+        return {
+            "comic_id": self.comic_id,
+            "title": self.clean_info.title or "",
+            "series": self.clean_info.series or "",
+            "creators": creators,
+            "characters": characters,
+            "teams": teams,
+        }
+
     # ==============
     # Run Function
     # ==============

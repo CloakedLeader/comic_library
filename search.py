@@ -69,6 +69,8 @@ def get_and_flatten_data(comic_id: str) -> dict[str, str]:
 
 
 def insert_into_fts5(cleaned_data: dict[str, str]) -> None:
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
     cursor.execute(
         """
         INSERT INTO comics_fts5(
@@ -78,6 +80,7 @@ def insert_into_fts5(cleaned_data: dict[str, str]) -> None:
         cleaned_data,
     )
     conn.commit()
+    conn.close()
 
 
 def text_search(text) -> list[GUIComicInfo] | None:

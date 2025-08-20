@@ -16,6 +16,7 @@ from extract_meta_xml import MetadataExtraction
 from file_utils import convert_cbz, generate_uuid, get_ext
 from helper_classes import ComicInfo
 from metadata_cleaning import MetadataProcessing, PublisherNotKnown
+from search import insert_into_fts5
 from tagging_controller import run_tagging_process
 
 logging.basicConfig(
@@ -282,8 +283,10 @@ class MetadataController:
         inputter = MetadataInputting(cleaned_comic_info)
         try:
             inputter.run()
+            flat_data = inputter.flatten_data()
         except Exception as e:
             print(f"[Error] {e}")
+        insert_into_fts5(flat_data)
         print("[SUCCESS] Added all data to the database")
         self.inputter = inputter
 
