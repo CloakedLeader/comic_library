@@ -32,6 +32,7 @@ from comic_grid_view import ComicGridView
 from download_controller import DownloadControllerAsync, DownloadServiceAsync
 from gui_repo_worker import RepoWorker
 from helper_classes import GUIComicInfo, RSSComicInfo
+from metadata_controller import run_tagger
 from metadata_gui_panel import MetadataDialog, MetadataPanel
 from reader_controller import ReadingController
 from rss_controller import RSSController
@@ -157,7 +158,9 @@ class HomePage(QMainWindow):
         self.home_action.setShortcut("Ctrl+H")
         self.home_action.setToolTip("Go back to Homescreen")
         toolbar.addAction("Edit")
-        toolbar.addAction("Retag")
+        self.tag_action = toolbar.addAction("Tag")
+        self.tag_action.setShortcut("Ctrl + T")
+        self.tag_action.triggered.connect(self.tag_comics)
         self.toggle_action = toolbar.addAction("Toggle Sidebar")
         self.toggle_action.triggered.connect(self.toggle_sidebar)
         self.toggle_action.setShortcut("Ctrl+B")
@@ -580,6 +583,9 @@ class HomePage(QMainWindow):
     def open_review_panel(self, comic_info: GUIComicInfo):
         self.metadata_popup = MetadataDialog(comic_info)
         self.metadata_popup.show()
+
+    def tag_comics(self):
+        run_tagger()
 
     def update_status(self, message: str) -> None:
         """

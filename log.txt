@@ -1260,3 +1260,251 @@
 2025-08-20 09:06:54,219 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A35612 HTTP/1.1" 200 753
 2025-08-20 09:06:54,633 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issue/4000-1113348/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json HTTP/1.1" 200 1394
 2025-08-20 09:06:54,999 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/volume/4050-160912/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json HTTP/1.1" 200 1466
+2025-08-20 10:00:41,943 - DEBUG - Using proactor: IocpProactor
+2025-08-20 10:00:41,971 - DEBUG - Using proactor: _IocpProactor
+2025-08-20 10:00:44,729 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:44,941 - DEBUG - https://getcomics.org:443 "GET /dc/the-new-gods-9-2025/ HTTP/1.1" 200 None
+2025-08-20 10:00:44,997 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:45,225 - DEBUG - https://getcomics.org:443 "GET /dc/superman-unlimited-4-2025/ HTTP/1.1" 200 None
+2025-08-20 10:00:45,277 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:45,486 - DEBUG - https://getcomics.org:443 "GET /dc/krypto-the-last-dog-of-krypton-3-2025/ HTTP/1.1" 200 None
+2025-08-20 10:00:45,548 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:45,764 - DEBUG - https://getcomics.org:443 "GET /dc/justice-league-red-1-2025/ HTTP/1.1" 200 None
+2025-08-20 10:00:45,823 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:46,043 - DEBUG - https://getcomics.org:443 "GET /dc/detective-comics-1100-2025/ HTTP/1.1" 200 None
+2025-08-20 10:00:46,097 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:46,348 - DEBUG - https://getcomics.org:443 "GET /other-comics/catacomb-of-torment-2-2025/ HTTP/1.1" 200 None
+2025-08-20 10:00:46,400 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:46,629 - DEBUG - https://getcomics.org:443 "GET /dc/batman-and-robin-year-one-10-2025/ HTTP/1.1" 200 None
+2025-08-20 10:00:46,686 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:46,920 - DEBUG - https://getcomics.org:443 "GET /dc/batman-superman-worlds-finest-42-2025/ HTTP/1.1" 200 None
+2025-08-20 10:00:46,970 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:47,200 - DEBUG - https://getcomics.org:443 "GET /dc/wonder-woman-24-2025/ HTTP/1.1" 200 None
+2025-08-20 10:00:47,249 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:47,474 - DEBUG - https://getcomics.org:443 "GET /dc/titans-26-2025/ HTTP/1.1" 200 None
+2025-08-20 10:00:47,518 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:47,776 - DEBUG - https://getcomics.org:443 "GET /dc/nightwing-129-2025/ HTTP/1.1" 200 None
+2025-08-20 10:00:47,830 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:48,074 - DEBUG - https://getcomics.org:443 "GET /dc/catwoman-78-2025/ HTTP/1.1" 200 None
+2025-08-20 10:00:48,280 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:48,368 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/The-New-Gods-9-2025.jpg HTTP/1.1" 200 96804
+2025-08-20 10:00:48,381 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:48,529 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Superman-Unlimited-4-2025.jpg HTTP/1.1" 200 77754
+2025-08-20 10:00:48,585 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:48,755 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Krypto-The-Last-Dog-of-Krypton-3-2025.jpg HTTP/1.1" 200 52009
+2025-08-20 10:00:48,803 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:48,958 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Justice-League-Red-1-2025.jpg HTTP/1.1" 200 76357
+2025-08-20 10:00:49,014 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:49,183 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Detective-Comics-1100-2025.jpg HTTP/1.1" 200 85582
+2025-08-20 10:00:49,245 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:49,403 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Catacomb-of-Torment-2-2025.jpg HTTP/1.1" 200 66063
+2025-08-20 10:00:49,454 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:49,617 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Batman-and-Robin-Year-One-10-2025.jpg HTTP/1.1" 200 70596
+2025-08-20 10:00:49,677 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:49,835 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Batman-Superman-Worlds-Finest-42-2025.jpg HTTP/1.1" 200 82770
+2025-08-20 10:00:49,893 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:50,050 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Wonder-Woman-24-2025.jpg HTTP/1.1" 200 84070
+2025-08-20 10:00:50,113 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:50,310 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Titans-26-2025.jpg HTTP/1.1" 200 86306
+2025-08-20 10:00:50,367 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:50,511 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/The-New-Gods-9-2025-1.jpg HTTP/1.1" 200 96804
+2025-08-20 10:00:50,576 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:50,746 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Catwoman-78-2025.jpg HTTP/1.1" 200 68789
+2025-08-20 10:00:50,803 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:50,899 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Venom-Black-White-Blood-1-2025.jpg HTTP/1.1" 200 89400
+2025-08-20 10:00:50,911 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:51,024 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Godzilla-Destroys-the-Marvel-Universe-2-2025.jpg HTTP/1.1" 200 96499
+2025-08-20 10:00:51,035 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:51,164 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Ultimate-Black-Panther-19-2025.jpg HTTP/1.1" 200 58733
+2025-08-20 10:00:51,229 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:51,336 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Vampirella-Armageddon-2-2025.jpg HTTP/1.1" 200 58559
+2025-08-20 10:00:51,347 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:51,464 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/ThunderCats-Lost-5-2025.jpg HTTP/1.1" 200 37159
+2025-08-20 10:00:51,470 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:51,579 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/The-Vision-and-The-Scarlet-Witch-4-2025.jpg HTTP/1.1" 200 74959
+2025-08-20 10:00:51,596 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:51,725 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/The-Terminator-10-2025.jpg HTTP/1.1" 200 52087
+2025-08-20 10:00:51,734 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:00:51,833 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Spider-Girl-3-2025.jpg HTTP/1.1" 200 69257
+2025-08-20 10:00:52,396 - DEBUG - Starting (proactor: <_IocpProactor overlapped#=0 result#=0>)...
+2025-08-20 10:00:52,398 - DEBUG - Thread started
+2025-08-20 10:01:45,536 - DEBUG - Starting new HTTPS connection (1): comicvine.gamespot.com:443
+2025-08-20 10:01:47,075 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/search/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&resources=volume&field_list=id%2Cimage%2Cpublisher%2Cname%2Cstart_year%2Cdate_added%2Ccount_of_issues%2Cdescription%2Clast_issue&format=json&limit=50&query=New+Mutants+Epic+Collection+Fallen+Angels HTTP/1.1" 200 14503
+2025-08-20 10:01:47,367 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A130998 HTTP/1.1" 200 1281
+2025-08-20 10:01:47,630 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A99448 HTTP/1.1" 200 1141
+2025-08-20 10:01:47,955 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A138158 HTTP/1.1" 200 1067
+2025-08-20 10:01:48,195 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A162601 HTTP/1.1" 200 1160
+2025-08-20 10:01:48,198 - DEBUG - Starting new HTTPS connection (1): comicvine.gamespot.com:443
+2025-08-20 10:01:48,432 - DEBUG - https://comicvine.gamespot.com:443 "GET /a/uploads/scale_avatar/11144/111449692/9647086-1597356005-Tt4MFG.jpeg HTTP/1.1" 200 11831
+2025-08-20 10:01:48,746 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A151710 HTTP/1.1" 200 1106
+2025-08-20 10:01:48,750 - DEBUG - Starting new HTTPS connection (1): comicvine.gamespot.com:443
+2025-08-20 10:01:48,967 - DEBUG - https://comicvine.gamespot.com:443 "GET /a/uploads/scale_avatar/11159/111592040/8995609-img_1464.jpeg HTTP/1.1" 200 18401
+2025-08-20 10:01:49,238 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A120134 HTTP/1.1" 200 1110
+2025-08-20 10:01:49,516 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A32421 HTTP/1.1" 200 931
+2025-08-20 10:01:49,879 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A108957 HTTP/1.1" 200 1097
+2025-08-20 10:01:50,178 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issue/4000-1097699/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json HTTP/1.1" 200 4376
+2025-08-20 10:01:50,720 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/volume/4050-162601/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json HTTP/1.1" 200 4135
+2025-08-20 10:02:46,896 - DEBUG - Stopping worker thread...
+2025-08-20 10:02:46,904 - DEBUG - Exiting thread
+2025-08-20 10:02:46,906 - DEBUG - Closing
+2025-08-20 10:02:46,990 - DEBUG - Closing
+2025-08-20 10:03:08,840 - DEBUG - Using proactor: IocpProactor
+2025-08-20 10:03:08,868 - DEBUG - Using proactor: _IocpProactor
+2025-08-20 10:03:11,396 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:11,627 - DEBUG - https://getcomics.org:443 "GET /dc/the-new-gods-9-2025/ HTTP/1.1" 200 None
+2025-08-20 10:03:11,671 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:11,917 - DEBUG - https://getcomics.org:443 "GET /dc/superman-unlimited-4-2025/ HTTP/1.1" 200 None
+2025-08-20 10:03:11,966 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:12,192 - DEBUG - https://getcomics.org:443 "GET /dc/krypto-the-last-dog-of-krypton-3-2025/ HTTP/1.1" 200 None
+2025-08-20 10:03:12,234 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:12,456 - DEBUG - https://getcomics.org:443 "GET /dc/justice-league-red-1-2025/ HTTP/1.1" 200 None
+2025-08-20 10:03:12,497 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:12,726 - DEBUG - https://getcomics.org:443 "GET /dc/detective-comics-1100-2025/ HTTP/1.1" 200 None
+2025-08-20 10:03:12,773 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:13,038 - DEBUG - https://getcomics.org:443 "GET /other-comics/catacomb-of-torment-2-2025/ HTTP/1.1" 200 None
+2025-08-20 10:03:13,098 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:13,327 - DEBUG - https://getcomics.org:443 "GET /dc/batman-and-robin-year-one-10-2025/ HTTP/1.1" 200 None
+2025-08-20 10:03:13,382 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:13,601 - DEBUG - https://getcomics.org:443 "GET /dc/batman-superman-worlds-finest-42-2025/ HTTP/1.1" 200 None
+2025-08-20 10:03:13,649 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:13,872 - DEBUG - https://getcomics.org:443 "GET /dc/wonder-woman-24-2025/ HTTP/1.1" 200 None
+2025-08-20 10:03:13,913 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:14,155 - DEBUG - https://getcomics.org:443 "GET /dc/titans-26-2025/ HTTP/1.1" 200 None
+2025-08-20 10:03:14,200 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:14,426 - DEBUG - https://getcomics.org:443 "GET /dc/nightwing-129-2025/ HTTP/1.1" 200 None
+2025-08-20 10:03:14,475 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:14,737 - DEBUG - https://getcomics.org:443 "GET /dc/catwoman-78-2025/ HTTP/1.1" 200 None
+2025-08-20 10:03:15,038 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:15,145 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/The-New-Gods-9-2025.jpg HTTP/1.1" 200 96804
+2025-08-20 10:03:15,165 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:15,248 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Superman-Unlimited-4-2025.jpg HTTP/1.1" 200 77754
+2025-08-20 10:03:15,261 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:15,352 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Krypto-The-Last-Dog-of-Krypton-3-2025.jpg HTTP/1.1" 200 52009
+2025-08-20 10:03:15,361 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:15,469 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Justice-League-Red-1-2025.jpg HTTP/1.1" 200 76357
+2025-08-20 10:03:15,479 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:15,578 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Detective-Comics-1100-2025.jpg HTTP/1.1" 200 85582
+2025-08-20 10:03:15,592 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:15,683 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Catacomb-of-Torment-2-2025.jpg HTTP/1.1" 200 66063
+2025-08-20 10:03:15,692 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:15,792 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Batman-and-Robin-Year-One-10-2025.jpg HTTP/1.1" 200 70596
+2025-08-20 10:03:15,798 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:15,902 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Batman-Superman-Worlds-Finest-42-2025.jpg HTTP/1.1" 200 82770
+2025-08-20 10:03:15,914 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:16,009 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Wonder-Woman-24-2025.jpg HTTP/1.1" 200 84070
+2025-08-20 10:03:16,019 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:16,113 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Titans-26-2025.jpg HTTP/1.1" 200 86306
+2025-08-20 10:03:16,125 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:16,238 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/The-New-Gods-9-2025-1.jpg HTTP/1.1" 200 96804
+2025-08-20 10:03:16,254 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:16,342 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Catwoman-78-2025.jpg HTTP/1.1" 200 68789
+2025-08-20 10:03:16,348 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:16,447 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Venom-Black-White-Blood-1-2025.jpg HTTP/1.1" 200 89400
+2025-08-20 10:03:16,457 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:16,581 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Godzilla-Destroys-the-Marvel-Universe-2-2025.jpg HTTP/1.1" 200 96499
+2025-08-20 10:03:16,595 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:16,696 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Ultimate-Black-Panther-19-2025.jpg HTTP/1.1" 200 58733
+2025-08-20 10:03:16,707 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:16,801 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Vampirella-Armageddon-2-2025.jpg HTTP/1.1" 200 58559
+2025-08-20 10:03:16,810 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:16,906 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/ThunderCats-Lost-5-2025.jpg HTTP/1.1" 200 37159
+2025-08-20 10:03:16,912 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:17,033 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/The-Vision-and-The-Scarlet-Witch-4-2025.jpg HTTP/1.1" 200 74959
+2025-08-20 10:03:17,045 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:17,147 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/The-Terminator-10-2025.jpg HTTP/1.1" 200 52087
+2025-08-20 10:03:17,158 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:03:17,252 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Spider-Girl-3-2025.jpg HTTP/1.1" 200 69257
+2025-08-20 10:03:17,386 - DEBUG - Starting (proactor: <_IocpProactor overlapped#=0 result#=0>)...
+2025-08-20 10:03:17,388 - DEBUG - Thread started
+2025-08-20 10:03:25,814 - DEBUG - Starting new HTTPS connection (1): comicvine.gamespot.com:443
+2025-08-20 10:03:25,911 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/search/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&resources=volume&field_list=id%2Cimage%2Cpublisher%2Cname%2Cstart_year%2Cdate_added%2Ccount_of_issues%2Cdescription%2Clast_issue&format=json&limit=50&query=New+Mutants+Epic+Collection+Fallen+Angels HTTP/1.1" 200 14503
+2025-08-20 10:03:25,946 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A130998 HTTP/1.1" 200 1281
+2025-08-20 10:03:25,975 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A99448 HTTP/1.1" 200 1141
+2025-08-20 10:03:25,996 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A138158 HTTP/1.1" 200 1067
+2025-08-20 10:03:26,019 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A162601 HTTP/1.1" 200 1160
+2025-08-20 10:03:26,021 - DEBUG - Starting new HTTPS connection (1): comicvine.gamespot.com:443
+2025-08-20 10:03:26,105 - DEBUG - https://comicvine.gamespot.com:443 "GET /a/uploads/scale_avatar/11144/111449692/9647086-1597356005-Tt4MFG.jpeg HTTP/1.1" 200 11831
+2025-08-20 10:03:26,128 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A151710 HTTP/1.1" 200 1106
+2025-08-20 10:03:26,130 - DEBUG - Starting new HTTPS connection (1): comicvine.gamespot.com:443
+2025-08-20 10:03:26,217 - DEBUG - https://comicvine.gamespot.com:443 "GET /a/uploads/scale_avatar/11159/111592040/8995609-img_1464.jpeg HTTP/1.1" 200 18401
+2025-08-20 10:03:26,257 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A120134 HTTP/1.1" 200 1110
+2025-08-20 10:03:26,278 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A32421 HTTP/1.1" 200 931
+2025-08-20 10:03:26,307 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A108957 HTTP/1.1" 200 1097
+2025-08-20 10:03:26,332 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issue/4000-1097699/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json HTTP/1.1" 200 4376
+2025-08-20 10:03:26,377 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/volume/4050-162601/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json HTTP/1.1" 200 4135
+2025-08-20 10:06:15,510 - DEBUG - Stopping worker thread...
+2025-08-20 10:06:15,520 - DEBUG - Exiting thread
+2025-08-20 10:06:15,521 - DEBUG - Closing
+2025-08-20 10:06:15,604 - DEBUG - Closing
+2025-08-20 10:07:17,834 - DEBUG - Using proactor: IocpProactor
+2025-08-20 10:07:17,864 - DEBUG - Using proactor: _IocpProactor
+2025-08-20 10:07:19,934 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:20,160 - DEBUG - https://getcomics.org:443 "GET /dc/the-new-gods-9-2025/ HTTP/1.1" 200 None
+2025-08-20 10:07:20,204 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:20,430 - DEBUG - https://getcomics.org:443 "GET /dc/superman-unlimited-4-2025/ HTTP/1.1" 200 None
+2025-08-20 10:07:20,478 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:20,698 - DEBUG - https://getcomics.org:443 "GET /dc/krypto-the-last-dog-of-krypton-3-2025/ HTTP/1.1" 200 None
+2025-08-20 10:07:20,757 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:20,987 - DEBUG - https://getcomics.org:443 "GET /dc/justice-league-red-1-2025/ HTTP/1.1" 200 None
+2025-08-20 10:07:21,040 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:21,266 - DEBUG - https://getcomics.org:443 "GET /dc/detective-comics-1100-2025/ HTTP/1.1" 200 None
+2025-08-20 10:07:21,310 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:21,545 - DEBUG - https://getcomics.org:443 "GET /other-comics/catacomb-of-torment-2-2025/ HTTP/1.1" 200 None
+2025-08-20 10:07:21,590 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:21,819 - DEBUG - https://getcomics.org:443 "GET /dc/batman-and-robin-year-one-10-2025/ HTTP/1.1" 200 None
+2025-08-20 10:07:21,870 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:22,113 - DEBUG - https://getcomics.org:443 "GET /dc/batman-superman-worlds-finest-42-2025/ HTTP/1.1" 200 None
+2025-08-20 10:07:22,161 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:22,399 - DEBUG - https://getcomics.org:443 "GET /dc/wonder-woman-24-2025/ HTTP/1.1" 200 None
+2025-08-20 10:07:22,443 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:22,684 - DEBUG - https://getcomics.org:443 "GET /dc/titans-26-2025/ HTTP/1.1" 200 None
+2025-08-20 10:07:22,744 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:22,988 - DEBUG - https://getcomics.org:443 "GET /dc/nightwing-129-2025/ HTTP/1.1" 200 None
+2025-08-20 10:07:23,038 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:23,280 - DEBUG - https://getcomics.org:443 "GET /dc/catwoman-78-2025/ HTTP/1.1" 200 None
+2025-08-20 10:07:23,431 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:23,542 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/The-New-Gods-9-2025.jpg HTTP/1.1" 200 96804
+2025-08-20 10:07:23,565 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:23,654 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Superman-Unlimited-4-2025.jpg HTTP/1.1" 200 77754
+2025-08-20 10:07:23,663 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:23,776 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Krypto-The-Last-Dog-of-Krypton-3-2025.jpg HTTP/1.1" 200 52009
+2025-08-20 10:07:23,792 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:23,884 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Justice-League-Red-1-2025.jpg HTTP/1.1" 200 76357
+2025-08-20 10:07:23,893 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:24,006 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Detective-Comics-1100-2025.jpg HTTP/1.1" 200 85582
+2025-08-20 10:07:24,018 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:24,118 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Catacomb-of-Torment-2-2025.jpg HTTP/1.1" 200 66063
+2025-08-20 10:07:24,131 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:24,235 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Batman-and-Robin-Year-One-10-2025.jpg HTTP/1.1" 200 70596
+2025-08-20 10:07:24,247 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:24,352 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Batman-Superman-Worlds-Finest-42-2025.jpg HTTP/1.1" 200 82770
+2025-08-20 10:07:24,364 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:24,480 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Wonder-Woman-24-2025.jpg HTTP/1.1" 200 84070
+2025-08-20 10:07:24,496 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:24,608 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Titans-26-2025.jpg HTTP/1.1" 200 86306
+2025-08-20 10:07:24,622 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:24,730 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/The-New-Gods-9-2025-1.jpg HTTP/1.1" 200 96804
+2025-08-20 10:07:24,747 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:24,849 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Catwoman-78-2025.jpg HTTP/1.1" 200 68789
+2025-08-20 10:07:24,863 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:24,965 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Venom-Black-White-Blood-1-2025.jpg HTTP/1.1" 200 89400
+2025-08-20 10:07:24,979 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:25,083 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Godzilla-Destroys-the-Marvel-Universe-2-2025.jpg HTTP/1.1" 200 96499
+2025-08-20 10:07:25,102 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:25,197 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Ultimate-Black-Panther-19-2025.jpg HTTP/1.1" 200 58733
+2025-08-20 10:07:25,204 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:25,299 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Vampirella-Armageddon-2-2025.jpg HTTP/1.1" 200 58559
+2025-08-20 10:07:25,309 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:25,413 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/ThunderCats-Lost-5-2025.jpg HTTP/1.1" 200 37159
+2025-08-20 10:07:25,418 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:25,535 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/The-Vision-and-The-Scarlet-Witch-4-2025.jpg HTTP/1.1" 200 74959
+2025-08-20 10:07:25,545 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:25,645 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/The-Terminator-10-2025.jpg HTTP/1.1" 200 52087
+2025-08-20 10:07:25,653 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-20 10:07:25,772 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Spider-Girl-3-2025.jpg HTTP/1.1" 200 69257
+2025-08-20 10:07:25,913 - DEBUG - Starting (proactor: <_IocpProactor overlapped#=0 result#=0>)...
+2025-08-20 10:07:25,915 - DEBUG - Thread started
+2025-08-20 10:08:22,524 - DEBUG - Stopping worker thread...
+2025-08-20 10:08:22,538 - DEBUG - Exiting thread
+2025-08-20 10:08:22,540 - DEBUG - Closing
+2025-08-20 10:08:22,628 - DEBUG - Closing

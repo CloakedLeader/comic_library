@@ -1167,11 +1167,13 @@ class TagApplication:
             "Title",
         }
 
-        for key, value in self.final_info.items():
-            if value is None and key in MANDATORY_FIELDS:
-                self.final_info[key] = "<PENDING>"
-            elif not value:
-                self.final_info[key] = "<MISSING>"
+        for field in MANDATORY_FIELDS:
+            if field not in self.final_info or not self.final_info[field]:
+                self.final_info[field] = "PENDING"
+        for key in self.final_info:
+            if key not in MANDATORY_FIELDS:
+                if self.final_info[key] is None or self.final_info[key] == "":
+                    self.final_info[key] = "MISSING"
 
     def create_xml(self) -> bytes:
         root = ET.Element("ComicInfo")
