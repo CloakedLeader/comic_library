@@ -203,7 +203,15 @@ class MetadataController:
         Returns:
         True if all required info is present, else False.
         """
-        required_fields = ["Title", "Series", "Year", "Number", "Writer", "Summary"]
+        required_fields = [
+            "Title",
+            "Series",
+            "Year",
+            "Number",
+            "Writer",
+            "Penciller",
+            "Summary",
+        ]
         if self.filepath is None:
             raise ValueError("Filename must not be None")
         with zipfile.ZipFile(self.filepath, "r") as archive:
@@ -213,7 +221,9 @@ class MetadataController:
                         tree = ET.parse(xml_file)
                         root = tree.getroot()
                         missing = [
-                            tag for tag in required_fields if root.find(tag) is None
+                            tag
+                            for tag in required_fields
+                            if root.find(tag) is None or root.find(tag) == ""
                         ]
 
                         if missing:
@@ -245,35 +255,27 @@ class MetadataController:
                 self.process_with_metadata()
 
     def process_with_metadata(self):
-        while True:
-            with MetadataExtraction(self.comic_info) as extractor:
-                raw_comic_info = extractor.run()
-            with MetadataProcessing(raw_comic_info) as cleaner:
-                try:
-                    cleaned_comic_info = cleaner.run()
-                    new_name, publisher_int = cleaner.new_filename_and_folder()
-                except PublisherNotKnown as e:
-                    print(f"[WARN] Publisher unknown: {e.publisher_name}")
-                    insert_new_publisher(e.publisher_name)
-                    continue
+        with MetadataExtraction(self.comic_info) as extractor:
+            raw_comic_info = extractor.run()
+        with MetadataProcessing(raw_comic_info) as cleaner:
+            try:
+                cleaned_comic_info = cleaner.run()
+                new_name, publisher_int = cleaner.new_filename_and_folder()
+            except PublisherNotKnown as e:
+                print(f"[WARN] Publisher unknown: {e.publisher_name}")
+                insert_new_publisher(e.publisher_name)
+                return
 
-            # missing_fields = [
-            #     k for k, v in cleaned_comic_info.model_dump().items() if v is None
-            # ]
-            # pending_fields = [
-            #     k for k, v in cleaned_comic_info.model_dump().items()
-            #     if v == "<PENDING>"
-            # ]
+        for key, value in cleaned_comic_info.model_dump().items():
+            if value == "PENDING":
+                print(f"[ERROR] Missing required {key} field.")
+                # Need to remove ComicInfo.xml and
+                # wait until sufficient data is supplied.
+                return
 
-            # if pending_fields:
-            #     # Need to wait a few days and attempt tagging again,
-            #     # else I am unsure what to do.
-            #     pass
-
-            self.insert_into_db(cleaned_comic_info)
-            self.extract_cover()
-            self.move_to_publisher_folder(new_name, publisher_int)
-            break
+        self.insert_into_db(cleaned_comic_info)
+        self.extract_cover()
+        self.move_to_publisher_folder(new_name, publisher_int)
 
     def process_without_metadata(self):
         run_tagging_process(self.filepath, API_KEY)
@@ -324,13 +326,15 @@ EXCLUDE = {
     "8 - Urban Comics",
 }
 
-for dirpath, dirnames, filenames in os.walk("D://adams-comics//0 - Downloads"):
-    dirnames[:] = [d for d in dirnames if d not in EXCLUDE]
-    for filename in filenames:
-        if not any(filename.lower().endswith(ext) for ext in VALID_EXTENSIONS):
-            continue
-        print(f"Starting to process {filename}")
-        full_path = os.path.join(dirpath, filename)
-        new_id = generate_uuid()
-        cont = MetadataController(new_id, full_path)
-        cont.process()
+
+def run_tagger():
+    for dirpath, dirnames, filenames in os.walk("D://adams-comics//0 - Downloads"):
+        dirnames[:] = [d for d in dirnames if d not in EXCLUDE]
+        for filename in filenames:
+            if not any(filename.lower().endswith(ext) for ext in VALID_EXTENSIONS):
+                continue
+            print(f"Starting to process {filename}")
+            full_path = os.path.join(dirpath, filename)
+            new_id = generate_uuid()
+            cont = MetadataController(new_id, full_path)
+            cont.process()
