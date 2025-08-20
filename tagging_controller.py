@@ -6,7 +6,7 @@ import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from difflib import SequenceMatcher
-from enum import Enum, auto
+from enum import Enum, IntEnum, auto
 from io import BytesIO
 from pathlib import Path
 from typing import Callable, Optional, Protocol
@@ -25,6 +25,12 @@ API_KEY = os.getenv("API_KEY")
 # ==================================
 #   Filename Lexing
 # ==================================
+
+
+class MatchCode(IntEnum):
+    NO_MATCH = 0
+    ONE_MATCH = 1
+    MULTIPLE_MATCHES = 2
 
 
 def is_numeric_or_number_punctuation(x: str) -> bool:
@@ -250,28 +256,6 @@ class Lexer:
 
         self.backup()
         return initial != self.pos
-
-    # def match(self, s: str) -> bool:
-    #     """
-    #     If the upcoming characters match the given string 's',
-    #     consume them and return True.
-    #     Otherwise, leave input untouched and return False.
-    #     """
-    #     end = self.pos + len(s)
-    #     if self.input[self.pos : end].lower() == s.lower():
-    #         self.pos = end
-    #         return True
-    #     return False
-
-    # def match_any(self, options: list[str]) -> str | None:
-    #     """
-    #     Tries to match any of the strings in 'options'.
-    #     Returns the matched string if successful, else None.
-    #     """
-    #     for s in options:
-    #         if self.match(s):
-    #             return s
-    #     return None
 
     def scan_number(self) -> bool:
         """
@@ -900,6 +884,7 @@ class TaggingPipeline:
         self.cover = self.cover_getter()
         self.coverhashes = self.cover_hasher()
         # dictionary of (phash, dhash, ahash)
+        self.results: list[dict] = []
 
     def cover_getter(self):
         with zipfile.ZipFile(self.path, "r") as zip_ref:
@@ -913,8 +898,6 @@ class TaggingPipeline:
                 return
             image_files.sort()
             cover = zip_ref.read(image_files[0])
-            deb = Image.open(BytesIO(cover))
-            deb.show()
             return BytesIO(cover)
 
     def cover_hasher(self):
@@ -943,7 +926,7 @@ class TaggingPipeline:
             print(f"There are {len(results['results'])} results returned.")
             results = self.validator.issue_count_filter()
             self.validator.results = results
-            results = self.validator.pick_best_volumes(number=5)
+            results = self.validator.pick_best_volumes(number=8)
             self.validator.results = results
             results = self.validator.pub_checker(results)
             self.validator.results = results
@@ -1020,7 +1003,9 @@ class TaggingPipeline:
             if len(good_matches) == 1:
                 print(good_matches[0]["volume"]["name"])
                 print("There is ONE match!!!")
-                return good_matches
+                # self.publisher = good_matches[0]
+                self.results.append(good_matches)
+                return MatchCode.ONE_MATCH
             elif len(good_matches) == 0:
                 print("There are no matches.")
                 # If there is no matches need to do something.
@@ -1033,9 +1018,16 @@ class TaggingPipeline:
                     f"""FINAL COUNT: There are {len(good_matches)}
                     remaining matches."""
                 )
+                self.results.append(good_matches)
                 # Need to use scoring or sorting or closest title match etc.
                 # If that cant decide then we need to flag the comic
                 # and ask the user for input.
+        if len(self.results) == 0:
+            print("There are no matches")
+            return MatchCode.NO_MATCH
+        elif len(self.results) > 1:
+            print("There are multiple matches")
+            return MatchCode.MULTIPLE_MATCHES
 
 
 class TagApplication:
@@ -1044,6 +1036,7 @@ class TagApplication:
         self.link = entry["api_detail_url"]
         self.issue_id = entry["id"]
         self.volume_id = entry["volume"]["id"]
+        self.pub_link = entry["volume"]["api_detail_url"]
         self.api_key = api_key
         self.filename = filename
         self.url: Optional[str] = None
@@ -1062,6 +1055,12 @@ class TagApplication:
         prepared = req.prepare()
         self.url = prepared.url
 
+    def get_publisher(self) -> None:
+        url = f"{self.pub_link}?api_key={self.api_key}&format=json"
+        response = session.get(url)
+        data = response.json()
+        return data["results"]["publisher"]["name"]
+
     def get_request(self) -> None:
         if not self.url:
             self.build_url()
@@ -1071,7 +1070,7 @@ class TagApplication:
         if response.status_code != 200:
             print(f"Request failed with status code: {response.status_code}")
         data = response.json()
-        print(data)
+        print(data["results"])
         self.issue_data = data["results"]
 
     def parse_list_of_dicts(self, field) -> list[str]:
@@ -1102,22 +1101,22 @@ class TagApplication:
         clean_title_info = processor.title_parsing()
 
         information: dict = {
-            "title": clean_title_info["title"],
-            "series": clean_title_info["series"],
-            "volume_num": clean_title_info["volume_num"],
-            # "publisher": self.issue_data[""]
-            # TODO: Cannot get publisher info from issue_data,
-            # have to pass it into this class.
-            "month": month,
-            "year": year,
-            "description": self.issue_data["description"],
-            "characters": ", ".join(
+            "Title": clean_title_info["title"],
+            "Series": clean_title_info["series"],
+            "Number": clean_title_info["volume_num"],
+            "Publisher": self.get_publisher(),
+            "Month": month,
+            "Year": year,
+            "Summary": self.issue_data["description"],
+            "Characters": ", ".join(
                 self.character_or_team_parsing(self.issue_data["character_credits"])
             ),
-            "teams": ", ".join(
+            "Teams": ", ".join(
                 self.character_or_team_parsing(self.issue_data["team_credits"])
             ),
+            "api_link": self.issue_data["api_detail_url"],
         }
+
         information.update(
             self.creators_entry_parsing(self.issue_data["person_credits"])
         )
@@ -1134,18 +1133,19 @@ class TagApplication:
             "letterer": "Letterer",
             "cover": "CoverArtist",
             "colorist": "Colorist",
+            "artist": "Penciller",
         }
-        creator_dict = {}
+        creator_dict = {v: "" for v in mapping.values()}
 
-        def role_parsing(role: str):
-            people_in_role = []
-            for info in list_of_creator_info:
-                if info["role"] == role:
-                    people_in_role.append(info["name"])
-            creator_dict[mapping[role]] = ", ".join(people_in_role)
-
-        for i in mapping.keys():
-            role_parsing(i)
+        for info in list_of_creator_info:
+            roles = [r.strip().lower() for r in info["role"].split(",")]
+            for role in roles:
+                if role in mapping:
+                    key = mapping[role]
+                    if creator_dict[key]:
+                        creator_dict[key] += ", " + info["name"]
+                    else:
+                        creator_dict[key] = info["name"]
 
         return creator_dict
 
@@ -1156,11 +1156,28 @@ class TagApplication:
             peoples.append(str(i["name"]))
         return peoples
 
+    def fill_gaps(self):
+        MANDATORY_FIELDS = {
+            "Writer",
+            "Penciller",
+            "Year",
+            "Summary",
+            "Number",
+            "Series",
+            "Title",
+        }
+
+        for key, value in self.final_info.items():
+            if value is None and key in MANDATORY_FIELDS:
+                self.final_info[key] = "<PENDING>"
+            elif not value:
+                self.final_info[key] = "<MISSING>"
+
     def create_xml(self) -> bytes:
         root = ET.Element("ComicInfo")
 
         if self.final_info is None:
-            raise ValueError("final_items cannot be None")
+            raise ValueError("final_info cannot be None")
         for key, value in self.final_info.items():
             child = ET.SubElement(root, key)
             child.text = str(value)
@@ -1173,7 +1190,9 @@ class TagApplication:
     def insert_xml_into_cbz(self, cbz_path: str):
         if not os.path.exists(cbz_path):
             raise FileNotFoundError(f"{cbz_path} does not exist")
+        self.fill_gaps()
         xml_content = self.create_xml()
+
         with zipfile.ZipFile(cbz_path, "a") as cbz:
             cbz.writestr("ComicInfo.xml", xml_content)
 
@@ -1184,13 +1203,12 @@ def run_tagging_process(filepath, api_key) -> None:
     state: Optional[LexerFunc] = run_lexer
     while state is not None:
         state = state(lexer_instance)
-    print(lexer_instance.items)
     parser_instance = Parser(lexer_instance.items)
     comic_info = parser_instance.construct_metadata()
     print(comic_info)
     series = comic_info["series"]
     num = comic_info.get("issue", 0) or comic_info.get("volume", 0)
-    year = comic_info["year"]
+    year = comic_info.get("year", 0)
     title = comic_info.get("title")
 
     data = RequestData(int(num), int(year), str(series), str(title))
@@ -1198,9 +1216,14 @@ def run_tagging_process(filepath, api_key) -> None:
     tagger = TaggingPipeline(data=data, path=filepath, size=100, api_key=api_key)
 
     final_result = tagger.run()
-    print(final_result)
+    if final_result == MatchCode.ONE_MATCH:
 
-    inserter = TagApplication(final_result, api_key, filename)
-    inserter.get_request()
-    inserter.create_metadata_dict()
-    inserter.insert_xml_into_cbz(filepath)
+        inserter = TagApplication(tagger.results[0], api_key, filename)
+        inserter.get_request()
+        inserter.create_metadata_dict()
+        inserter.insert_xml_into_cbz(filepath)
+    elif final_result == MatchCode.NO_MATCH:
+        print("Need another method to find matches")
+    elif final_result == MatchCode.MULTIPLE_MATCHES:
+        print("Multiple matches, require user input to disambiguate.")
+        # Need to create a gui popup to allow user to select correct match.

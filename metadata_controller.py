@@ -240,6 +240,8 @@ class MetadataController:
             self.process_with_metadata()
         else:
             self.process_without_metadata()
+            if self.has_metadata():
+                self.process_with_metadata()
 
     def process_with_metadata(self):
         while True:
@@ -254,17 +256,18 @@ class MetadataController:
                     insert_new_publisher(e.publisher_name)
                     continue
 
-            missing_fields = [
-                k for k, v in cleaned_comic_info.model_dump().items() if v is None
-            ]
-            if missing_fields:
-                if "issue_num" in missing_fields:
-                    print("[INFO] Missing issue number.")
-                else:
-                    print(f"Missing : {missing_fields}")
-                    # Need to call the entire tagging process here.
-                    self.process_without_metadata()
-                    return None
+            # missing_fields = [
+            #     k for k, v in cleaned_comic_info.model_dump().items() if v is None
+            # ]
+            # pending_fields = [
+            #     k for k, v in cleaned_comic_info.model_dump().items()
+            #     if v == "<PENDING>"
+            # ]
+
+            # if pending_fields:
+            #     # Need to wait a few days and attempt tagging again,
+            #     # else I am unsure what to do.
+            #     pass
 
             self.insert_into_db(cleaned_comic_info)
             self.extract_cover()
@@ -273,10 +276,9 @@ class MetadataController:
 
     def process_without_metadata(self):
         run_tagging_process(self.filepath, API_KEY)
-        self.process()
 
     def insert_into_db(self, cleaned_comic_info):
-        print("[INFO Starting inputting data to the database")
+        print("[INFO] Starting inputting data to the database")
         inputter = MetadataInputting(cleaned_comic_info)
         try:
             inputter.run()
@@ -318,13 +320,14 @@ EXCLUDE = {
     "7 - 2000AD Comics",
     "8 - Urban Comics",
 }
-# for dirpath, dirnames, filenames in os.walk("D://adams-comics"):
-#     dirnames[:] = [d for d in dirnames if d not in EXCLUDE]
-#     for filename in filenames:
-#         if not any(filename.lower().endswith(ext) for ext in VALID_EXTENSIONS):
-#             continue
-#         print(f"Starting to process {filename}")
-#         full_path = os.path.join(dirpath, filename)
-#         new_id = generate_uuid()
-#         cont = MetadataController(new_id, full_path)
-#         cont.process()
+
+for dirpath, dirnames, filenames in os.walk("D://adams-comics//0 - Downloads"):
+    dirnames[:] = [d for d in dirnames if d not in EXCLUDE]
+    for filename in filenames:
+        if not any(filename.lower().endswith(ext) for ext in VALID_EXTENSIONS):
+            continue
+        print(f"Starting to process {filename}")
+        full_path = os.path.join(dirpath, filename)
+        new_id = generate_uuid()
+        cont = MetadataController(new_id, full_path)
+        cont.process()
