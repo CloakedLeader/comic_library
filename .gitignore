@@ -10,3 +10,4 @@ thumbnails/
 *.png
 ipad_app/
 *.json
+log.txt

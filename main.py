@@ -209,6 +209,7 @@ class HomePage(QMainWindow):
         left_layout = QVBoxLayout()
         left_widget.setLayout(left_layout)
         left_layout.addWidget(self.file_tree, stretch=1)
+        left_layout.addWidget(QLabel("This is temporary."), stretch=1)
         self.splitter = QSplitter()
         self.splitter.addWidget(left_widget)
 
@@ -222,12 +223,12 @@ class HomePage(QMainWindow):
         # stats_bar.setMaximumHeight(60)
         # left_layout.addWidget(stats_bar, stretch=2)
         continue_reading = self.create_continue_reading_area(continue_list)
-        need_review = self.create_review_area(review_list)
+        # need_review = self.create_review_area(review_list)
         rss = self.create_rss_area(20)
 
         # content_layout.addWidget(stats_bar, stretch=1)
         content_layout.addWidget(continue_reading, stretch=3)
-        content_layout.addWidget(need_review, stretch=3)
+        # content_layout.addWidget(need_review, stretch=3)
         content_layout.addWidget(rss, stretch=3)
 
         self.stack = QStackedWidget()
@@ -300,7 +301,7 @@ class HomePage(QMainWindow):
         Each comic displays a cover image and title, and connects to the
         provided callback function when clicked.
         """
-        img_height = 150
+        img_height = 200
 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)

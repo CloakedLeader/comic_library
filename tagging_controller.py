@@ -617,7 +617,7 @@ class RequestData:
         self.unclean_title = (series or "") + (title or "")
         self.num = issue_num
         self.pub_year = year
-        self.publisher = publisher
+        self.publisher = publisher or ""
 
 
 header = {
@@ -908,9 +908,6 @@ class TaggingPipeline:
             "ahash": imagehash.average_hash(image),
         }
 
-    def ask_user(self, results: list):
-        pass
-
     def run(self):
         queries = [
             f"{self.data.series} {self.data.title or ''}".strip(),
@@ -1003,7 +1000,7 @@ class TaggingPipeline:
             if len(good_matches) == 1:
                 print(good_matches[0]["volume"]["name"])
                 print("There is ONE match!!!")
-                # self.publisher = good_matches[0]
+                print(good_matches)
                 self.results.append(good_matches)
                 return MatchCode.ONE_MATCH
             elif len(good_matches) == 0:
@@ -1226,6 +1223,7 @@ def run_tagging_process(filepath, api_key) -> None:
         inserter.insert_xml_into_cbz(filepath)
     elif final_result == MatchCode.NO_MATCH:
         print("Need another method to find matches")
+        # Add a method to rank and return the best 3-5 matches.
     elif final_result == MatchCode.MULTIPLE_MATCHES:
         print("Multiple matches, require user input to disambiguate.")
         # Need to create a gui popup to allow user to select correct match.
