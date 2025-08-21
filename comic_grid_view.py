@@ -1,4 +1,5 @@
 import os
+from pathlib import path
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap

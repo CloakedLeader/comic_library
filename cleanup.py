@@ -1,15 +1,14 @@
-import os
 import sqlite3
 from pathlib import Path
 
 
-def delete_comic(filepath: str) -> None:
+def delete_comic(filepath: Path) -> None:
     base_dir = Path("D:/adams-comics")
 
     conn = sqlite3.connect("comics.db")
     cursor = conn.cursor()
 
-    cursor.execute("SELECT id FROM comics where file_path = ?", (filepath,))
+    cursor.execute("SELECT id FROM comics where file_path = ?", (str(filepath),))
     results = cursor.fetchone()
     if not results:
         return None
@@ -49,14 +48,15 @@ def scan_and_clean() -> None:
     rows = cursor.fetchall()
     missing = []
     for comic_id, file_path in rows:
-        if not os.path.exists(file_path):
-            missing.append((comic_id, file_path))
+        filepath = Path(file_path)
+        if not filepath.exists():
+            missing.append((comic_id, filepath))
     if len(missing) == 0:
         print("Comic database is up to date.")
         return None
-    for _, file_path in missing:
-        print(f"Removing missing comic: {file_path}")
-        delete_comic(file_path)
+    for _, filepath in missing:
+        print("Removing missing comic: " +  str(filepath))
+        delete_comic(filepath)
 
     print(f"Scan complete. Removed {len(missing)} missing comics.")
     return None
