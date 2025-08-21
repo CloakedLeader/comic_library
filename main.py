@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 )
 from qasync import QEventLoop
 
+from cleanup import scan_and_clean
 from comic_grid_view import ComicGridView
 from download_controller import DownloadControllerAsync, DownloadServiceAsync
 from gui_repo_worker import RepoWorker
@@ -165,6 +166,9 @@ class HomePage(QMainWindow):
         self.toggle_action.triggered.connect(self.toggle_sidebar)
         self.toggle_action.setShortcut("Ctrl+B")
         self.toggle_action.setToolTip("Toggle file tree sidebar")
+        self.refresh_action = toolbar.addAction("Update")
+        self.refresh_action.triggered.connect(scan_and_clean)
+        self.refresh_action.setShortcut("Ctrl + U")
 
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -642,4 +646,5 @@ async def main():
 
 
 if __name__ == "__main__":
+    scan_and_clean()
     asyncio.run(main())
