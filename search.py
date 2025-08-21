@@ -50,9 +50,9 @@ def get_and_flatten_data(comic_id: str) -> dict[str, str]:
     )
     raw_teams = cursor.fetchall()
 
-    characters = [row[0] for row in raw_characters]
-    creators = [row[0] for row in raw_creators]
-    teams = [row[0] for row in raw_teams]
+    characters = [row[0] for row in raw_characters if row[0] != "MISSING"]
+    creators = [row[0] for row in raw_creators if row[0] != "MISSING"]
+    teams = [row[0] for row in raw_teams if row[0] != "MISSING"]
 
     characters_str = " ".join(characters)
     creators_str = " ".join(creators)
