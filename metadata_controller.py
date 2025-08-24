@@ -8,6 +8,7 @@ from typing import Optional
 
 from defusedxml import ElementTree as ET
 from dotenv import load_dotenv
+from PySide6.QtWidgets import QMainWindow
 from watchdog.events import FileSystemEventHandler
 
 from cover_processing import ImageExtraction
@@ -17,7 +18,7 @@ from file_utils import convert_cbz, generate_uuid, get_ext
 from helper_classes import ComicInfo
 from metadata_cleaning import MetadataProcessing, PublisherNotKnown
 from search import insert_into_fts5
-from tagging_controller import run_tagging_process
+from tagging_controller import RequestData, extract_and_insert, run_tagging_process
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -89,34 +90,34 @@ class DownloadsHandler(FileSystemEventHandler):
     formats if necessary.
     """
 
-    def on_created(self, event: FileSystemEventHandler) -> None:
-        """
-        Called when a new file is created in the watched directory.
+    # def on_created(self, event: FileSystemEventHandler) -> None:
+    #     """
+    #     Called when a new file is created in the watched directory.
 
-        Args:
-            event(FileSystemEvent): The file system event triggered.
-        """
-        if event.is_directory:
-            return
+    #     Args:
+    #         event(FileSystemEvent): The file system event triggered.
+    #     """
+    #     if event.is_directory:
+    #         return
 
-        filepath = event.src_path
-        filename = os.path.basename(filepath)
+    #     filepath = event.src_path
+    #     filename = os.path.basename(filepath)
 
-        if filename.endswith(".part"):
-            logging.info(f"Ignoring partial file: {filename}")
-            return
+    #     if filename.endswith(".part"):
+    #         logging.info(f"Ignoring partial file: {filename}")
+    #         return
 
-        logging.info(f"Detected new file: {filename}")
+    #     logging.info(f"Detected new file: {filename}")
 
-        time.sleep(2)
+    #     time.sleep(2)
 
-        if not self.is_file_ready(filepath):
-            logging.warning(f"File not stable yet: {filename}")
-            return
+    #     if not self.is_file_ready(filepath):
+    #         logging.warning(f"File not stable yet: {filename}")
+    #         return
 
-        new_key = generate_uuid()
-        cont = MetadataController(new_key, filepath)
-        cont.process()
+    #     new_key = generate_uuid()
+    #     cont = MetadataController(new_key, filepath)
+    #     cont.process()
 
     def on_moved(self, event: FileSystemEventHandler) -> None:
         """
@@ -177,9 +178,10 @@ class DownloadsHandler(FileSystemEventHandler):
 
 
 class MetadataController:
-    def __init__(self, primary_key: str, filepath: str):
+    def __init__(self, primary_key: str, filepath: str, display: QMainWindow):
         self.primary_key = primary_key
         self.original_filepath = filepath
+        self.display = display
         self.original_filename = os.path.basename(filepath)
         self.filepath: Optional[str] = filepath
         self.filename: Optional[str] = os.path.basename(filepath)
@@ -189,6 +191,7 @@ class MetadataController:
         temp_filepath = self.original_filepath
         if get_ext(temp_filepath) == ".cbr":
             temp_filepath = convert_cbz(temp_filepath)
+            self.filepath = temp_filepath
         elif get_ext(temp_filepath) != ".cbz":
             raise ValueError("Wrong filetype.")
 
@@ -278,7 +281,17 @@ class MetadataController:
         self.move_to_publisher_folder(new_name, publisher_int)
 
     def process_without_metadata(self):
-        run_tagging_process(self.filepath, API_KEY)
+        result = run_tagging_process(self.filepath, API_KEY)
+        if not result:
+            return None
+        results, actual = result
+        selected = self.request_disambiguation(results, actual)
+        if not selected:
+            print("[INFO] User cancelled disambiguation")
+            return None
+        result = selected
+        self.continue_tagging_from_user_match(result)
+        return None
 
     def insert_into_db(self, cleaned_comic_info):
         print("[INFO] Starting inputting data to the database")
@@ -312,6 +325,15 @@ class MetadataController:
                     self.inputter.conn.close()
                     return
 
+    def request_disambiguation(self, results: list[dict], actual_comic: RequestData):
+        match = self.display.get_user_match(results, actual_comic, self.filepath)
+        if match:
+            return match
+        return None
+
+    def continue_tagging_from_user_match(self, match: dict):
+        extract_and_insert(match, API_KEY, self.original_filename, self.filepath)
+
 
 VALID_EXTENSIONS = {".cbz", ".cbr", ".zip"}
 EXCLUDE = {
@@ -327,7 +349,7 @@ EXCLUDE = {
 }
 
 
-def run_tagger():
+def run_tagger(display: QMainWindow):
     for dirpath, dirnames, filenames in os.walk("D://adams-comics//0 - Downloads"):
         dirnames[:] = [d for d in dirnames if d not in EXCLUDE]
         for filename in filenames:
@@ -336,5 +358,5 @@ def run_tagger():
             print(f"Starting to process {filename}")
             full_path = os.path.join(dirpath, filename)
             new_id = generate_uuid()
-            cont = MetadataController(new_id, full_path)
+            cont = MetadataController(new_id, full_path, display)
             cont.process()

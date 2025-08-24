@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 from fuzzywuzzy import fuzz
 from PIL import Image
 
+from comic_match_logic import ResultsFilter
 from helper_classes import ComicInfo
 from metadata_cleaning import MetadataProcessing
 
@@ -729,8 +730,8 @@ class HttpRequest:
 
 class ResponseValidator:
 
-    issue_threshold = 80
-    volume_threshold = 60
+    issue_threshold = 70
+    volume_threshold = 50
 
     def __init__(self, response: dict, expected_data: RequestData):
         self.results = response["results"]
@@ -742,7 +743,7 @@ class ResponseValidator:
     def year_checker(self):
         def check_year(item):
             year = int(item["date_added"][:4])
-            return abs(year - self.expected_info.pub_year) <= 3
+            return abs(year - self.expected_info.pub_year) <= 4
 
         return self.filter_results(check_year)
 
@@ -774,6 +775,7 @@ class ResponseValidator:
                 r"^#\d+$",  # matches "#1", "#12" etc
                 r"^issue\s*\d+$",  # matches "issue 3"
                 r"\bvol(?:ume)?\.?\s*(one|two|three|four|\d+|i{1,3}|iv|v)\b",
+                r"\bbook\s*(one|two|three|four|\d+|i{1,3}|iv|v)\b",
             ]
             title = item["name"]
             if title:
@@ -914,7 +916,11 @@ class TaggingPipeline:
             self.data.series,
             self.data.title,
         ]
+        potential_results = []
+
+        skipped_vols = []
         for q in queries:
+            good_matches = []
 
             self.http.build_url_search(q)
             results = self.http.get_request("search")
@@ -928,30 +934,27 @@ class TaggingPipeline:
             results = self.validator.pub_checker(results)
             self.validator.results = results
             print(
-                f"After filtering for title, publisher and issue \
-                , there are {len(results)} remaining results."
+                "After filtering for title, publisher and issue "
+                + f"there are {len(results)} remaining results."
             )
             final_results = results
 
             if len(final_results) == 0:
                 continue
 
-            print(f"There are {len(final_results)} volumes to check")
             vol_info = []
             for i in final_results:
                 id = i["id"]
                 name = i["name"]
                 vol_info.append((id, name))
-            good_matches = []
-            skipped_vols = []
-            for j, k in vol_info:
+            for index, (j, k) in enumerate(vol_info):
                 self.http.build_url_iss(j)
                 temp_results = self.http.get_request("iss")
 
                 self.temp_validator = ResponseValidator(temp_results, self.data)
                 print(
-                    f"""There are {len(self.temp_validator.results)}
-                    issues in the matching volume: '{k}'."""
+                    f"There are {len(self.temp_validator.results)}"
+                    + f" issues in the matching volume: '{k}'."
                 )
                 temp_results = self.temp_validator.year_checker()
                 self.temp_validator.results = temp_results
@@ -959,17 +962,18 @@ class TaggingPipeline:
                 self.temp_validator.results = temp_results
 
                 print(
-                    f"""After filtering for title and year
-                    there are {len(temp_results)} results remaining."""
+                    "After filtering for title and year "
+                    + f"there are {len(temp_results)} results remaining."
                 )
                 if len(temp_results) != 0:
                     if len(temp_results) > 25:
                         print(
-                            f"""Too many issues to compare covers,
-                            skipping volume '{k}'."""
+                            "Too many issues to compare covers, "
+                            + f"skipping volume '{k}'."
                         )
                         skipped_vols.append((j, k, len(temp_results)))
                         continue
+                    potential_results.extend(temp_results)
                     self.temp_validator.cover_img_url_getter(temp_results)
                     images = []
                     with ThreadPoolExecutor(max_workers=5) as executor:
@@ -1011,25 +1015,28 @@ class TaggingPipeline:
             elif len(good_matches) > 1:
                 for i in good_matches:
                     print(i["volume"]["name"])
-                print(
-                    f"""FINAL COUNT: There are {len(good_matches)}
-                    remaining matches."""
-                )
-                self.results.append(good_matches)
+                self.results.extend(good_matches)
                 # Need to use scoring or sorting or closest title match etc.
                 # If that cant decide then we need to flag the comic
                 # and ask the user for input.
         if len(self.results) == 0:
             print("There are no matches")
+            filterer = ResultsFilter(potential_results, self.data, self.path)
+            self.filtered_for_none = filterer.present_choices()
             return MatchCode.NO_MATCH
         elif len(self.results) > 1:
             print("There are multiple matches")
+            filterer = ResultsFilter(self.results, self.data, self.path)
+            self.filtered_for_many = filterer.present_choices()
             return MatchCode.MULTIPLE_MATCHES
 
 
 class TagApplication:
-    def __init__(self, comicvine_dict: dict, api_key: str, filename: str):
-        entry = comicvine_dict[0]
+    def __init__(self, comicvine_dict: dict | list, api_key: str, filename: str):
+        if isinstance(comicvine_dict, list):
+            entry = comicvine_dict[0]
+        else:
+            entry = comicvine_dict
         self.link = entry["api_detail_url"]
         self.issue_id = entry["id"]
         self.volume_id = entry["volume"]["id"]
@@ -1196,7 +1203,7 @@ class TagApplication:
             cbz.writestr("ComicInfo.xml", xml_content)
 
 
-def run_tagging_process(filepath, api_key) -> None:
+def run_tagging_process(filepath, api_key) -> Optional[tuple[list, RequestData]]:
     filename = Path(filepath).stem
     lexer_instance = Lexer(filename)
     state: Optional[LexerFunc] = run_lexer
@@ -1221,9 +1228,24 @@ def run_tagging_process(filepath, api_key) -> None:
         inserter.get_request()
         inserter.create_metadata_dict()
         inserter.insert_xml_into_cbz(filepath)
+        return None
     elif final_result == MatchCode.NO_MATCH:
         print("Need another method to find matches")
+        best_matches = tagger.filtered_for_none
+        return (best_matches, tagger.data)
         # Add a method to rank and return the best 3-5 matches.
     elif final_result == MatchCode.MULTIPLE_MATCHES:
         print("Multiple matches, require user input to disambiguate.")
+        best_matches = tagger.filtered_for_many
+        return (best_matches, tagger.data)
         # Need to create a gui popup to allow user to select correct match.
+    else:
+        raise ValueError("Something has gone wrong")
+
+
+def extract_and_insert(match, api_key, filename, filepath):
+    inserter = TagApplication(match, api_key, filename)
+    inserter.get_request()
+    inserter.create_metadata_dict()
+    inserter.insert_xml_into_cbz(filepath)
+    return None

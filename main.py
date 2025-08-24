@@ -4,6 +4,7 @@ import os
 import os.path
 import sys
 from io import BytesIO
+from pathlib import Path
 from typing import Callable, Optional
 
 import requests
@@ -11,6 +12,7 @@ from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QApplication,
+    QDialog,
     QFileSystemModel,
     QHBoxLayout,
     QLabel,
@@ -30,6 +32,7 @@ from qasync import QEventLoop
 
 from cleanup import scan_and_clean
 from comic_grid_view import ComicGridView
+from comic_match_ui import ComicMatcherUI
 from download_controller import DownloadControllerAsync, DownloadServiceAsync
 from gui_repo_worker import RepoWorker
 from helper_classes import GUIComicInfo, RSSComicInfo
@@ -590,7 +593,18 @@ class HomePage(QMainWindow):
         self.metadata_popup.show()
 
     def tag_comics(self):
-        run_tagger()
+        run_tagger(self)
+
+    def get_user_match(self, query_results: list[dict], actual_comic, filepath: str):
+
+        dialog = ComicMatcherUI(actual_comic, query_results, Path(filepath))
+        if dialog.exec() == QDialog.Accepted:
+            selected = dialog.get_selected_result()
+            if selected:
+                return selected
+
+        print("User cancelled or no selection made.")
+        return None
 
     def update_status(self, message: str) -> None:
         """
