@@ -6,6 +6,7 @@ import requests
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QDialog,
     QHBoxLayout,
     QLabel,
@@ -29,6 +30,7 @@ class ComicMatcherUI(QDialog):
         self.filepath = filepath
         self.matches = best_matches
 
+        self.resize(800, 600)
         self.main_display = QWidget()
         self.main_layout = QVBoxLayout(self.main_display)
 
@@ -37,7 +39,7 @@ class ComicMatcherUI(QDialog):
         self.tag = QPushButton("Confirm Match")
         self.tag.clicked.connect(self.confirm_match)
         self.exit_button = QPushButton("Close")
-        self.exit_button.addAction(self.reject)
+        self.exit_button.clicked.connect(self.reject)
 
         self.content = QWidget()
         self.content_layout = QHBoxLayout(self.content)
@@ -56,16 +58,19 @@ class ComicMatcherUI(QDialog):
         cover_bytes = self.cover_getter(self.filepath)
         pixmap = QPixmap()
         pixmap.loadFromData(cover_bytes.getvalue())
+        scaled_pix = pixmap.scaledToWidth(200, Qt.SmoothTransformation)
         title = self.actual_data.unclean_title
         year = self.actual_data.pub_year
         number = self.actual_data.num
         actual_widget = QWidget()
         layout = QVBoxLayout(actual_widget)
         layout.addWidget(QLabel("Your Comic"))
-        layout.addWidget(pixmap)
+        label = QLabel()
+        label.setPixmap(scaled_pix)
+        layout.addWidget(label)
         layout.addWidget(QLabel(title))
-        layout.addWidget(QLabel(year))
-        layout.addWidget(QLabel(number))
+        layout.addWidget(QLabel(str(year)))
+        layout.addWidget(QLabel(str(number)))
 
         return actual_widget
 
@@ -73,7 +78,7 @@ class ComicMatcherUI(QDialog):
         cover_pixmaps = []
 
         self.table_widget = QTableWidget(len(self.matches), 3)
-        self.table_widget.setSelectionBehavior(QTableWidget.selectRow)
+        self.table_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
 
         row_index = 0
         for match in self.matches:
@@ -82,8 +87,8 @@ class ComicMatcherUI(QDialog):
                     self.load_pixmap_from_url(str(match.get("cover_link")))
                 )
             title_item = QTableWidgetItem(match["title"] + ":" + match["series"])
-            year_item = QTableWidgetItem(match["year"])
-            number_item = QTableWidgetItem(match["number"])
+            year_item = QTableWidgetItem(str(match["year"]))
+            number_item = QTableWidgetItem(str(match["number"]))
             for index, item in enumerate([title_item, year_item, number_item]):
                 self.table_widget.setItem(row_index, index, item)
             row_index += 1
@@ -109,8 +114,13 @@ class ComicMatcherUI(QDialog):
         row = self.table_widget.currentRow()
         if row != -1:
             print(f"Selected row: {row}")
+            self.selected_match = self.matches[row]
+            self.accept()
         else:
             print("No row selected")
+
+    def get_selected_result(self):
+        return getattr(self, "selected_match", None)
 
     @staticmethod
     def cover_getter(filepath):
