@@ -6147,3 +6147,97 @@
 2025-08-24 20:39:46,759 - DEBUG - Exiting thread
 2025-08-24 20:39:46,761 - DEBUG - Closing
 2025-08-24 20:39:46,937 - DEBUG - Closing
+2025-08-24 21:23:26,359 - DEBUG - Using proactor: IocpProactor
+2025-08-24 21:23:26,392 - DEBUG - Using proactor: _IocpProactor
+2025-08-24 21:23:28,981 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:29,191 - DEBUG - https://getcomics.org:443 "GET /other-comics/tomorrow-girl-x-atomic-mouse-2025/ HTTP/1.1" 200 None
+2025-08-24 21:23:29,235 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:29,468 - DEBUG - https://getcomics.org:443 "GET /marvel/marvel-previews-48-2025/ HTTP/1.1" 200 None
+2025-08-24 21:23:29,513 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:29,722 - DEBUG - https://getcomics.org:443 "GET /marvel/nova-vol-2-1-18-1994-1995/ HTTP/1.1" 200 None
+2025-08-24 21:23:29,773 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:30,011 - DEBUG - https://getcomics.org:443 "GET /marvel/night-thrasher-vol-1-1-21/ HTTP/1.1" 200 None
+2025-08-24 21:23:30,076 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:30,282 - DEBUG - https://getcomics.org:443 "GET /marvel/spider-ham-aporkalypse-now-tpb-2019/ HTTP/1.1" 200 None
+2025-08-24 21:23:30,329 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:30,550 - DEBUG - https://getcomics.org:443 "GET /dc/millennium-vol-1-tpb-2008/ HTTP/1.1" 200 None
+2025-08-24 21:23:30,595 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:30,830 - DEBUG - https://getcomics.org:443 "GET /dc/the-teen-titans-archives-vol-1-2003/ HTTP/1.1" 200 None
+2025-08-24 21:23:30,884 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:31,105 - DEBUG - https://getcomics.org:443 "GET /other-comics/image-scene-11-2025/ HTTP/1.1" 200 None
+2025-08-24 21:23:31,152 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:31,360 - DEBUG - https://getcomics.org:443 "GET /other-comics/image-scene-10-2025/ HTTP/1.1" 200 None
+2025-08-24 21:23:31,407 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:31,657 - DEBUG - https://getcomics.org:443 "GET /other-comics/image-scene-9-2025/ HTTP/1.1" 200 None
+2025-08-24 21:23:31,706 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:31,955 - DEBUG - https://getcomics.org:443 "GET /marvel/spider-man-gang-war-omnibus-2025/ HTTP/1.1" 200 None
+2025-08-24 21:23:32,018 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:32,261 - DEBUG - https://getcomics.org:443 "GET /marvel/wolverine-revenge-red-band-2025-fan-made-tpb/ HTTP/1.1" 200 None
+2025-08-24 21:23:32,313 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:32,394 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Tomorrow-Girl-X-Atomic-Mouse-2025.jpg HTTP/1.1" 200 122946
+2025-08-24 21:23:32,419 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:32,505 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Marvel-Previews-48-2025.jpg HTTP/1.1" 200 99531
+2025-08-24 21:23:32,524 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:32,609 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2018/08/Nova-Vol.-2-1-18-1994-1995.jpg HTTP/1.1" 200 96597
+2025-08-24 21:23:32,625 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:32,724 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2016/03/Night-Thrasher-Vol.-1-1-21.jpg HTTP/1.1" 200 147019
+2025-08-24 21:23:32,751 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:32,847 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2021/10/Spider-Ham-Aporkalypse-Now-TPB-2019.jpg HTTP/1.1" 200 68608
+2025-08-24 21:23:32,859 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:32,942 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Millennium-Vol.-1-TPB-2008.jpg HTTP/1.1" 200 175191
+2025-08-24 21:23:32,967 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:33,061 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/The-Teen-Titans-Archives-Vol.-1-2003.jpg HTTP/1.1" 200 70701
+2025-08-24 21:23:33,075 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:33,154 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Image-Scene-11-2025.jpg HTTP/1.1" 200 96280
+2025-08-24 21:23:33,167 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:33,250 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Image-Scene-10-2025.jpg HTTP/1.1" 200 100124
+2025-08-24 21:23:33,264 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:33,361 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Image-Scene-9-2025.jpg HTTP/1.1" 200 116406
+2025-08-24 21:23:33,377 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:33,458 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Spider-Man-Gang-War-Omnibus-2025-.jpg HTTP/1.1" 200 120964
+2025-08-24 21:23:33,477 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:33,559 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Wolverine-Revenge-Red-Band-2025-Fan-Made-TPB.jpg HTTP/1.1" 200 115580
+2025-08-24 21:23:33,574 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:33,693 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/The-Punisher-Omnibus-by-Greg-Rucka-2025-Fan-Made.jpg HTTP/1.1" 200 112003
+2025-08-24 21:23:33,708 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:33,813 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Supergirl-Red-Daughter-of-Krypton-Omnibus-2025-Fan-Made.jpg HTTP/1.1" 200 107124
+2025-08-24 21:23:33,824 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:33,946 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2024/11/Punisher-Max-Kingpin-TPB-2017.jpg HTTP/1.1" 200 92875
+2025-08-24 21:23:33,959 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:34,062 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Pop-Kill-TPB-2025.jpg HTTP/1.1" 200 66311
+2025-08-24 21:23:34,077 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:34,182 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Venom-by-Michelinie-McFarlane-TPB-2021.jpg HTTP/1.1" 200 145353
+2025-08-24 21:23:34,201 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:34,303 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2015/05/Beast-Boy-1-4.jpg HTTP/1.1" 200 177220
+2025-08-24 21:23:34,329 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:34,438 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2025/08/Ultragirl-1-3-1996.jpg HTTP/1.1" 200 128161
+2025-08-24 21:23:34,452 - DEBUG - Starting new HTTPS connection (1): getcomics.org:443
+2025-08-24 21:23:34,552 - DEBUG - https://getcomics.org:443 "GET /share/uploads/2020/05/Spider-Man-Friends-Enemies-1-4-1995-1.jpg HTTP/1.1" 200 175750
+2025-08-24 21:23:34,687 - DEBUG - Starting (proactor: <_IocpProactor overlapped#=0 result#=0>)...
+2025-08-24 21:23:34,688 - DEBUG - Thread started
+2025-08-24 21:23:46,790 - DEBUG - Starting new HTTPS connection (1): comicvine.gamespot.com:443
+2025-08-24 21:23:47,971 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/search/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&resources=volume&field_list=id%2Cimage%2Cpublisher%2Cname%2Cstart_year%2Cdate_added%2Ccount_of_issues%2Cdescription%2Clast_issue&format=json&limit=50&query=Plastic+Man+No+More+None HTTP/1.1" 200 10819
+2025-08-24 21:23:48,355 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A159578 HTTP/1.1" 200 2215
+2025-08-24 21:23:48,362 - DEBUG - Starting new HTTPS connection (1): comicvine.gamespot.com:443
+2025-08-24 21:23:48,364 - DEBUG - Starting new HTTPS connection (1): comicvine.gamespot.com:443
+2025-08-24 21:23:48,364 - DEBUG - Starting new HTTPS connection (1): comicvine.gamespot.com:443
+2025-08-24 21:23:48,365 - DEBUG - Starting new HTTPS connection (1): comicvine.gamespot.com:443
+2025-08-24 21:23:48,626 - DEBUG - https://comicvine.gamespot.com:443 "GET /a/uploads/scale_avatar/11/110017/9528026-wwww.jpg HTTP/1.1" 200 9294
+2025-08-24 21:23:48,638 - DEBUG - https://comicvine.gamespot.com:443 "GET /a/uploads/scale_avatar/11161/111615891/9466542-cover.jpg HTTP/1.1" 200 10316
+2025-08-24 21:23:48,654 - DEBUG - https://comicvine.gamespot.com:443 "GET /a/uploads/scale_avatar/11/110017/9569038-wwww.jpg HTTP/1.1" 200 13117
+2025-08-24 21:23:48,674 - DEBUG - https://comicvine.gamespot.com:443 "GET /a/uploads/scale_avatar/11161/111615891/9498387-cover.jpg HTTP/1.1" 200 9117
+2025-08-24 21:23:49,015 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A166038 HTTP/1.1" 200 1109
+2025-08-24 21:23:49,018 - DEBUG - Starting new HTTPS connection (1): comicvine.gamespot.com:443
+2025-08-24 21:23:49,322 - DEBUG - https://comicvine.gamespot.com:443 "GET /a/uploads/scale_avatar/6/60408/9809442-plasnomore.jpg HTTP/1.1" 200 13624
+2025-08-24 21:23:49,854 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A111587 HTTP/1.1" 200 2878
+2025-08-24 21:23:50,194 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A1946 HTTP/1.1" 200 747
+2025-08-24 21:23:50,426 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A118260 HTTP/1.1" 200 910
+2025-08-24 21:23:50,726 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A4017 HTTP/1.1" 200 1472
+2025-08-24 21:23:50,984 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A35296 HTTP/1.1" 200 802
+2025-08-24 21:23:51,351 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issues/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json&filter=volume%3A100331 HTTP/1.1" 200 551
+2025-08-24 21:23:51,626 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/issue/4000-1123506/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json HTTP/1.1" 200 1297
+2025-08-24 21:23:51,955 - DEBUG - https://comicvine.gamespot.com:443 "GET /api/volume/4050-166038/?api_key=61d8fd6e7cc37cc177cd09f795e9c585999903ed&format=json HTTP/1.1" 200 685
+2025-08-24 21:24:50,592 - DEBUG - Stopping worker thread...
+2025-08-24 21:24:50,602 - DEBUG - Exiting thread
+2025-08-24 21:24:50,604 - DEBUG - Closing
+2025-08-24 21:24:50,758 - DEBUG - Closing
