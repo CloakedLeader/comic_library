@@ -63,7 +63,16 @@ class ResultsFilter:
 
     def filter_results(self, top_n: int = 5) -> list[dict]:
         print(f"Adam here you go:\n{self.query_results}")
-        scored = [(self.score_results(r), r) for r in self.query_results]
+        ids: set[int] = set()
+        scored: list[tuple[float, dict]] = []
+        for result in self.query_results:
+            indiv_id = int(result["id"])
+            if indiv_id not in ids:
+                ids.add(indiv_id)
+            else:
+                continue
+            scored.append((self.score_results(result), result))
+
         scored.sort(key=lambda x: x[0], reverse=True)
         return [r for _, r in scored[:top_n]]
 

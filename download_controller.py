@@ -2,6 +2,7 @@ import os
 import re
 import urllib.parse
 from email.header import decode_header
+from pathlib import Path
 from typing import Callable, Optional
 
 import aiofiles
@@ -58,16 +59,22 @@ class DownloadControllerAsync:
         """
         self.comic_info = comic_info
         self.view.update_status(f"Starting download of: {comic_info.title}")
-        try:
-            filepath = await self.download_service.download_comic(
-                comic_info.url,
-                progress_callback=self.progress_update,
-            )
-            self.view.update_status(
-                f"Successfully downloaded: {comic_info.title} to {filepath}"
-            )
-        except (requests.RequestException, aiohttp.ClientError, IOError) as e:
-            self.view.update_status(f"Failed: {e}")
+        download_links = self.download_service.get_download_links(comic_info.url)
+        download_links = self.download_service.sort(download_links)
+        for service, link in download_links:
+            if service != "Read Online":
+                try:
+                    filepath = self.download_service.download_from_service(
+                        service,
+                        link,
+                        progress_callback=self.progress_update,
+                    )
+                    self.view.update_status(
+                        f"Successfully downloaded: {comic_info.title} to {filepath}"
+                    )
+                except (requests.RequestException, aiohttp.ClientError, IOError) as e:
+                    print(f"[ERROR] {e}")
+                    continue
 
     def progress_update(self, percent: int):
         self.view.update_progress_bar(percent)
@@ -82,9 +89,7 @@ class DownloadServiceAsync:
     It provides robust error handling and supports various comic file formats.
     """
 
-    def __init__(
-        self, download_folder: str = "D://adams-comics//0 - Downloads"
-    ) -> None:
+    def __init__(self, download_folder: str = "D:/adams-comics/0 - Downloads") -> None:
         """
         Initialise the download service.
 
@@ -135,7 +140,7 @@ class DownloadServiceAsync:
         )
         return filename.group("name") if filename else None
 
-    def get_download_links(self, comic_article_link: str) -> str:
+    def get_download_links(self, comic_article_link: str) -> list[tuple[str, str]]:
         """
         Extract download links from a comic article page.
 
@@ -170,10 +175,10 @@ class DownloadServiceAsync:
 
         if not download_links:
             raise ValueError("No download links found on the page")
-        return download_links[0][1]
+        return download_links
 
     async def download_comic(
-        self, comic_article_link: str, progress_callback: Optional[Callable]
+        self, comic_download_link: str, progress_callback: Callable
     ) -> str:
         """
         Download comic file asynchronously.
@@ -192,12 +197,9 @@ class DownloadServiceAsync:
         Attempts to get filename from Content-Disposition header, falls back
         to URL path, finally, uses "downloaded_comic.cbz" as a last resort.
         """
-        comic_download_link = self.get_download_links(comic_article_link)
-
         headers = {"User-Agent": "Mozilla/5.0"}
 
         async with aiohttp.ClientSession(headers=headers) as session:
-            await session.get(comic_article_link)
 
             async with session.get(
                 comic_download_link, allow_redirects=True
@@ -248,7 +250,68 @@ class DownloadServiceAsync:
                         await f.write(chunk)
                         downloaded += len(chunk)
                         percent = int(downloaded * 100 / max_size)
-                        if progress_callback:
-                            progress_callback(percent)
+                        progress_callback(percent)
 
                 return filepath
+
+    async def pixeldrain_download(
+        self, download_link: str, progress_callback: Callable
+    ) -> str:
+        file_id = self.follow_pixeldrain_redirect(download_link)
+        download_path = Path(self.download_folder)
+        base_link = "https://pixeldrain.com/api/file/"
+
+        meta_suffix = f"{file_id}/info"
+        meta_url = base_link + meta_suffix
+        async with aiohttp.ClientSession() as session:
+            async with session.get(meta_url) as meta_response:
+                meta_data = await meta_response.json()
+
+            filename = meta_data["name"]
+            file_size = meta_data["size"]
+            downloaded = 0
+            filepath = download_path / filename
+
+            download_suffix = f"{file_id}?download"
+            download_url = base_link + download_suffix
+
+            async with session.get(download_url) as response:
+                async with aiofiles.open(filepath, "wb") as f:
+                    async for chunk in response.content.iter_chunked(chunk_size=8192):
+                        await f.write(chunk)
+                        downloaded += len(chunk)
+                        percent = int(downloaded * 100 / file_size)
+                        progress_callback(percent)
+
+        print(f"Downloaded: {filename}")
+        return str(filepath)
+
+    def download_from_service(self, service: str, link: str, progress_callback):
+        DOWNLOAD_HANDLERS = {
+            "DOWNLOAD NOW": self.download_comic,
+            "PIXELDRAIN": self.pixeldrain_download,
+        }
+        handler = DOWNLOAD_HANDLERS.get(service)
+        if handler:
+            filepath = handler(link, progress_callback)
+            return filepath
+        else:
+            print(f"No handler for service: {service}")
+
+    @staticmethod
+    def follow_pixeldrain_redirect(link: str) -> str:
+        response = requests.get(link, allow_redirects=True, timeout=3000)
+        final_url = response.url
+        return final_url.split("/")[-1]
+
+    @staticmethod
+    def sort(links: list[tuple]) -> list[tuple]:
+        service_priority = ["DOWNLOAD NOW", "PIXELDRAIN", "TERABOX", "MEGA"]
+        return sorted(
+            links,
+            key=lambda pair: (
+                service_priority.index(pair[0])
+                if pair[0] in service_priority
+                else len(service_priority)
+            ),  # # noqa: E501
+        )
