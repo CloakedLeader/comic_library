@@ -34,8 +34,8 @@ from cleanup import scan_and_clean
 from comic_grid_view import ComicGridView
 from comic_match_ui import ComicMatcherUI
 from download_controller import DownloadControllerAsync, DownloadServiceAsync
-from gui_repo_worker import RepoWorker
-from helper_classes import GUIComicInfo, RSSComicInfo
+from database.gui_repo_worker import RepoWorker
+from classes.helper_classes import GUIComicInfo, RSSComicInfo
 from metadata_controller import run_tagger
 from metadata_gui_panel import MetadataDialog, MetadataPanel
 from reader_controller import ReadingController

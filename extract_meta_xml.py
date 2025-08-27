@@ -5,7 +5,7 @@ import zipfile
 
 from defusedxml import ElementTree as ET
 
-from helper_classes import ComicInfo
+from classes.helper_classes import ComicInfo
 
 
 class MetadataExtraction:

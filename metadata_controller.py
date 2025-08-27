@@ -121,6 +121,9 @@ class MetadataController:
                             else:
                                 print("ComicInfo.xml is valid and complete")
                                 return True
+                        else:
+                            print("No content in XML")
+                            return False
 
                     except ET.ParseError:
                         print("ComicInfo.xml is present but not valid xml")

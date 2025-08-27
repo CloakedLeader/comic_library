@@ -1,5 +1,5 @@
-from gui_repo_worker import RepoWorker
-from helper_classes import GUIComicInfo
+from database.gui_repo_worker import RepoWorker
+from classes.helper_classes import GUIComicInfo
 from reader import Comic, SimpleReader
 
 

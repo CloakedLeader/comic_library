@@ -18,7 +18,7 @@ from fuzzywuzzy import fuzz
 from PIL import Image
 
 from comic_match_logic import ResultsFilter
-from helper_classes import ComicInfo
+from classes.helper_classes import ComicInfo
 from metadata_cleaning import MetadataProcessing
 
 load_dotenv()

@@ -18,8 +18,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from gui_repo_worker import RepoWorker
-from helper_classes import GUIComicInfo, MetadataInfo
+from database.gui_repo_worker import RepoWorker
+from classes.helper_classes import GUIComicInfo, MetadataInfo
 
 
 class DashboardBox(QGroupBox):

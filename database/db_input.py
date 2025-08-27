@@ -2,7 +2,7 @@ import sqlite3
 from typing import Optional
 
 from file_utils import normalise_publisher_name
-from helper_classes import ComicInfo
+from classes.helper_classes import ComicInfo
 
 SHARED_ALIASES = [
     "Robin",

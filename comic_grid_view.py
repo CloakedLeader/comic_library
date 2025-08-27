@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from helper_classes import GUIComicInfo
+from classes.helper_classes import GUIComicInfo
 from reader_controller import ReadingController
 
 

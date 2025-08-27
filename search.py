@@ -1,7 +1,7 @@
 import os
 import sqlite3
 
-from helper_classes import GUIComicInfo
+from classes.helper_classes import GUIComicInfo
 
 DB_PATH = os.path.abspath("comics.db")
 conn = sqlite3.connect(DB_PATH)

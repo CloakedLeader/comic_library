@@ -18,8 +18,8 @@ from PySide6.QtWidgets import (
 
 # from metadata_gui_panel import MetadataDialog
 from file_utils import get_name
-from gui_repo_worker import RepoWorker
-from helper_classes import GUIComicInfo
+from database.gui_repo_worker import RepoWorker
+from classes.helper_classes import GUIComicInfo
 from metadata_gui_panel import MetadataDialog
 
 
