@@ -29,6 +29,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from qasync import QEventLoop
+import uvicorn
+import threading
 
 from cleanup import scan_and_clean
 from comic_grid_view import ComicGridView
@@ -42,6 +44,7 @@ from reader_controller import ReadingController
 from rss_controller import RSSController
 from rss_repository import RSSRepository
 from search import text_search
+from api.api_main import app
 
 
 class ClickableComicWidget(QWidget):
@@ -650,6 +653,10 @@ def count_files_and_storage(directory: str) -> tuple[int, float]:
     return file_count, total_size
 
 
+def start_api():
+    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
+
+
 async def main():
     app = QApplication(sys.argv)
     loop = QEventLoop(app)
@@ -662,4 +669,18 @@ async def main():
 
 if __name__ == "__main__":
     scan_and_clean()
-    asyncio.run(main())
+
+    api_thread = threading.Thread(target=start_api, daemon=True)
+    api_thread.start()
+
+    qt_app = QApplication(sys.argv)
+
+    loop = QEventLoop(qt_app)
+    asyncio.set_event_loop(loop)
+    asyncio.get_event_loop().set_debug(False)
+
+    window = HomePage()
+    window.show()
+
+    with loop:
+        loop.run_forever()
