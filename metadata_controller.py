@@ -2,20 +2,18 @@ import logging
 import os
 import shutil
 import sqlite3
-import time
 import zipfile
 from typing import Optional
 
 from defusedxml import ElementTree as ET
 from dotenv import load_dotenv
 from PySide6.QtWidgets import QMainWindow
-from watchdog.events import FileSystemEventHandler
 
 from cover_processing import ImageExtraction
-from db_input import MetadataInputting, insert_new_publisher
+from database.db_input import MetadataInputting, insert_new_publisher
 from extract_meta_xml import MetadataExtraction
 from file_utils import convert_cbz, generate_uuid, get_ext
-from helper_classes import ComicInfo
+from classes.helper_classes import ComicInfo
 from metadata_cleaning import MetadataProcessing, PublisherNotKnown
 from search import insert_into_fts5
 from tagging_controller import RequestData, extract_and_insert, run_tagging_process
@@ -60,121 +58,7 @@ def get_comicid_from_path(
 # User Visible Title: [Series] [star_year] -
 # [collection type] Volume [volume_number]: [Title] [month] [year]
 
-
-# ===================
-# Watchdog Module
-# ===================
-
-
 path_to_obs = os.getenv("PATH_TO_WATCH")
-
-
-class DownloadsHandler(FileSystemEventHandler):
-    """
-    Watches a directory for new files and processes them when they appear.
-
-    Attributes:
-        None
-
-    Methods:
-        on_created(event): Triggered when a file is created. Waits until file
-    is stable then processes it.
-        on_moved(event): Triggered when a file is moved. Handles processing
-    if moved to the watched folder.
-        on_deleted(event): Triggered when a file is deleted.
-        is_file_ready(filepath, stable_time, check_interval): Checks if a file has
-    stopped changing size to ensure it's fully written.
-        process_file(path, dest_path_temp): Moves a stable file to a destination,
-    renaming if needed.
-        handle_new_file(path): Inserts a new comic into the database and converts
-    formats if necessary.
-    """
-
-    # def on_created(self, event: FileSystemEventHandler) -> None:
-    #     """
-    #     Called when a new file is created in the watched directory.
-
-    #     Args:
-    #         event(FileSystemEvent): The file system event triggered.
-    #     """
-    #     if event.is_directory:
-    #         return
-
-    #     filepath = event.src_path
-    #     filename = os.path.basename(filepath)
-
-    #     if filename.endswith(".part"):
-    #         logging.info(f"Ignoring partial file: {filename}")
-    #         return
-
-    #     logging.info(f"Detected new file: {filename}")
-
-    #     time.sleep(2)
-
-    #     if not self.is_file_ready(filepath):
-    #         logging.warning(f"File not stable yet: {filename}")
-    #         return
-
-    #     new_key = generate_uuid()
-    #     cont = MetadataController(new_key, filepath)
-    #     cont.process()
-
-    def on_moved(self, event: FileSystemEventHandler) -> None:
-        """
-        Called when a file is moved.
-
-        Args:
-            event(FileSystemEvent): The file system move event.
-        """
-        if event.dest_path == path_to_obs:
-            if not event.is_directory:
-                file_path = event.src_path
-                logging.debug(f"New file detected: {file_path}")
-                self.handle_new_file(file_path)
-
-    def on_deleted(self, event: FileSystemEventHandler) -> None:
-        """
-        Called when a file is deleted.
-
-        Args:
-            event (FileSystemEvent): The file system delete event.
-        """
-        logging.debug(f"Detected a file deletion: {event.src_path}")
-
-    def is_file_ready(
-        self, filepath: str, stable_time: int = 5, check_interval: int = 1
-    ) -> bool:
-        """
-        Checks to see if the file size has stabilised over time,
-        indicating it's fully written.
-
-        Args:
-            filepath: Path to newly detected file.
-            stable_time: Number of consectutive stable intervals.
-        intervals before confirming readiness.
-            check_interval: The number of seconds to wait between intervals.
-
-        Returns:
-            bool: True if file is stable and ready to be moved, False otherwise.
-        """
-        prev_size = -1
-        stab_counter = 0
-        while stab_counter < stable_time:
-            try:
-                current_size = os.path.getsize(filepath)
-            except FileNotFoundError:
-                logging.warning(f"File {filepath} disappeared.")
-                return False
-
-            if current_size == prev_size:
-                stab_counter += 1
-            else:
-                stab_counter = 0
-                prev_size = current_size
-
-            time.sleep(check_interval)
-
-        return True
 
 
 class MetadataController:
@@ -216,25 +100,27 @@ class MetadataController:
             "Summary",
         ]
         if self.filepath is None:
-            raise ValueError("Filename must not be None")
+            print("Filename must not be None")
+            return False
         with zipfile.ZipFile(self.filepath, "r") as archive:
             if "ComicInfo.xml" in archive.namelist():
                 with archive.open("ComicInfo.xml") as xml_file:
                     try:
                         tree = ET.parse(xml_file)
                         root = tree.getroot()
-                        missing = [
-                            tag
-                            for tag in required_fields
-                            if root.find(tag) is None or root.find(tag) == ""
-                        ]
+                        if root:
+                            missing = [
+                                tag
+                                for tag in required_fields
+                                if root.find(tag) is None or root.find(tag) == ""
+                            ]
 
-                        if missing:
-                            print(f"ComicInfo.xml is missing tags: {missing}")
-                            return False
-                        else:
-                            print("ComicInfo.xml is valid and complete")
-                            return True
+                            if missing:
+                                print(f"ComicInfo.xml is missing tags: {missing}")
+                                return False
+                            else:
+                                print("ComicInfo.xml is valid and complete")
+                                return True
 
                     except ET.ParseError:
                         print("ComicInfo.xml is present but not valid xml")

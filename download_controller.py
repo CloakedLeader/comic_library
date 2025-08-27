@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import urllib.parse
@@ -10,7 +11,9 @@ import aiohttp
 import requests
 from bs4 import BeautifulSoup
 
-from helper_classes import RSSComicInfo
+from classes.helper_classes import RSSComicInfo
+
+logging.getLogger("aiofiles").setLevel(logging.WARNING)
 
 
 class DownloadControllerAsync:
@@ -59,22 +62,35 @@ class DownloadControllerAsync:
         """
         self.comic_info = comic_info
         self.view.update_status(f"Starting download of: {comic_info.title}")
+        print(f"[DEBUG] comic_info.title type: {type(comic_info.title)}")
+        print(f"[DEBUG] comic_info.url: {comic_info.url}")
         download_links = self.download_service.get_download_links(comic_info.url)
         download_links = self.download_service.sort(download_links)
+        download_now_link = download_links[0][1]
+        try:
+            filepath = await self.download_service.download_comic(
+                download_now_link, self.progress_update
+            )
+        except (requests.RequestException, aiohttp.ClientError, IOError) as e:
+            print(e)
+            return
         for service, link in download_links:
             if service != "Read Online":
                 try:
-                    filepath = self.download_service.download_from_service(
+                    filepath = await self.download_service.download_from_service(
                         service,
                         link,
                         progress_callback=self.progress_update,
                     )
-                    self.view.update_status(
-                        f"Successfully downloaded: {comic_info.title} to {filepath}"
-                    )
                 except (requests.RequestException, aiohttp.ClientError, IOError) as e:
-                    print(f"[ERROR] {e}")
+                    print(e)
                     continue
+                self.view.update_status(
+                    f"Successfully downloaded: {comic_info.title} to {filepath}"
+                    + " via service: "
+                    + str(service)
+                )
+                break
 
     def progress_update(self, percent: int):
         self.view.update_progress_bar(percent)
@@ -210,8 +226,8 @@ class DownloadServiceAsync:
                     print(r.headers)
 
                 print("\n=== Final response ===")
-                print(response.url)
-                print(response.headers)
+                print(response.url.human_repr())
+                print(dict(response.headers))
 
                 if response.status != 200:
                     raise Exception(
@@ -249,6 +265,8 @@ class DownloadServiceAsync:
                     async for chunk in response.content.iter_chunked(8192):
                         await f.write(chunk)
                         downloaded += len(chunk)
+
+                        print(f"[DEBUG] Writing {len(chunk)} bytes to file...")
                         percent = int(downloaded * 100 / max_size)
                         progress_callback(percent)
 
@@ -277,26 +295,28 @@ class DownloadServiceAsync:
 
             async with session.get(download_url) as response:
                 async with aiofiles.open(filepath, "wb") as f:
-                    async for chunk in response.content.iter_chunked(chunk_size=8192):
+                    async for chunk in response.content.iter_chunked(8192):
                         await f.write(chunk)
                         downloaded += len(chunk)
+                        print(f"[DEBUG] Writing {len(chunk)} bytes to file...")
                         percent = int(downloaded * 100 / file_size)
                         progress_callback(percent)
 
         print(f"Downloaded: {filename}")
         return str(filepath)
 
-    def download_from_service(self, service: str, link: str, progress_callback):
+    async def download_from_service(self, service: str, link: str, progress_callback):
         DOWNLOAD_HANDLERS = {
             "DOWNLOAD NOW": self.download_comic,
             "PIXELDRAIN": self.pixeldrain_download,
         }
         handler = DOWNLOAD_HANDLERS.get(service)
         if handler:
-            filepath = handler(link, progress_callback)
+            filepath = await handler(link, progress_callback)
             return filepath
         else:
             print(f"No handler for service: {service}")
+            return None
 
     @staticmethod
     def follow_pixeldrain_redirect(link: str) -> str:
