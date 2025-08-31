@@ -7,7 +7,7 @@ from database.gui_repo_worker import RepoWorker
 
 app = FastAPI(title="Comic Server")
 
-engine = create_engine("sqlite:///../comics.db")
+engine = create_engine("sqlite:///comics.db")
 
 
 @app.get("/ping")

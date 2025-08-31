@@ -1021,11 +1021,13 @@ class TaggingPipeline:
                 # and ask the user for input.
         if len(self.results) == 0:
             print("There are no matches")
+            return MatchCode.NO_MATCH, potential_results
             filterer = ResultsFilter(potential_results, self.data, self.path)
             self.filtered_for_none = filterer.present_choices()
             return MatchCode.NO_MATCH
         elif len(self.results) > 1:
             print("There are multiple matches")
+            return MatchCode.MULTIPLE_MATCHES, self.results
             filterer = ResultsFilter(self.results, self.data, self.path)
             self.filtered_for_many = filterer.present_choices()
             return MatchCode.MULTIPLE_MATCHES
@@ -1229,12 +1231,14 @@ def run_tagging_process(filepath, api_key) -> Optional[tuple[list, RequestData]]
         inserter.create_metadata_dict()
         inserter.insert_xml_into_cbz(filepath)
         return None
-    elif final_result == MatchCode.NO_MATCH:
+    elif final_result[0] == MatchCode.NO_MATCH:
+        return (final_result[1], tagger.data)
         print("Need another method to find matches")
         best_matches = tagger.filtered_for_none
         return (best_matches, tagger.data)
         # Add a method to rank and return the best 3-5 matches.
-    elif final_result == MatchCode.MULTIPLE_MATCHES:
+    elif final_result[0] == MatchCode.MULTIPLE_MATCHES:
+        return (final_result[1], tagger.data)
         print("Multiple matches, require user input to disambiguate.")
         best_matches = tagger.filtered_for_many
         return (best_matches, tagger.data)

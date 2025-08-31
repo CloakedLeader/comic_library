@@ -22,6 +22,18 @@ class ResultsFilter:
         self.expected_info = expected_info
         self.filepath = Path(filepath)
 
+    def __enter__(self):
+        self.filepath.parent.mkdir(parents=True, exist_ok=True)
+        print(f"Entering ResultsFilter context for: {self.filepath}")
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exc_type:
+            print(f"Exception occured: {exc_type.__name__}: {exc_value}")
+        else:
+            print("Exiting ResultsFilter context cleanly.")
+        return False
+
     @staticmethod
     def unwrap_data(data):
         while isinstance(data, list) and len(data) == 1:
@@ -49,45 +61,46 @@ class ResultsFilter:
         return 1.0 if candidate_number == self.expected_info.num else 0.0
 
     def score_results(self, result: dict) -> float:
-        name = cast(str, result.get("name"))
-        volume = cast(dict, result.get("volume"))
-        cover_date = cast(str, result.get("cover_date"))
-        issue_num = cast(str, result.get("issue_number"))
+        name = cast(str, result.get("name") or result.get("volume").get("name"))
+        volume = cast(dict, result.get("volume", {}))
+        cover_date = cast(str, result.get("cover_date", ""))
+        issue_num = cast(str, result.get("issue_number", ""))
 
         score = 0.0
         score += self.title_similarity(name)
-        score += self.volume_similarity(volume.get("name") or "")
+        score += self.volume_similarity(volume.get("name", ""))
         score += self.year_match(int(cover_date[:4]))
         score += self.number_match(int(issue_num))
         return score
 
-    def filter_results(self, top_n: int = 5) -> list[dict]:
+    def filter_results(self, top_n: int = 5) -> list[tuple[dict, int]]:
         print(f"Adam here you go:\n{self.query_results}")
         ids: set[int] = set()
-        scored: list[tuple[float, dict]] = []
-        for result in self.query_results:
+        scored: list[tuple[float, dict, int]] = []
+        # Each tuple has (score, result, position)
+        for index, result in enumerate(self.query_results):
             indiv_id = int(result["id"])
             if indiv_id not in ids:
                 ids.add(indiv_id)
             else:
                 continue
-            scored.append((self.score_results(result), result))
+            scored.append((self.score_results(result), result, index))
 
         scored.sort(key=lambda x: x[0], reverse=True)
-        return [r for _, r in scored[:top_n]]
+        return [(r, position) for _, r, position in scored[:top_n]]
 
-    def present_choices(self) -> list[ComicMatch]:
+    def present_choices(self) -> list[tuple[ComicMatch, int]]:
+
         top_results = self.filter_results()
         best_results: list[ComicMatch] = [
-            {
+            ({
                 "title": str(r["name"]),
                 "series": str(r["volume"]["name"]),
                 "year": int(str(r["cover_date"])[:4]),
                 "number": int(r["issue_number"]),
                 "cover_link": str(r["image"]["thumb_url"]),
                 "description": str(r["description"]),
-                "id": int(r["id"]),
-            }
-            for r in top_results
+            }, position)
+            for r, position in top_results
         ]
         return best_results

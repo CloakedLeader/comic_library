@@ -17,11 +17,12 @@ from classes.helper_classes import ComicInfo
 from metadata_cleaning import MetadataProcessing, PublisherNotKnown
 from search import insert_into_fts5
 from tagging_controller import RequestData, extract_and_insert, run_tagging_process
+from comic_match_logic import ResultsFilter
 
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(), logging.FileHandler("log.txt")],
+    handlers=[logging.StreamHandler()],
 )
 
 load_dotenv()
@@ -174,7 +175,8 @@ class MetadataController:
         if not result:
             return None
         results, actual = result
-        selected = self.request_disambiguation(results, actual)
+        ranked = self.rank_results(results, actual)
+        selected = self.request_disambiguation(ranked, actual, results)
         if not selected:
             print("[INFO] User cancelled disambiguation")
             return None
@@ -214,8 +216,15 @@ class MetadataController:
                     self.inputter.conn.close()
                     return
 
-    def request_disambiguation(self, results: list[dict], actual_comic: RequestData):
-        match = self.display.get_user_match(results, actual_comic, self.filepath)
+    def rank_results(self, all_results, comic_info):
+        with ResultsFilter(all_results, comic_info, self.filepath) as filterer:
+            filtered_results = filterer.present_choices()
+        return filtered_results
+
+    def request_disambiguation(self, results: list[dict],
+                               actual_comic: RequestData, all_results: list[dict]):
+        match = self.display.get_user_match(results, actual_comic,
+                                            all_results, self.filepath)
         if match:
             return match
         return None

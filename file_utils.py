@@ -7,14 +7,16 @@ from pathlib import Path
 import rarfile
 
 
+rarfile.UNRAR_TOOL = "C:/Program Files (x86)/WinRAR/UnRAR.exe"
+
+
 def convert_cbz(cbr_path: str, *, delete_original: bool = True) -> str:
     """
     Extracts files from a cbr archive and repackages them as a cbz.
 
     Args:
-        cbr_path: The filepath of the cbr file/
-        delete_original: The user has the choice of whether to
-    delete the .cbr file or not.
+        cbr_path: The filepath of the cbr file.
+        delete_original: Whether to delete the .cbr file or not.
 
     Returns:
         The filepath of the newly created .cbz file.
@@ -30,11 +32,20 @@ def convert_cbz(cbr_path: str, *, delete_original: bool = True) -> str:
     if not get_ext(cbr_path) == ".cbr":
         raise ValueError("Not a .cbr file!")
 
+    if not os.path.exists(cbr_path):
+        raise ValueError(f"File does not exist: {cbr_path}")
+
     cbz_path = os.path.splitext(cbr_path)[0] + ".cbz"
 
     with tempfile.TemporaryDirectory() as tempdir:
-        with rarfile.RarFile(cbr_path) as rf:
-            rf.extractall(path=tempdir)
+        try:
+            with rarfile.RarFile(cbr_path) as rf:
+                if rf.needs_password():
+                    raise rarfile.BadRarFile("Archive requires a password")
+
+                rf.extractall(path=tempdir)
+        except rarfile.BadRarFile as e:
+            raise ValueError(f"Bad RAR file: {e}")
 
         with zipfile.ZipFile(cbz_path, "w", zipfile.ZIP_DEFLATED) as zf:
             for root, _dirs, files in os.walk(tempdir):

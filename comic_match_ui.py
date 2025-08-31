@@ -23,12 +23,17 @@ from tagging_controller import RequestData
 
 class ComicMatcherUI(QDialog):
     def __init__(
-        self, actual_info: RequestData, best_matches: list[dict], filepath: Path
+        self,
+        actual_info: RequestData,
+        best_matches: list[tuple[dict, int]],
+        all_matches: list[dict],
+        filepath: Path,
     ):
         super().__init__()
         self.actual_data = actual_info
         self.filepath = filepath
         self.matches = best_matches
+        self.all_matches = all_matches
 
         self.resize(800, 600)
         self.main_display = QWidget()
@@ -81,7 +86,7 @@ class ComicMatcherUI(QDialog):
         self.table_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
 
         row_index = 0
-        for match in self.matches:
+        for match, _ in self.matches:
             if match.get("cover_link"):
                 cover_pixmaps.append(
                     self.load_pixmap_from_url(str(match.get("cover_link")))
@@ -114,13 +119,15 @@ class ComicMatcherUI(QDialog):
         row = self.table_widget.currentRow()
         if row != -1:
             print(f"Selected row: {row}")
-            self.selected_match = self.matches[row]
+            overall_index = self.matches[row][1]
+            self.selected_match = self.all_matches[overall_index]
             self.accept()
         else:
             print("No row selected")
 
     def get_selected_result(self):
-        return getattr(self, "selected_match", None)
+        print(self.selected_match)
+        return self.selected_match if hasattr(self, "selected_match") else None
 
     @staticmethod
     def cover_getter(filepath):

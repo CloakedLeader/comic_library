@@ -41,8 +41,8 @@ from classes.helper_classes import GUIComicInfo, RSSComicInfo
 from metadata_controller import run_tagger
 from metadata_gui_panel import MetadataDialog, MetadataPanel
 from reader_controller import ReadingController
-from rss_controller import RSSController
-from rss_repository import RSSRepository
+from rss.rss_controller import RSSController
+from rss.rss_repository import RSSRepository
 from search import text_search
 from api.api_main import app
 
@@ -598,9 +598,11 @@ class HomePage(QMainWindow):
     def tag_comics(self):
         run_tagger(self)
 
-    def get_user_match(self, query_results: list[dict], actual_comic, filepath: str):
+    def get_user_match(self, query_results: list[dict],
+                       actual_comic, all_results, filepath: str):
 
-        dialog = ComicMatcherUI(actual_comic, query_results, Path(filepath))
+        dialog = ComicMatcherUI(actual_comic, query_results,
+                                all_results, Path(filepath))
         if dialog.exec() == QDialog.Accepted:
             selected = dialog.get_selected_result()
             if selected:

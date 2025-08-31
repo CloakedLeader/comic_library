@@ -1,6 +1,6 @@
 from classes.helper_classes import RSSComicInfo
-from rss import rss_scrape
-from rss_repository import RSSRepository
+from rss.rss import rss_scrape
+from rss.rss_repository import RSSRepository
 
 
 class RSSController:
