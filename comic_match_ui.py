@@ -84,6 +84,8 @@ class ComicMatcherUI(QDialog):
 
         self.table_widget = QTableWidget(len(self.matches), 3)
         self.table_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
+        column_titles = ["Title", "Year", "Number"]
+        self.table_widget.setHorizontalHeaderLabels(column_titles)
 
         row_index = 0
         for match, _ in self.matches:
@@ -91,7 +93,7 @@ class ComicMatcherUI(QDialog):
                 cover_pixmaps.append(
                     self.load_pixmap_from_url(str(match.get("cover_link")))
                 )
-            title_item = QTableWidgetItem(match["title"] + ":" + match["series"])
+            title_item = QTableWidgetItem(match["series"] + ": " + match["title"])
             year_item = QTableWidgetItem(str(match["year"]))
             number_item = QTableWidgetItem(str(match["number"]))
             for index, item in enumerate([title_item, year_item, number_item]):
