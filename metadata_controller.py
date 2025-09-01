@@ -13,7 +13,7 @@ from cover_processing import ImageExtraction
 from database.db_input import MetadataInputting, insert_new_publisher
 from extract_meta_xml import MetadataExtraction
 from file_utils import convert_cbz, generate_uuid, get_ext
-from classes.helper_classes import ComicInfo
+from classes.helper_classes import ComicInfo, ComicMatch
 from metadata_cleaning import MetadataProcessing, PublisherNotKnown
 from search import insert_into_fts5
 from tagging_controller import RequestData, extract_and_insert, run_tagging_process
@@ -68,7 +68,7 @@ class MetadataController:
         self.original_filepath = filepath
         self.display = display
         self.original_filename = os.path.basename(filepath)
-        self.filepath: Optional[str] = filepath
+        self.filepath: str = filepath
         self.filename: Optional[str] = os.path.basename(filepath)
         self.comic_info: Optional[ComicInfo] = None
 
@@ -148,7 +148,9 @@ class MetadataController:
                 self.process_with_metadata()
 
     def process_with_metadata(self):
-        with MetadataExtraction(self.comic_info) as extractor:
+        if self.comic_info is None:
+            self.process()
+        with MetadataExtraction(self.comic_info) as extractor:  # type: ignore
             raw_comic_info = extractor.run()
         with MetadataProcessing(raw_comic_info) as cleaner:
             try:
@@ -190,9 +192,11 @@ class MetadataController:
         try:
             inputter.run()
             flat_data = inputter.flatten_data()
+            if flat_data:
+                insert_into_fts5(flat_data)
         except Exception as e:
             print(f"[Error] {e}")
-        insert_into_fts5(flat_data)
+            return
         print("[SUCCESS] Added all data to the database")
         self.inputter = inputter
 
@@ -221,9 +225,9 @@ class MetadataController:
             filtered_results = filterer.present_choices()
         return filtered_results
 
-    def request_disambiguation(self, results: list[dict],
+    def request_disambiguation(self, results: list[tuple[ComicMatch, int]],
                                actual_comic: RequestData, all_results: list[dict]):
-        match = self.display.get_user_match(results, actual_comic,
+        match = self.display.get_user_match(results, actual_comic,  # type: ignore
                                             all_results, self.filepath)
         if match:
             return match

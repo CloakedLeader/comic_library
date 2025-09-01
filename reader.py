@@ -109,7 +109,7 @@ class ImagePreloader(QThread):
                 image.tobytes("raw", "RGBA"),
                 image.width,
                 image.height,
-                QImage.Format_RGBA8888,
+                QImage.Format_RGBA8888,  # type: ignore
             )
             pixmap = QPixmap.fromImage(qimage)
 
@@ -133,8 +133,9 @@ class SimpleReader(QMainWindow):
 
         self.setWindowTitle("Comic Reader")
 
-        self.image_label = QLabel("Loading...", alignment=Qt.AlignCenter)
-        self.page_label = QLabel("Page 1", alignment=Qt.AlignCenter)
+        self.image_label = QLabel("Loading...",
+                                  alignment=Qt.AlignCenter)  # type: ignore
+        self.page_label = QLabel("Page 1", alignment=Qt.AlignCenter)  # type: ignore
 
         self.menu_bar_widget = QWidget()
         self.menu_bar_layout = QHBoxLayout()
@@ -171,7 +172,7 @@ class SimpleReader(QMainWindow):
         self.comments_toolbar.hide()
         self.current_toolbar = self.navigation_toolbar
 
-        self.image_label.setFocusPolicy(Qt.StrongFocus)
+        self.image_label.setFocusPolicy(Qt.StrongFocus)  # type: ignore
         self.setCentralWidget(self.image_label)
 
         self.display_current_page()
@@ -217,7 +218,7 @@ class SimpleReader(QMainWindow):
 
     def render_pixmap(self, index: int, pixmap: QPixmap) -> None:
         scaled = pixmap.scaledToHeight(
-            self.image_label.height(), Qt.SmoothTransformation
+            self.image_label.height(), Qt.TransformationMode.SmoothTransformation
         )
         self.image_label.setPixmap(scaled)
         self.page_label.setText(f"Page {index + 1} / {self.comic.total_pages}")
@@ -274,9 +275,9 @@ class SimpleReader(QMainWindow):
 
     def keyPressEvent(self, event):
         key = event.key()
-        if key == Qt.Key_Right:
+        if key == Qt.Key.Right:  # type: ignore
             self.next_page()
-        elif key == Qt.Key_Left:
+        elif key == Qt.Key.Left:  # type: ignore
             self.prev_page()
 
     def mouseMoveEvent(self, event):

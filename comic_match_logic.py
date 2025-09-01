@@ -1,16 +1,7 @@
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import TypedDict, cast
-
-
-class ComicMatch(TypedDict):
-    title: str
-    series: str
-    year: int
-    number: int
-    cover_link: str
-    description: str
-    id: int
+from typing import cast
+from classes.helper_classes import ComicMatch
 
 
 class ResultsFilter:
@@ -61,14 +52,22 @@ class ResultsFilter:
         return 1.0 if candidate_number == self.expected_info.num else 0.0
 
     def score_results(self, result: dict) -> float:
-        name = cast(str, result.get("name") or result.get("volume").get("name"))
-        volume = cast(dict, result.get("volume", {}))
+        volume = None
+        name = cast(str, result.get("name"))
         cover_date = cast(str, result.get("cover_date", ""))
         issue_num = cast(str, result.get("issue_number", ""))
 
+        volume_piece = result.get("volume")
+        if isinstance(volume_piece, dict):
+            volume_dict = cast(dict, volume_piece)
+            volume = cast(dict, volume_dict or {})
+            if name is None or "":
+                name = volume_dict.get("name", "")
+
         score = 0.0
         score += self.title_similarity(name)
-        score += self.volume_similarity(volume.get("name", ""))
+        if volume is not None:
+            score += self.volume_similarity(volume.get("name", ""))
         score += self.year_match(int(cover_date[:4]))
         score += self.number_match(int(issue_num))
         return score
@@ -92,15 +91,15 @@ class ResultsFilter:
     def present_choices(self) -> list[tuple[ComicMatch, int]]:
 
         top_results = self.filter_results()
-        best_results: list[ComicMatch] = [
-            ({
+        best_results = [
+            (cast(ComicMatch, {
                 "title": str(r["name"]),
                 "series": str(r["volume"]["name"]),
                 "year": int(str(r["cover_date"])[:4]),
                 "number": int(r["issue_number"]),
                 "cover_link": str(r["image"]["thumb_url"]),
                 "description": str(r["description"]),
-            }, position)
-            for r, position in top_results
+            }),
+                position) for r, position in top_results
         ]
         return best_results

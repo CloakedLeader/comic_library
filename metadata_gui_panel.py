@@ -30,13 +30,17 @@ class DashboardBox(QGroupBox):
         self.setLayout(layout)
 
     def add_role_box(self, role_box: QWidget):
-        self.layout().addWidget(role_box)
+        layout = self.layout()
+        if layout is not None:
+            layout.addWidget(role_box)
 
     def add_content(self, content):
         label = QLabel(content)
         label.setWordWrap(self.wrap)
-        label.setAlignment(Qt.AlignCenter)
-        self.layout().addWidget(label)
+        label.setAlignment(Qt.AlignCenter)  # type: ignore
+        layout = self.layout()
+        if layout is not None:
+            layout.addWidget(label)
 
 
 class RoleBox(QGroupBox):
@@ -139,7 +143,7 @@ class MetadataDialog(QMainWindow):
         title_cover_box.addWidget(thumbnail_label)
         title_cover_box.addWidget(QLabel(metadata.name))
 
-        stars = self.make_star_rating(rating=metadata.rating)
+        stars = self.make_star_rating(rating=metadata.rating or 0)
 
         content_layout.addWidget(title_cover_widget, 0, 0, 1, 1)
         content_layout.addWidget(creators_box, 1, 0, -1, 1)
@@ -154,13 +158,13 @@ class MetadataDialog(QMainWindow):
         content_widget.setLayout(content_layout)
 
         main_layout.addWidget(content_widget)
-        main_layout.addWidget(close_button, alignment=Qt.AlignRight)
+        main_layout.addWidget(close_button, alignment=Qt.AlignRight)  # type: ignore
 
         container = QWidget()
         container.setLayout(main_layout)
         self.setCentralWidget(container)
 
-    def make_star_rating(self, rating: float, max_stars=5) -> QLabel:
+    def make_star_rating(self, rating: int, max_stars=5) -> QLabel:
         full_star = "★"
         empty_star = "☆"
         stars = ""
@@ -183,7 +187,7 @@ class MetadataDialog(QMainWindow):
 
         label = QLabel()
         label.setText(stars)
-        label.setTextFormat(Qt.RichText)
+        label.setTextFormat(Qt.RichText)  # type: ignore
         return label
 
     def save_current_review(self) -> None:
@@ -208,11 +212,13 @@ class MetadataPanel(QWidget):
         quick_icons_layout.setSpacing(10)
 
         read_status = QLabel("Read" if comic_metadata.reviews else "Unread")
-        read_status.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        read_status.setSizePolicy(QSizePolicy.Preferred,  # type: ignore
+                                  QSizePolicy.Fixed)  # type: ignore
         quick_icons_layout.addWidget(read_status)
 
         liked_box = QCheckBox("Liked")
-        liked_box.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        liked_box.setSizePolicy(QSizePolicy.Preferred,  # type: ignore
+                                QSizePolicy.Fixed)  # type: ignore
         quick_icons_layout.addWidget(liked_box)
 
         rating = int(comic_metadata.rating / 2) if comic_metadata.rating else 0
@@ -227,22 +233,25 @@ class MetadataPanel(QWidget):
                 stars += f"""
                 <span style="color: lightgray; font-size: 20pt;">{empty_star}</span>"""
         stars_label = QLabel(stars)
-        stars_label.setTextFormat(Qt.RichText)
-        stars_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        stars_label.setTextFormat(Qt.RichText)  # type: ignore
+        stars_label.setSizePolicy(QSizePolicy.Expanding,  # type: ignore
+                                  QSizePolicy.Fixed)  # type: ignore
         quick_icons_layout.addWidget(stars_label)
 
         layout.addWidget(quick_icons)
 
         display_text = f"#{comic_metadata.volume_num} - {comic_metadata.name}"
         title_widget = QLabel(display_text)
-        title_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        title_widget.setSizePolicy(QSizePolicy.Expanding,  # type: ignore
+                                   QSizePolicy.Fixed)  # type: ignore
         layout.addWidget(title_widget)
 
         formatted_desc = comic_metadata.description or ""
         clean_desc = re.sub(r"\s+", " ", formatted_desc).strip()
         desc_widget = QLabel(clean_desc)
         desc_widget.setWordWrap(True)
-        desc_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        desc_widget.setSizePolicy(QSizePolicy.Expanding,  # type: ignore
+                                  QSizePolicy.Expanding)  # type: ignore
         layout.addWidget(desc_widget)
 
         total_creator_info = ""
@@ -255,5 +264,5 @@ class MetadataPanel(QWidget):
         creator_widget = QLabel(total_creator_info)
         layout.addWidget(creator_widget)
 
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # type: ignore
         self.setLayout(layout)

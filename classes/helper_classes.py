@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, TypedDict
 
 from pydantic import BaseModel
 
@@ -48,3 +48,12 @@ class MetadataInfo(BaseModel):
     teams: list[str]
     rating: Optional[int]
     reviews: list[tuple[Optional[str], Optional[str], Optional[int]]]
+
+
+class ComicMatch(TypedDict):
+    title: str
+    series: str
+    year: int
+    number: int
+    cover_link: str
+    description: str
