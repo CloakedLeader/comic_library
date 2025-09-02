@@ -256,3 +256,7 @@ class RepoWorker:
             rating=rating,
             reviews=reviews,
         )
+
+    def create_collection(self, title: str):
+        self.cursor.execute("INSERT INTO collections (name) VALUES (?)",
+                            (title,))

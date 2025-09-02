@@ -45,6 +45,7 @@ from rss.rss_controller import RSSController
 from rss.rss_repository import RSSRepository
 from search import text_search
 from api.api_main import app
+from collections_widget import CollectionDisplay, CollectionCreation
 
 
 class ClickableComicWidget(QWidget):
@@ -175,6 +176,8 @@ class HomePage(QMainWindow):
         self.refresh_action = toolbar.addAction("Update")
         self.refresh_action.triggered.connect(scan_and_clean)
         self.refresh_action.setShortcut("Ctrl + U")
+        self.create_collection_button = toolbar.addAction("Create Collection")
+        self.create_collection_button.triggered.connect(self.create_collection)
 
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -215,7 +218,11 @@ class HomePage(QMainWindow):
         left_layout = QVBoxLayout()
         left_widget.setLayout(left_layout)
         left_layout.addWidget(self.file_tree, stretch=1)
-        left_layout.addWidget(QLabel("This is temporary."), stretch=1)
+        titles = ["Punisher", "Krakoa Era X-Men", "Batman"]
+        collection_ids = [101, 250, 30]
+        self.collection_display = CollectionDisplay(titles, collection_ids)
+        left_layout.addWidget(self.collection_display, stretch=1)
+        # left_layout.addWidget(QLabel("This is temporary."), stretch=1)
         self.splitter = QSplitter()
         self.splitter.addWidget(left_widget)
 
@@ -610,6 +617,11 @@ class HomePage(QMainWindow):
 
         print("User cancelled or no selection made.")
         return None
+
+    def create_collection(self):
+        dialog = CollectionCreation()
+        if dialog.exec() == QDialog.Accepted:
+            print(dialog.textbox.text())
 
     def update_status(self, message: str) -> None:
         """
