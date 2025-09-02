@@ -41,7 +41,7 @@ class ReadingController:
             comic_data = Comic(self.comic, start_index=0)
         comic_reader = SimpleReader(comic_data)
         # comic_reader.closed.connect(self.save_current_page)
-        comic_reader.show()
+        comic_reader.showMaximized()
         self.open_windows.append(comic_reader)
 
     # def save_current_page(self, primary_id: str, page: int) -> None:

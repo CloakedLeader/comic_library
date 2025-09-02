@@ -1,5 +1,5 @@
 import asyncio
-import inspect
+# import inspect
 import os
 import os.path
 import sys
@@ -46,6 +46,7 @@ from rss.rss_repository import RSSRepository
 from search import text_search
 from api.api_main import app
 from collections_widget import CollectionDisplay, CollectionCreation
+from general_comic_widget import GeneralComicWidget
 
 
 class ClickableComicWidget(QWidget):
@@ -294,7 +295,9 @@ class HomePage(QMainWindow):
         self,
         list_of_info: list[GUIComicInfo | RSSComicInfo],
         header: str,
-        upon_clicked: Callable,
+        left_clicked: Optional[Callable],
+        right_clicked: Optional[Callable],
+        double_left_clicked: Optional[Callable],
     ) -> QScrollArea:
         """
         Create a horizontal scroll area populated with comic widgets.
@@ -314,7 +317,6 @@ class HomePage(QMainWindow):
         Each comic displays a cover image and title, and connects to the
         provided callback function when clicked.
         """
-        img_height = 200
 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
@@ -331,27 +333,21 @@ class HomePage(QMainWindow):
                              font-weight: bold; padding: 10px;"""
         )
 
-        def make_click_handler(func, comic):
-            def handler():
-                if inspect.iscoroutinefunction(func):
-                    asyncio.create_task(func(comic))
-                else:
-                    func(comic)
+        # def make_click_handler(func, comic):
+        #     def handler():
+        #         if inspect.iscoroutinefunction(func):
+        #             asyncio.create_task(func(comic))
+        #         else:
+        #             func(comic)
 
-            return handler
+        #     return handler
 
         for comic in list_of_info:
 
-            if isinstance(comic, RSSComicInfo):
-                pixmap = self.load_pixmap_from_url(comic.cover_url)
-            else:
-                pixmap = QPixmap(comic.cover_path)
+            comic_widget = GeneralComicWidget(comic, left_clicked,
+                                              right_clicked, double_left_clicked)
 
-            title_name = comic.title
-            comic_button = ClickableComicWidget(title_name, pixmap, img_height)
-            comic_button.clicked.connect(make_click_handler(upon_clicked, comic))
-
-            layout.addWidget(comic_button)
+            layout.addWidget(comic_widget)
 
         scroll_area.setWidget(container)
         wrapper_widget = QWidget()
@@ -387,7 +383,9 @@ class HomePage(QMainWindow):
         return self.create_scroll_area(
             list_of_comics_marked_as_read,
             header="Continue Reading",
-            upon_clicked=self.open_reader,
+            left_clicked=self.open_reader,
+            right_clicked=None,
+            double_left_clicked=None,
         )
 
     def create_recommended_reading_area(
@@ -403,7 +401,9 @@ class HomePage(QMainWindow):
         return self.create_scroll_area(
             list_of_recommended_comics,
             header="Recommended Next Read",
-            upon_clicked=self.open_reader,
+            left_clicked=self.open_reader,
+            right_clicked=None,
+            double_left_clicked=None,
         )
 
     def create_review_area(
@@ -420,7 +420,9 @@ class HomePage(QMainWindow):
         return self.create_scroll_area(
             list_of_unreviewed_comics,
             header="Write a review...",
-            upon_clicked=self.open_review_panel,
+            left_clicked=self.open_review_panel,
+            right_clicked=None,
+            double_left_clicked=None,
         )
 
     def create_rss_area(self, num: int = 8) -> QScrollArea:
@@ -440,7 +442,9 @@ class HomePage(QMainWindow):
         return self.create_scroll_area(
             recent_comics_list,
             header="GetComics RSS Feed",
-            upon_clicked=self.rss_controller.handle_rss_comic_clicked,
+            left_clicked=self.rss_controller.handle_rss_comic_clicked,
+            right_clicked=None,
+            double_left_clicked=None,
         )
 
     def create_stats_bar(self) -> QWidget:

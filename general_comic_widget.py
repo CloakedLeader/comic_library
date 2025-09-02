@@ -23,7 +23,7 @@ class GeneralComicWidget(QWidget):
     @classmethod
     def get_cached_pixmap(cls, key: str) -> Optional[QPixmap]:
         return cls.pixmap_cache.get(key)
-    
+
     @classmethod
     def set_cached_pixmap(cls, key: str, pixmap: QPixmap):
         cls.pixmap_cache[key] = pixmap
@@ -31,18 +31,21 @@ class GeneralComicWidget(QWidget):
     def __init__(
             self,
             comic_info: RSSComicInfo | GUIComicInfo,
-            single_left_click: Callable,
-            single_right_click: Callable,
-            double_left_click: Callable,
+            single_left_click: Optional[Callable],
+            single_right_click: Optional[Callable],
+            double_left_click: Optional[Callable],
             ):
         super().__init__()
         self.comic_info = comic_info
         layout = QVBoxLayout()
+        layout.setSpacing(5)
+        layout.setContentsMargins(0, 0, 0, 0)
         cover_label = QLabel()
-        cover_label.setFixedHeight(135)
         cover_label.setAlignment(Qt.AlignCenter)
 
-        cover_path_or_url = comic_info.cover_path or comic_info.cover_url
+        cover_path_or_url = (comic_info.cover_path if
+                             isinstance(comic_info, GUIComicInfo)
+                             else comic_info.cover_url)
         pixmap = self.get_cached_pixmap(cover_path_or_url)
         if not pixmap:
             if isinstance(self.comic_info, GUIComicInfo):
@@ -52,10 +55,11 @@ class GeneralComicWidget(QWidget):
                 pixmap = self.load_pix_from_link(cover_path_or_url)
 
         if pixmap and not pixmap.isNull():
-            pixmap = pixmap.scaled(120, 180, Qt.KeepAspectRation, Qt.SmoothTransition)
+            pixmap = pixmap.scaled(200, 300,
+                                   Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.set_cached_pixmap(cover_path_or_url, pixmap)
         else:
-            pixmap = QPixmap(120, 180)
+            pixmap = QPixmap(200, 300)
             pixmap.fill(Qt.gray)
 
         cover_label.setPixmap(pixmap)
@@ -67,9 +71,12 @@ class GeneralComicWidget(QWidget):
         layout.addWidget(cover_label)
         layout.addWidget(title_label)
 
-        self.left_clicked.connect(lambda c=self.comic_info: single_left_click(c))
-        self.right_clicked.connect(lambda c=self.comic_info: single_right_click(c))
-        self.double_clicked.connect(lambda c=self.comic_info: double_left_click(c))
+        if single_left_click is not None:
+            self.left_clicked.connect(lambda c=self.comic_info: single_left_click(c))
+        if single_right_click is not None:
+            self.right_clicked.connect(lambda c=self.comic_info: single_right_click(c))
+        if double_left_click is not None:
+            self.double_clicked.connect(lambda c=self.comic_info: double_left_click(c))
 
         self.setToolTip(self.comic_info.title)
         self.setLayout(layout)
