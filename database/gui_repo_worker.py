@@ -48,10 +48,10 @@ class RepoWorker:
 
         return comic_info
 
-    def run(self) -> tuple[list[GUIComicInfo], list[GUIComicInfo]]:
+    def run(self) -> tuple[list[GUIComicInfo], list[float], list[GUIComicInfo]]:
         self.cursor.execute(
             """
-            SELECT comic_id
+            SELECT comic_id, last_page_read
             FROM reading_progress
             WHERE is_finished = 0
             ORDER BY last_read DESC
@@ -59,9 +59,26 @@ class RepoWorker:
         )
         rows_c = self.cursor.fetchmany(8)
         continue_ids = []
+        progresses = []
+
         if rows_c:
             for row in rows_c:
                 continue_ids.append(row[0])
+                last_page = row[1]
+                self.cursor.execute(
+                    """
+                    SELECT page_count
+                    FROM comics
+                    WHERE id = ?
+                    """,
+                    (row[0],),
+                )
+                num_result = self.cursor.fetchone()
+                if num_result:
+                    total_pages = num_result[0]
+                    progresses.append(int(last_page) / int(total_pages))
+                else:
+                    progresses.append(0.0)
 
         self.cursor.execute(
             """
@@ -80,7 +97,8 @@ class RepoWorker:
         continue_info = self.create_basemodel(continue_ids)
         review_info = self.create_basemodel(review_ids)
 
-        return continue_info, review_info
+        print(f"Progresses are {progresses}")
+        return continue_info, progresses, review_info
 
     def get_recent_page(self, primary_key: str) -> None | int:
         self.cursor.execute(
@@ -258,8 +276,7 @@ class RepoWorker:
         )
 
     def create_collection(self, title: str):
-        self.cursor.execute("INSERT INTO collections (name) VALUES (?)",
-                            (title,))
+        self.cursor.execute("INSERT INTO collections (name) VALUES (?)", (title,))
 
     def get_collections(self) -> tuple[list[str], list[int]]:
         self.cursor.execute("SELECT name, id from collections")
@@ -278,4 +295,6 @@ class RepoWorker:
             INSERT OR IGNORE INTO collections_contents
             (collection_id, comic_id)
             VALUES (?, ?)
-            """, (collection_id, comic_id))
+            """,
+            (collection_id, comic_id),
+        )

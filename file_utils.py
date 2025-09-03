@@ -6,7 +6,6 @@ from pathlib import Path
 
 import rarfile
 
-
 rarfile.UNRAR_TOOL = "C:/Program Files (x86)/WinRAR/UnRAR.exe"
 
 

@@ -9,15 +9,16 @@ from defusedxml import ElementTree as ET
 from dotenv import load_dotenv
 from PySide6.QtWidgets import QMainWindow
 
+from classes.helper_classes import ComicInfo
+from comic_match_logic import ResultsFilter
 from cover_processing import ImageExtraction
 from database.db_input import MetadataInputting, insert_new_publisher
 from extract_meta_xml import MetadataExtraction
 from file_utils import convert_cbz, generate_uuid, get_ext
-from classes.helper_classes import ComicInfo
 from metadata_cleaning import MetadataProcessing, PublisherNotKnown
 from search import insert_into_fts5
 from tagging_controller import RequestData, extract_and_insert, run_tagging_process
-from comic_match_logic import ResultsFilter
+from comic_match_logic import ComicMatch
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -71,6 +72,7 @@ class MetadataController:
         self.filepath: Optional[str] = filepath
         self.filename: Optional[str] = os.path.basename(filepath)
         self.comic_info: Optional[ComicInfo] = None
+        self.page_count: Optional[int] = None
 
     def reformat(self) -> None:
         temp_filepath = self.original_filepath
@@ -104,6 +106,13 @@ class MetadataController:
             print("Filename must not be None")
             return False
         with zipfile.ZipFile(self.filepath, "r") as archive:
+            image_exts = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+            image_files = [
+                f
+                for f in archive.namelist()
+                if os.path.splitext(f)[1].lower() in image_exts
+            ]
+            self.page_count = len(image_files)
             if "ComicInfo.xml" in archive.namelist():
                 with archive.open("ComicInfo.xml") as xml_file:
                     try:
@@ -186,7 +195,7 @@ class MetadataController:
 
     def insert_into_db(self, cleaned_comic_info):
         print("[INFO] Starting inputting data to the database")
-        inputter = MetadataInputting(cleaned_comic_info)
+        inputter = MetadataInputting(cleaned_comic_info, self.page_count)
         try:
             inputter.run()
             flat_data = inputter.flatten_data()
@@ -221,10 +230,13 @@ class MetadataController:
             filtered_results = filterer.present_choices()
         return filtered_results
 
-    def request_disambiguation(self, results: list[dict],
-                               actual_comic: RequestData, all_results: list[dict]):
-        match = self.display.get_user_match(results, actual_comic,
-                                            all_results, self.filepath)
+    def request_disambiguation(
+        self, results: list[tuple[ComicMatch, int]],
+        actual_comic: RequestData, all_results: list[dict]
+    ):
+        match = self.display.get_user_match(
+            results, actual_comic, all_results, self.filepath
+        )
         if match:
             return match
         return None

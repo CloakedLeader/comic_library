@@ -1,8 +1,8 @@
 import sqlite3
 from typing import Optional
 
-from file_utils import normalise_publisher_name
 from classes.helper_classes import ComicInfo
+from file_utils import normalise_publisher_name
 
 SHARED_ALIASES = [
     "Robin",
@@ -36,9 +36,10 @@ SHARED_ALIASES = [
 
 
 class MetadataInputting:
-    def __init__(self, comicinfo: ComicInfo) -> None:
+    def __init__(self, comicinfo: ComicInfo, page_count: int) -> None:
         self.clean_info = comicinfo
         self.clean_dict = comicinfo.model_dump()
+        self.clean_dict["pages"] = page_count
         self.comic_id = comicinfo.primary_key
         self.conn = sqlite3.connect("comics.db")
         self.cursor = self.conn.cursor()
@@ -47,9 +48,9 @@ class MetadataInputting:
         self.cursor.execute(
             """
             INSERT INTO comics (id, title, series, volume_id, publisher_id,
-            release_date, description, type_id)
+            release_date, description, type_id, page_count)
             VALUES (:primary_key, :title, :series, :volume_num, :publisher_id, :date,
-            :description, :collection_type)
+            :description, :collection_type, :pages)
             """,
             self.clean_dict,
         )

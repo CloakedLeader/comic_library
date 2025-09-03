@@ -5,9 +5,9 @@ import traceback
 from fuzzywuzzy import fuzz
 from word2number import w2n
 
+from classes.helper_classes import ComicInfo
 from database.db_utils import get_publisher_info
 from file_utils import normalise_publisher_name
-from classes.helper_classes import ComicInfo
 
 SERIES_OVERRIDES = [
     ("tpb", 1, "TPB"),

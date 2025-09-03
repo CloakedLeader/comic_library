@@ -1,14 +1,14 @@
-from PySide6.QtWidgets import (
-    QWidget,
-    QLabel,
-    QHBoxLayout,
-    QVBoxLayout,
-    QSizePolicy,
-    QDialog,
-    QPushButton,
-    QLineEdit,
-)
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
 
 from database.gui_repo_worker import RepoWorker
 
@@ -22,8 +22,7 @@ class CollectionButton(QWidget):
         self.collection = collection_id
         self.setAttribute(Qt.WA_StyledBackground, True)
 
-        style_sheet = (
-            """
+        style_sheet = """
             #comicCard {
                 background-color: #f0f0f0;
 
@@ -37,7 +36,6 @@ class CollectionButton(QWidget):
                 background-color: #f5f5f5;
             }
             """
-        )
 
         self.button_layout = QHBoxLayout()
         self.button_layout.addWidget(QLabel(name))

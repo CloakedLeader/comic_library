@@ -60,3 +60,37 @@ def scan_and_clean() -> None:
 
     print(f"Scan complete. Removed {len(missing)} missing comics.")
     return None
+
+
+def clean_orphans() -> None:
+    conn = sqlite3.connect("comics.db")
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT id FROM comics")
+    existing_ids = {row[0] for row in cursor.fetchall()}
+
+    # Find all tables in the DB
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = [row[0] for row in cursor.fetchall()]
+
+    total_removed = 0
+    for table in tables:
+        # Check if table has a comic_id column
+        cursor.execute(f"PRAGMA table_info({table})")
+        columns = [row[1] for row in cursor.fetchall()]
+        if "comic_id" in columns:
+            # Delete rows where comic_id is not in comics table
+            cursor.execute(f"SELECT comic_id FROM {table}")
+            table_ids = [row[0] for row in cursor.fetchall()]
+            orphan_ids = [cid for cid in table_ids if cid not in existing_ids]
+            if orphan_ids:
+                cursor.executemany(
+                    f"DELETE FROM {table} WHERE comic_id = ?",
+                    [(oid,) for oid in orphan_ids],
+                )
+                total_removed += len(orphan_ids)
+                print(f"Removed {len(orphan_ids)} orphan references from {table}")
+
+    conn.commit()
+    conn.close()
+    print(f"Cleanup complete. Total orphan references removed: {total_removed}")

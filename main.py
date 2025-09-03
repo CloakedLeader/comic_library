@@ -1,11 +1,14 @@
 import asyncio
+
 # import inspect
 import os
 import os.path
 import sys
+import threading
 from pathlib import Path
 from typing import Callable, Optional
 
+import uvicorn
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
@@ -27,24 +30,23 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from qasync import QEventLoop
-import uvicorn
-import threading
 
+from api.api_main import app
+from classes.helper_classes import GUIComicInfo, RSSComicInfo
 from cleanup import scan_and_clean
+from collections_widget import CollectionCreation, CollectionDisplay
 from comic_grid_view import ComicGridView
 from comic_match_ui import ComicMatcherUI
-from download_controller import DownloadControllerAsync, DownloadServiceAsync
+from comic_match_logic import ComicMatch
 from database.gui_repo_worker import RepoWorker
-from classes.helper_classes import GUIComicInfo, RSSComicInfo
+from download_controller import DownloadControllerAsync, DownloadServiceAsync
+from general_comic_widget import GeneralComicWidget
 from metadata_controller import run_tagger
 from metadata_gui_panel import MetadataDialog, MetadataPanel
 from reader_controller import ReadingController
 from rss.rss_controller import RSSController
 from rss.rss_repository import RSSRepository
 from search import text_search
-from api.api_main import app
-from collections_widget import CollectionDisplay, CollectionCreation
-from general_comic_widget import GeneralComicWidget
 
 
 class HomePage(QMainWindow):
@@ -72,7 +74,7 @@ class HomePage(QMainWindow):
         self.setWindowTitle("Comic Library Homepage")
 
         with RepoWorker("D://adams-comics//.covers") as repo_worker:
-            continue_list, review_list = repo_worker.run()
+            continue_list, progress_list, review_list = repo_worker.run()
             collection_names, collection_ids = repo_worker.get_collections()
 
         menu_bar = self.menuBar()
@@ -154,7 +156,9 @@ class HomePage(QMainWindow):
         # stats_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         # stats_bar.setMaximumHeight(60)
         # left_layout.addWidget(stats_bar, stretch=2)
-        continue_reading = self.create_continue_reading_area(continue_list)
+        continue_reading = self.create_continue_reading_area(
+            continue_list, progress_list
+        )
         # need_review = self.create_review_area(review_list)
         rss = self.create_rss_area(20)
 
@@ -189,6 +193,7 @@ class HomePage(QMainWindow):
         left_clicked: Optional[Callable],
         right_clicked: Optional[Callable],
         double_left_clicked: Optional[Callable],
+        progresses: Optional[list[float]] = None,
     ) -> QScrollArea:
         """
         Create a horizontal scroll area populated with comic widgets.
@@ -199,14 +204,9 @@ class HomePage(QMainWindow):
             header: Text for the scroll area section title.
             upon_clicked: Callback function to execute when a
         comic is clicked.
-        links: Whether the comics are from the RSS links.
 
         Returns:
             A configured QScrollArea with clickable comic widgets.
-
-        Creates a scroll area with comic widgets arranged horizontally.
-        Each comic displays a cover image and title, and connects to the
-        provided callback function when clicked.
         """
 
         scroll_area = QScrollArea()
@@ -233,10 +233,16 @@ class HomePage(QMainWindow):
 
         #     return handler
 
-        for comic in list_of_info:
+        for pos, comic in enumerate(list_of_info):
 
-            comic_widget = GeneralComicWidget(comic, left_clicked,
-                                              right_clicked, double_left_clicked)
+            progress = progresses[pos] if progresses else None
+            comic_widget = GeneralComicWidget(
+                comic,
+                left_clicked,
+                right_clicked,
+                double_left_clicked,
+                progress=progress,
+            )
 
             layout.addWidget(comic_widget)
 
@@ -263,7 +269,7 @@ class HomePage(QMainWindow):
         print("Hi " + comic_info.title + "!")
 
     def create_continue_reading_area(
-        self, list_of_comics_marked_as_read: list[GUIComicInfo]
+        self, list_of_comics_marked_as_read: list[GUIComicInfo], progress: list[float]
     ) -> QScrollArea:
         """
         Creates a scroll area for comics marked as continue reading.
@@ -277,6 +283,7 @@ class HomePage(QMainWindow):
             left_clicked=self.open_reader,
             right_clicked=None,
             double_left_clicked=None,
+            progresses=progress,
         )
 
     def create_recommended_reading_area(
@@ -500,11 +507,14 @@ class HomePage(QMainWindow):
     def tag_comics(self):
         run_tagger(self)
 
-    def get_user_match(self, query_results: list[dict],
-                       actual_comic, all_results, filepath: str):
+    def get_user_match(
+        self, query_results: list[tuple[ComicMatch, int]], actual_comic,
+        all_results, filepath: str
+    ):
 
-        dialog = ComicMatcherUI(actual_comic, query_results,
-                                all_results, Path(filepath))
+        dialog = ComicMatcherUI(
+            actual_comic, query_results, all_results, Path(filepath)
+        )
         if dialog.exec() == QDialog.Accepted:
             selected = dialog.get_selected_result()
             if selected:

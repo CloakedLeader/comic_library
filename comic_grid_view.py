@@ -7,10 +7,10 @@ from PySide6.QtWidgets import (
 )
 
 from classes.helper_classes import GUIComicInfo
-from reader_controller import ReadingController
-from general_comic_widget import GeneralComicWidget
-from right_click_menus import GridViewContextMenuManager
 from database.gui_repo_worker import RepoWorker
+from general_comic_widget import GeneralComicWidget
+from reader_controller import ReadingController
+from right_click_menus import GridViewContextMenuManager
 
 
 class ComicGridView(QWidget):
@@ -20,9 +20,7 @@ class ComicGridView(QWidget):
         super().__init__()
         with RepoWorker("D://adams-comics//.covers") as repo_worker:
             collection_names, collection_ids = repo_worker.get_collections()
-        self.context_menu = GridViewContextMenuManager(
-            collection_ids, collection_names
-        )
+        self.context_menu = GridViewContextMenuManager(collection_ids, collection_names)
         self.comic_widgets = []
         layout = QVBoxLayout()
 
@@ -39,7 +37,7 @@ class ComicGridView(QWidget):
                 single_left_click=self.metadata_panel,
                 single_right_click=self.context_menu.show_menu,
                 double_left_click=self.open_reader,
-                size=(180, 270)
+                size=(180, 270),
             )
             self.comic_widgets.append(comic_widget)
             grid_layout.addWidget(

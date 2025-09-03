@@ -93,14 +93,17 @@ class ResultsFilter:
 
         top_results = self.filter_results()
         best_results: list[ComicMatch] = [
-            ({
-                "title": str(r["name"]),
-                "series": str(r["volume"]["name"]),
-                "year": int(str(r["cover_date"])[:4]),
-                "number": int(r["issue_number"]),
-                "cover_link": str(r["image"]["thumb_url"]),
-                "description": str(r["description"]),
-            }, position)
+            (
+                {
+                    "title": str(r["name"]),
+                    "series": str(r["volume"]["name"]),
+                    "year": int(str(r["cover_date"])[:4]),
+                    "number": int(r["issue_number"]),
+                    "cover_link": str(r["image"]["thumb_url"]),
+                    "description": str(r["description"]),
+                },
+                position,
+            )
             for r, position in top_results
         ]
         return best_results
