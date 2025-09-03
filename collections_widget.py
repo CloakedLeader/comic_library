@@ -56,7 +56,7 @@ class CollectionButton(QWidget):
 
 
 class CollectionDisplay(QWidget):
-    def __init__(self, titles: list[str], collection_ids: list):
+    def __init__(self, titles: list[str], collection_ids: list[int]):
         super().__init__()
 
         layout = QVBoxLayout()

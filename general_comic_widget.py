@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QPoint
 from PySide6.QtGui import QPixmap
 from typing import Optional, Callable
 import os
@@ -14,9 +14,9 @@ from classes.helper_classes import RSSComicInfo, GUIComicInfo
 
 
 class GeneralComicWidget(QWidget):
-    left_clicked = Signal()
-    right_clicked = Signal()
-    double_clicked = Signal()
+    left_clicked = Signal(object)
+    right_clicked = Signal(object, QPoint)
+    double_clicked = Signal(object)
 
     pixmap_cache: dict[str, QPixmap] = {}
 
@@ -31,15 +31,18 @@ class GeneralComicWidget(QWidget):
     def __init__(
             self,
             comic_info: RSSComicInfo | GUIComicInfo,
-            single_left_click: Optional[Callable],
-            single_right_click: Optional[Callable],
-            double_left_click: Optional[Callable],
+            single_left_click: Optional[Callable] = None,
+            single_right_click: Optional[Callable] = None,
+            double_left_click: Optional[Callable] = None,
+            size: tuple[int] = (200, 300)
             ):
         super().__init__()
         self.comic_info = comic_info
+        width, height = size
         layout = QVBoxLayout()
         layout.setSpacing(5)
         layout.setContentsMargins(0, 0, 0, 0)
+
         cover_label = QLabel()
         cover_label.setAlignment(Qt.AlignCenter)
 
@@ -55,11 +58,11 @@ class GeneralComicWidget(QWidget):
                 pixmap = self.load_pix_from_link(cover_path_or_url)
 
         if pixmap and not pixmap.isNull():
-            pixmap = pixmap.scaled(200, 300,
+            pixmap = pixmap.scaled(width, height,
                                    Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.set_cached_pixmap(cover_path_or_url, pixmap)
         else:
-            pixmap = QPixmap(200, 300)
+            pixmap = QPixmap(width, height)
             pixmap.fill(Qt.gray)
 
         cover_label.setPixmap(pixmap)
@@ -72,24 +75,25 @@ class GeneralComicWidget(QWidget):
         layout.addWidget(title_label)
 
         if single_left_click is not None:
-            self.left_clicked.connect(lambda c=self.comic_info: single_left_click(c))
+            self.left_clicked.connect(single_left_click)
         if single_right_click is not None:
-            self.right_clicked.connect(lambda c=self.comic_info: single_right_click(c))
+            self.right_clicked.connect(single_right_click)
         if double_left_click is not None:
-            self.double_clicked.connect(lambda c=self.comic_info: double_left_click(c))
+            self.double_clicked.connect(double_left_click)
 
         self.setToolTip(self.comic_info.title)
         self.setLayout(layout)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            self.left_clicked.emit()
+            self.left_clicked.emit(self.comic_info)
         if event.button() == Qt.RightButton:
-            self.right_clicked.emit()
+            print("Right click detected on", self.comic_info.title)
+            self.right_clicked.emit(self.comic_info, event.globalPos())
 
     def mouseDoubleClickEvent(self, event):
         if event.button() == Qt.LeftButton:
-            self.double_clicked.emit()
+            self.double_clicked.emit(self.comic_info)
 
     @staticmethod
     def load_pix_from_link(link) -> Optional[QPixmap]:

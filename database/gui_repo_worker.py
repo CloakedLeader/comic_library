@@ -260,3 +260,22 @@ class RepoWorker:
     def create_collection(self, title: str):
         self.cursor.execute("INSERT INTO collections (name) VALUES (?)",
                             (title,))
+
+    def get_collections(self) -> tuple[list[str], list[int]]:
+        self.cursor.execute("SELECT name, id from collections")
+        results = self.cursor.fetchall()
+        names = []
+        ids = []
+        for result in results:
+            names.append(result[0])
+            ids.append(result[1])
+
+        return (names, ids)
+
+    def add_to_collection(self, collection_id, comic_id):
+        self.cursor.execute(
+            """
+            INSERT OR IGNORE INTO collections_contents
+            (collection_id, comic_id)
+            VALUES (?, ?)
+            """, (collection_id, comic_id))

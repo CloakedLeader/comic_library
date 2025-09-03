@@ -3,12 +3,10 @@ import asyncio
 import os
 import os.path
 import sys
-from io import BytesIO
 from pathlib import Path
 from typing import Callable, Optional
 
-import requests
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -49,87 +47,6 @@ from collections_widget import CollectionDisplay, CollectionCreation
 from general_comic_widget import GeneralComicWidget
 
 
-class ClickableComicWidget(QWidget):
-    """
-    A clickable widget for displaying comic information with
-    cover and title.
-
-    This widget displays a comic cover image and title in a vertical
-    layout and emits a clicked signal when the user clicks on it.
-
-    Signals:
-        clicked: Emitted when the widget is clicked with the left mouse button.
-    """
-
-    clicked = Signal()
-
-    def __init__(
-        self,
-        title: str,
-        pixmap: QPixmap,
-        # img_width=20,
-        img_height=400,
-    ) -> None:
-        """
-        Intialise the clickable comic widget.
-
-        Args:
-            title: The comic title to display.
-            pixmap: The cover image as a QPixmap.
-            img_width: Width to scale the cover image to.
-            img_height: Height to scale the cover image to.
-            Parent: Parent widget to embed it in, optional.
-        """
-        super().__init__()
-
-        layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignCenter)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
-
-        cover_label = QLabel()
-        cover_label.setAlignment(Qt.AlignCenter)
-        cover_label.setFixedHeight(img_height)
-        cover_label.setPixmap(
-            pixmap.scaledToHeight(img_height, Qt.SmoothTransformation)
-            # pixmap.scaled(
-            #     img_width, img_height, Qt.KeepAspectRatio, Qt.SmoothTransformation
-        )
-        cover_label.setSizePolicy(
-            cover_label.sizePolicy().horizontalPolicy(), QSizePolicy.Fixed
-        )
-        cover_label.setToolTip(title)
-        # title_label = QLabel(title)
-        # title_label.setAlignment(Qt.AlignCenter)
-        # title_label.setWordWrap(True)
-
-        layout.addWidget(cover_label)
-        # layout.addWidget(title_label)
-
-        self.setStyleSheet(
-            """
-            ComicButton {
-                border: 1px solid #aaa;
-                border-radius: 4px;
-                background-color: #f9f9f9;
-            }
-            ComicButton:hover {
-                background-color: #e6f7ff;
-            }
-        """
-        )
-
-    def mousePressEvent(self, event) -> None:
-        """
-        Handle mouse press events to emit clicked signal.
-
-        Args:
-            event: The mouse press event.
-        """
-        if event.button() == Qt.LeftButton:
-            self.clicked.emit()
-
-
 class HomePage(QMainWindow):
     """
     Main window for the Comic Library application.
@@ -153,6 +70,10 @@ class HomePage(QMainWindow):
         super().__init__()
         self.metadata_panel: Optional[MetadataPanel] = None
         self.setWindowTitle("Comic Library Homepage")
+
+        with RepoWorker("D://adams-comics//.covers") as repo_worker:
+            continue_list, review_list = repo_worker.run()
+            collection_names, collection_ids = repo_worker.get_collections()
 
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu("File")
@@ -219,18 +140,15 @@ class HomePage(QMainWindow):
         left_layout = QVBoxLayout()
         left_widget.setLayout(left_layout)
         left_layout.addWidget(self.file_tree, stretch=1)
-        titles = ["Punisher", "Krakoa Era X-Men", "Batman"]
-        collection_ids = [101, 250, 30]
-        self.collection_display = CollectionDisplay(titles, collection_ids)
+        # titles = ["Punisher", "Krakoa Era X-Men", "Batman"]
+        # collection_ids = [101, 250, 30]
+        self.collection_display = CollectionDisplay(collection_names, collection_ids)
         left_layout.addWidget(self.collection_display, stretch=1)
-        # left_layout.addWidget(QLabel("This is temporary."), stretch=1)
         self.splitter = QSplitter()
         self.splitter.addWidget(left_widget)
 
         self.content_area = QWidget()
         content_layout = QVBoxLayout(self.content_area)
-        with RepoWorker("D://adams-comics//.covers") as repo_worker:
-            continue_list, review_list = repo_worker.run()
 
         # stats_bar = self.create_stats_bar()
         # stats_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
@@ -252,7 +170,7 @@ class HomePage(QMainWindow):
         lay = QVBoxLayout(container)
         lay.addWidget(self.splitter)
         lay.setContentsMargins(0, 0, 0, 0)
-        self.splitter.setSizes([100, 650])
+        self.splitter.setSizes([100, 900])
 
         self.browse_splitter = QSplitter()
         self.stack.addWidget(self.browse_splitter)
@@ -263,33 +181,6 @@ class HomePage(QMainWindow):
         self.stack.addWidget(self.search_display)
 
         self.setCentralWidget(container)
-
-    def load_pixmap_from_url(self, url: str) -> QPixmap:
-        """
-        Loads a QPixmap from a URL with error handling.
-
-        Args:
-            url: The URL image of the image to load.
-
-        Returns:
-            The loaded image or a gray placeholder if loading fails.
-
-        Downloads the image from the given URL and converts it to
-        a QPixmap. Returns a 120x180 gray placeholder if the
-        download fails.
-        """
-        try:
-            response = requests.get(url, timeout=30)
-            response.raise_for_status()
-            image_data = BytesIO(response.content)
-            pixmap = QPixmap()
-            if pixmap.loadFromData(image_data.read()):
-                return pixmap
-        except Exception as e:
-            print(f"Failed to load image from {url}: {e}")
-        fallback = QPixmap(120, 180)
-        fallback.fill(Qt.gray)
-        return fallback
 
     def create_scroll_area(
         self,
