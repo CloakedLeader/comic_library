@@ -298,3 +298,13 @@ class RepoWorker:
             """,
             (collection_id, comic_id),
         )
+
+    def get_collection_contents(self, collection_id: int) -> list[str] | None:
+        self.cursor.execute(
+            "SELECT comic_id FROM collections_contents WHERE collection_id = ?",
+            (collection_id,))
+        result = self.cursor.fetchall()
+        if result:
+            return [r[0] for r in result]
+        else:
+            return None

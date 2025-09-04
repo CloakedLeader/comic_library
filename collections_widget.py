@@ -9,12 +9,13 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from typing import Callable
 
 from database.gui_repo_worker import RepoWorker
 
 
 class CollectionButton(QWidget):
-    clicked = Signal()
+    clicked = Signal(int)
     doubleClicked = Signal()
 
     def __init__(self, name: str, collection_id: int, parent=None):
@@ -46,7 +47,7 @@ class CollectionButton(QWidget):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            self.clicked.emit()
+            self.clicked.emit(self.collection)
 
     def mouseDoubleClickEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -54,7 +55,11 @@ class CollectionButton(QWidget):
 
 
 class CollectionDisplay(QWidget):
-    def __init__(self, titles: list[str], collection_ids: list[int]):
+    def __init__(
+            self,
+            titles: list[str],
+            collection_ids: list[int],
+            left_clicked: Callable,):
         super().__init__()
 
         layout = QVBoxLayout()
@@ -66,7 +71,7 @@ class CollectionDisplay(QWidget):
 
         for title, id in combined:
             widget = CollectionButton(title, id, self)
-            widget.clicked.connect(lambda t=title: print(f"Clicked collection: {t}"))
+            widget.clicked.connect(left_clicked)
             widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
             layout.addWidget(widget)
 

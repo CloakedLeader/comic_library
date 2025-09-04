@@ -144,7 +144,10 @@ class HomePage(QMainWindow):
         left_layout.addWidget(self.file_tree, stretch=1)
         # titles = ["Punisher", "Krakoa Era X-Men", "Batman"]
         # collection_ids = [101, 250, 30]
-        self.collection_display = CollectionDisplay(collection_names, collection_ids)
+        self.collection_display = CollectionDisplay(
+            collection_names,
+            collection_ids,
+            self.clicked_collection)
         left_layout.addWidget(self.collection_display, stretch=1)
         self.splitter = QSplitter()
         self.splitter.addWidget(left_widget)
@@ -183,6 +186,10 @@ class HomePage(QMainWindow):
         self.search_display = QWidget()
         self.search_display.setLayout(self.search_layout)
         self.stack.addWidget(self.search_display)
+
+        self.collections_widget = QWidget()
+        self.coll_display = QVBoxLayout(self.collections_widget)
+        self.stack.addWidget(self.collections_widget)
 
         self.setCentralWidget(container)
 
@@ -527,6 +534,22 @@ class HomePage(QMainWindow):
         dialog = CollectionCreation()
         if dialog.exec() == QDialog.Accepted:
             print(dialog.textbox.text())
+
+    def clicked_collection(self, id: int):
+        def clear_widgets():
+            while self.coll_display.count():
+                item = self.coll_display.takeAt(0)
+                widget = item.widget()
+                if widget:
+                    widget.deleteLater()
+
+        clear_widgets()
+        with RepoWorker("D:/adams-comics/.covers") as worker:
+            comic_ids = worker.get_collection_contents(id)
+            comic_infos = worker.create_basemodel(comic_ids)
+        collection_grid = ComicGridView(comic_infos)
+        self.coll_display.addWidget(collection_grid)
+        self.stack.setCurrentWidget(self.collections_widget)
 
     def update_status(self, message: str) -> None:
         """
