@@ -34,7 +34,7 @@ from qasync import QEventLoop
 from api.api_main import app
 from classes.helper_classes import GUIComicInfo, RSSComicInfo
 from cleanup import scan_and_clean
-from collections_widget import CollectionCreation, CollectionDisplay
+from collections_widget import CollectionCreation
 from comic_grid_view import ComicGridView
 from comic_match_ui import ComicMatcherUI
 from comic_match_logic import ComicMatch
@@ -47,6 +47,7 @@ from reader_controller import ReadingController
 from rss.rss_controller import RSSController
 from rss.rss_repository import RSSRepository
 from search import text_search
+from left_widget_assets import ButtonDisplay
 
 
 class HomePage(QMainWindow):
@@ -142,13 +143,21 @@ class HomePage(QMainWindow):
         left_layout = QVBoxLayout()
         left_widget.setLayout(left_layout)
         left_layout.addWidget(self.file_tree, stretch=1)
-        # titles = ["Punisher", "Krakoa Era X-Men", "Batman"]
-        # collection_ids = [101, 250, 30]
-        self.collection_display = CollectionDisplay(
+        self.collection_display = ButtonDisplay(
+            "Collections",
             collection_names,
             collection_ids,
             self.clicked_collection)
         left_layout.addWidget(self.collection_display, stretch=1)
+        orders = ["Krakoa Era", "Black Panther", "Hal Jordan"]
+        order_ids = [22, 12, 56]
+        self.order_display = ButtonDisplay(
+            "Reading Orders",
+            orders,
+            order_ids,
+            self.print_num,
+        )
+        left_layout.addWidget(self.order_display, stretch=1)
         self.splitter = QSplitter()
         self.splitter.addWidget(left_widget)
 
@@ -192,6 +201,9 @@ class HomePage(QMainWindow):
         self.stack.addWidget(self.collections_widget)
 
         self.setCentralWidget(container)
+
+    def print_num(self, num: int):
+        print(f"Clicked order with id {num}")
 
     def create_scroll_area(
         self,

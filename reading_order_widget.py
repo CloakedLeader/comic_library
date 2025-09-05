@@ -8,10 +8,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from database.gui_repo_worker import RepoWorker
 
-
-class CollectionCreation(QDialog):
+class ReadingOrderCreation(QDialog):
     def __init__(self):
         super().__init__()
 
@@ -35,9 +33,3 @@ class CollectionCreation(QDialog):
         self.main_layout.addWidget(button_holder)
 
         self.setLayout(self.main_layout)
-
-    def create_collection(self):
-        name = self.textbox.text()
-        with RepoWorker("D:/adams-comics/.covers") as worker:
-            worker.create_collection(name)
-        self.accept()
