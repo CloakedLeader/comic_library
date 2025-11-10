@@ -7,6 +7,7 @@ import sys
 import threading
 from pathlib import Path
 from typing import Callable, Optional
+from dotenv import load_dotenv
 
 import uvicorn
 from PySide6.QtCore import Qt, QTimer
@@ -48,6 +49,11 @@ from rss.rss_controller import RSSController
 from rss.rss_repository import RSSRepository
 from search import text_search
 from left_widget_assets import ButtonDisplay
+from reading_order_widget import ReadingOrderCreation
+
+
+load_dotenv()
+ROOT_DIR = Path(os.getenv("ROOT_DIR"))
 
 
 class HomePage(QMainWindow):
@@ -74,7 +80,7 @@ class HomePage(QMainWindow):
         self.metadata_panel: Optional[MetadataPanel] = None
         self.setWindowTitle("Comic Library Homepage")
 
-        with RepoWorker("D://adams-comics//.covers") as repo_worker:
+        with RepoWorker() as repo_worker:
             continue_list, progress_list, review_list = repo_worker.run()
             collection_names, collection_ids = repo_worker.get_collections()
 
@@ -103,6 +109,10 @@ class HomePage(QMainWindow):
         self.refresh_action.setShortcut("Ctrl + U")
         self.create_collection_button = toolbar.addAction("Create Collection")
         self.create_collection_button.triggered.connect(self.create_collection)
+        self.create_reading_order_button = toolbar.addAction("Create Reading Order")
+        self.create_reading_order_button.triggered.connect(self.create_reading_order)
+        self.settings_action = toolbar.addAction("Settings")
+        self.settings_action.triggered.connect(self.open_settings)
 
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -127,11 +137,11 @@ class HomePage(QMainWindow):
         body_widget.setLayout(body_layout)
 
         self.file_model = QFileSystemModel()
-        self.file_model.setRootPath(os.path.expanduser("D://adams-comics"))
+        self.file_model.setRootPath(os.path.expanduser(str(ROOT_DIR)))
         self.file_tree = QTreeView()
         self.file_tree.setModel(self.file_model)
         self.file_tree.setRootIndex(
-            self.file_model.index(os.path.expanduser("D://adams-comics"))
+            self.file_model.index(os.path.expanduser(str(ROOT_DIR)))
         )
         self.file_tree.clicked.connect(self.on_folder_select)
         self.file_tree.setHeaderHidden(True)
@@ -371,7 +381,7 @@ class HomePage(QMainWindow):
         Returns:
             A QWidget containing comic library statistics.
         """
-        files_num, storage_val = count_files_and_storage("D:\\adams-comics")
+        files_num, storage_val = count_files_and_storage(str(ROOT_DIR))
 
         def create_stat_widget(title: str, image_path: str, value: str) -> QWidget:
             """
@@ -451,7 +461,7 @@ class HomePage(QMainWindow):
         if pub_id.isdigit():
             pub_id = int(pub_id)
             if pub_id != 0:
-                with RepoWorker("D://adams-comics//.covers") as folder_info_getter:
+                with RepoWorker() as folder_info_getter:
                     grid_view_data = folder_info_getter.get_folder_info(pub_id)
 
                     if hasattr(self, "grid_view") and self.grid_view is not None:
@@ -471,7 +481,7 @@ class HomePage(QMainWindow):
                     self.stack.setCurrentWidget(self.browse_splitter)
 
     def show_metadata_panel(self, comic_info: GUIComicInfo):
-        with RepoWorker("D://adams-comics//.covers") as info_getter:
+        with RepoWorker() as info_getter:
             comic_metadata = info_getter.get_complete_metadata(comic_info.primary_id)
 
         if hasattr(self, "metadata_panel") and self.metadata_panel is not None:
@@ -556,12 +566,17 @@ class HomePage(QMainWindow):
                     widget.deleteLater()
 
         clear_widgets()
-        with RepoWorker("D:/adams-comics/.covers") as worker:
+        with RepoWorker() as worker:
             comic_ids = worker.get_collection_contents(id)
             comic_infos = worker.create_basemodel(comic_ids)
         collection_grid = ComicGridView(comic_infos)
         self.coll_display.addWidget(collection_grid)
         self.stack.setCurrentWidget(self.collections_widget)
+
+    def create_reading_order(self):
+        dialog = ReadingOrderCreation()
+        if dialog.exec() == QDialog.Accepted:
+            print(dialog.textbox.text())
 
     def update_status(self, message: str) -> None:
         """
@@ -622,7 +637,7 @@ async def main():
 
 
 if __name__ == "__main__":
-    scan_and_clean()
+    # scan_and_clean()
 
     api_thread = threading.Thread(target=start_api, daemon=True)
     api_thread.start()

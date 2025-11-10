@@ -1,13 +1,20 @@
 import os
 import sqlite3
 from collections import defaultdict
+from datetime import datetime
+from typing import Optional
+from dotenv import load_dotenv
+from pathlib import Path
 
 from classes.helper_classes import GUIComicInfo, MetadataInfo
 
 
+load_dotenv()
+ROOT_DIR = Path(os.getenv("ROOT_DIR"))
+
 class RepoWorker:
-    def __init__(self, cover_dir: str):
-        self.cover_folder = cover_dir
+    def __init__(self):
+        self.cover_folder = str(ROOT_DIR / ".covers")
 
     def __enter__(self):
         self.conn = sqlite3.connect("comics.db")
@@ -97,7 +104,6 @@ class RepoWorker:
         continue_info = self.create_basemodel(continue_ids)
         review_info = self.create_basemodel(review_ids)
 
-        print(f"Progresses are {progresses}")
         return continue_info, progresses, review_info
 
     def get_recent_page(self, primary_key: str) -> None | int:
@@ -308,3 +314,16 @@ class RepoWorker:
             return [r[0] for r in result]
         else:
             return None
+        
+    def create_reading_order(self, title: str, desc: Optional[str]) -> int:
+        now = datetime.now()
+        if desc is None:
+            self.cursor.execute(
+                "INSERT INTO reading_orders (name, created) VALUES (?, ?)",
+                (title, now,))
+        else:
+            self.cursor.execute(
+                "INSERT INTO reading_orders (name, description, created) VALUES (?, ?, ?)",
+                (title, desc, now,))
+        return self.cursor.lastrowid
+        

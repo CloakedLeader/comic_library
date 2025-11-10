@@ -5,6 +5,7 @@ from sqlmodel import Session, create_engine
 import api.repo_worker as repo_worker
 from database.gui_repo_worker import RepoWorker
 
+
 app = FastAPI(title="Comic Server")
 
 engine = create_engine("sqlite:///comics.db")
@@ -28,7 +29,7 @@ def get_folder_contents(folder_name: str):
     return folder_structure
 
 
-@app.get("/cover/{file_id}")
+@app.get("/cover/{comic_id}")
 def get_cover_image(comic_id: str):
     cover_base = "D:/adams-comics/.covers/"
     filename = f"{comic_id}_t.jpg"

@@ -3,10 +3,7 @@ import tempfile
 import uuid
 import zipfile
 from pathlib import Path
-
-import rarfile
-
-rarfile.UNRAR_TOOL = "C:/Program Files (x86)/WinRAR/UnRAR.exe"
+import subprocess
 
 
 def convert_cbz(cbr_path: str, *, delete_original: bool = True) -> str:
@@ -28,36 +25,39 @@ def convert_cbz(cbr_path: str, *, delete_original: bool = True) -> str:
     and then zips that directory into the .cbz with the same
     filename.
     """
-    if not get_ext(cbr_path) == ".cbr":
+    cbr_path = Path(cbr_path)
+
+    if not cbr_path.suffix.lower() == ".cbr":
         raise ValueError("Not a .cbr file!")
 
-    if not os.path.exists(cbr_path):
+    if not cbr_path.exists():
         raise ValueError(f"File does not exist: {cbr_path}")
 
-    cbz_path = os.path.splitext(cbr_path)[0] + ".cbz"
+    cbz_path = cbr_path.with_suffix(".cbz")
 
     with tempfile.TemporaryDirectory() as tempdir:
-        try:
-            with rarfile.RarFile(cbr_path) as rf:
-                if rf.needs_password():
-                    raise rarfile.BadRarFile("Archive requires a password")
-
-                rf.extractall(path=tempdir)
-        except rarfile.BadRarFile as e:
-            raise ValueError(f"Bad RAR file: {e}")
+        tempdir = Path(tempdir)
+        result = subprocess.run(
+            ["7z", "x", str(cbr_path), f"-o{tempdir}", "-y"],
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"7-Zip extraction failed for {cbr_path}:\n{result.stderr}"
+            )
 
         with zipfile.ZipFile(cbz_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            for root, _dirs, files in os.walk(tempdir):
-                for file in files:
-                    full_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(full_path, tempdir)
-                    zf.write(full_path, rel_path)
+            for file in tempdir.rglob("*"):
+                if file.is_file():
+                    zf.write(file, file.relative_to(tempdir))
 
     if delete_original:
-        os.remove(cbr_path)
+        cbr_path.unlink()
 
     print(f"Converted: {cbr_path} --> {cbz_path}")
-    return cbz_path
+    return str(cbz_path)
 
 
 def get_ext(path: str) -> str:

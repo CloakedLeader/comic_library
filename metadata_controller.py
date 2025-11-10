@@ -4,6 +4,7 @@ import shutil
 import sqlite3
 import zipfile
 from typing import Optional
+from pathlib import Path
 
 from defusedxml import ElementTree as ET
 from dotenv import load_dotenv
@@ -28,6 +29,7 @@ logging.basicConfig(
 
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
+ROOT_DIR = Path(os.getenv("ROOT_DIR"))
 
 
 def get_comicid_from_path(
@@ -208,12 +210,12 @@ class MetadataController:
     def extract_cover(self):
         print("[INFO] Starting cover extraction")
         image_proc = ImageExtraction(
-            self.filepath, "D://adams-comics//.covers", self.primary_key
+            self.filepath, str(ROOT_DIR / ".covers"), self.primary_key
         )
         image_proc.run()
 
     def move_to_publisher_folder(self, new_name, publisher_int):
-        for dirpath, dirnames, _ in os.walk("D://adams-comics"):
+        for dirpath, dirnames, _ in os.walk(ROOT_DIR):
             for dirname in dirnames:
                 if str(dirname).startswith(str(publisher_int)):
                     dir_path = os.path.join(dirpath, dirname)
@@ -260,7 +262,7 @@ EXCLUDE = {
 
 
 def run_tagger(display: QMainWindow):
-    for dirpath, dirnames, filenames in os.walk("D://adams-comics//0 - Downloads"):
+    for dirpath, dirnames, filenames in os.walk(ROOT_DIR / "0 - Downloads"):
         dirnames[:] = [d for d in dirnames if d not in EXCLUDE]
         for filename in filenames:
             if not any(filename.lower().endswith(ext) for ext in VALID_EXTENSIONS):

@@ -1,8 +1,12 @@
 import os
 import sqlite3
+from dotenv import load_dotenv
+from pathlib import Path
 
 from classes.helper_classes import GUIComicInfo
 
+load_dotenv()
+ROOT_DIR = Path(os.getenv("ROOT_DIR"))
 DB_PATH = os.path.abspath("comics.db")
 conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
@@ -99,21 +103,22 @@ def text_search(text) -> list[GUIComicInfo] | None:
         primary_key = result[0]
         title = f"{result[1]}: {result[2]}"
         filepath = get_filepath(primary_key)
-        cover_path = f"D://adams-comics//.covers//{primary_key}_b.jpg"
+        cover_path = ROOT_DIR / ".covers" / f"{primary_key}_b.jpg"
+        # cover_path = f"D://adams-comics//.covers//{primary_key}_b.jpg"
         if filepath is None:
             continue
         comic_info = GUIComicInfo(
             primary_id=primary_key,
             title=title,
-            filepath=filepath,
-            cover_path=cover_path,
+            filepath=str(filepath),
+            cover_path=str(cover_path),
         )
         hits.append(comic_info)
 
     return hits
 
 
-def get_filepath(primary_key) -> str | None:
+def get_filepath(primary_key) -> Path | None:
     cursor.execute("SELECT file_path FROM comics WHERE id = ?", (primary_key,))
     results = cursor.fetchone()
-    return results[0] if results is not None else None
+    return Path(results[0]) if results is not None else None

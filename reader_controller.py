@@ -33,7 +33,7 @@ class ReadingController:
         displays the reader window and tracks it in the open window list for
         management.
         """
-        with RepoWorker("D://adams-comics//.covers") as pager:
+        with RepoWorker() as pager:
             val = pager.get_recent_page(self.comic.primary_id)
         if val:
             comic_data = Comic(self.comic, start_index=val)

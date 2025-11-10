@@ -1,5 +1,8 @@
 import re
 from textwrap import dedent
+import os
+from dotenv import load_dotenv
+from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
@@ -20,6 +23,10 @@ from PySide6.QtWidgets import (
 
 from classes.helper_classes import GUIComicInfo, MetadataInfo
 from database.gui_repo_worker import RepoWorker
+
+
+load_dotenv()
+ROOT_DIR = Path(os.getenv("ROOT_DIR"))
 
 
 class DashboardBox(QGroupBox):
@@ -73,7 +80,7 @@ class MetadataDialog(QMainWindow):
         self.primary_id = comic_data.primary_id
         self.coverpath = comic_data.cover_path
         self.filepath = comic_data.filepath
-        with RepoWorker("D://adams-comics//.covers") as info_getter:
+        with RepoWorker() as info_getter:
             metadata = info_getter.get_complete_metadata(self.primary_id)
         super().__init__()
         self.setWindowTitle(f"Metadata for {metadata.name}")
@@ -128,7 +135,7 @@ class MetadataDialog(QMainWindow):
         review_area.setWidgetResizable(True)
 
         thumbnail_filename = f"{self.primary_id}_t.jpg"
-        thumbnail_pix = QPixmap("D://adams-comics//.covers//" + thumbnail_filename)
+        thumbnail_pix = QPixmap(ROOT_DIR / ".covers" / thumbnail_filename)
         thumbnail_label = QLabel()
         thumbnail_label.setPixmap(thumbnail_pix)
         thumbnail_label.setScaledContents(False)
@@ -188,7 +195,7 @@ class MetadataDialog(QMainWindow):
 
     def save_current_review(self) -> None:
         current_text = self.text_edit.toPlainText()
-        with RepoWorker("D://adams-comics//.covers") as review_saver:
+        with RepoWorker() as review_saver:
             review_saver.input_review_column(
                 primary_key=self.primary_id, review_text=current_text
             )

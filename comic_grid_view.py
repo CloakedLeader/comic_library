@@ -18,7 +18,7 @@ class ComicGridView(QWidget):
 
     def __init__(self, comics: list[GUIComicInfo], colums: int = 5):
         super().__init__()
-        with RepoWorker("D://adams-comics//.covers") as repo_worker:
+        with RepoWorker() as repo_worker:
             collection_names, collection_ids = repo_worker.get_collections()
         self.context_menu = GridViewContextMenuManager(collection_ids, collection_names)
         self.comic_widgets = []

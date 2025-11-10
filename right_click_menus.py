@@ -32,7 +32,7 @@ class GridViewContextMenuManager:
         elif chosen_menu in action_map:
             coll_id = action_map[chosen_menu]
             print(f"Add {comic_info.title} to collection {coll_id}")
-            with RepoWorker("D:/adams-comics/.covers") as worker:
+            with RepoWorker() as worker:
                 worker.add_to_collection(coll_id, comic_info.primary_id)
         else:
             print("Menu dismissed")

@@ -5,6 +5,7 @@ import urllib.parse
 from email.header import decode_header
 from pathlib import Path
 from typing import Callable, Optional
+from dotenv import load_dotenv
 
 import aiofiles
 import aiohttp
@@ -13,7 +14,9 @@ from bs4 import BeautifulSoup
 
 from classes.helper_classes import RSSComicInfo
 
-logging.getLogger("aiofiles").setLevel(logging.WARNING)
+load_dotenv()
+# logging.getLogger("aiofiles").setLevel(logging.WARNING)
+ROOT_DIR = Path(os.getenv("ROOT_DIR"))
 
 
 class DownloadControllerAsync:
@@ -105,7 +108,7 @@ class DownloadServiceAsync:
     It provides robust error handling and supports various comic file formats.
     """
 
-    def __init__(self, download_folder: str = "D:/adams-comics/0 - Downloads") -> None:
+    def __init__(self, download_folder: str = ROOT_DIR / "0 - Downloads") -> None:
         """
         Initialise the download service.
 
@@ -114,8 +117,8 @@ class DownloadServiceAsync:
 
         The download folder will be created if it does not exist.
         """
-        self.download_folder = download_folder
-        os.makedirs(download_folder, exist_ok=True)
+        self.download_folder = Path(download_folder)
+        self.download_folder.mkdir(parents=True, exist_ok=True)
 
     def get_filename(self, content_disposition: str) -> Optional[str]:
         """

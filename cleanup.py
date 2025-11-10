@@ -1,10 +1,13 @@
 import os
 import sqlite3
 from pathlib import Path
+from dotenv import load_dotenv
 
+
+load_dotenv()
 
 def delete_comic(filepath: str) -> None:
-    base_dir = Path("D:/adams-comics")
+    base_dir = Path(os.getenv("ROOT_DIR"))
 
     conn = sqlite3.connect("comics.db")
     cursor = conn.cursor()

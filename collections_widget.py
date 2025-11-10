@@ -38,6 +38,6 @@ class CollectionCreation(QDialog):
 
     def create_collection(self):
         name = self.textbox.text()
-        with RepoWorker("D:/adams-comics/.covers") as worker:
+        with RepoWorker() as worker:
             worker.create_collection(name)
         self.accept()
