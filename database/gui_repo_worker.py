@@ -246,6 +246,17 @@ class RepoWorker:
         return info
 
     def input_review_column(self, review_text: str, primary_key: str) -> None:
+        """
+        This function puts the text and iteration for a review into the database.
+        
+        Parameters:
+        review_text: A string for the user written review.
+        primary_key: A string for the uuid of the comic.
+
+        This takes the last review in the database and compares it to review_text,
+        if they are the same the code does nothing. If they are different it adds the
+        review to the database with the iteration being one higher than the previous.
+        """
         self.cursor.execute(
             "SELECT iteration, review FROM reviews"
             "WHERE comic_id = ? ORDER BY iteration DESC",
@@ -273,6 +284,16 @@ class RepoWorker:
             return None
 
     def get_complete_metadata(self, primary_id: str) -> MetadataInfo:
+        """
+        This gets all the metadata for a comic, formats it and compiles it into
+        MetadataInfo.
+
+        Parameters:
+        primary_id: A string that is the uuid of the comic.
+
+        Outputs:
+        A MetadataInfo basemodel with all the corresponding data.
+        """
         role_info = {
             1: "Writer",
             2: "Penciller",
@@ -352,10 +373,24 @@ class RepoWorker:
             reviews=reviews,
         )
 
-    def create_collection(self, title: str):
+    def create_collection(self, title: str) -> None:
+        """
+        Creates a comic collection in the database.
+
+        Parameters:
+        title: A string that the user inputs to name the collection.
+        """
         self.cursor.execute("INSERT INTO collections (name) VALUES (?)", (title,))
 
     def get_collections(self) -> tuple[list[str], list[int]]:
+        """
+        Gets the names of all collections in the database.
+
+        Outputs:
+        A tuple which has lists as its first and second element.
+            The first list is the names of the collections and the second
+            is the id's of the collections as in the db.
+        """
         self.cursor.execute("SELECT name, id from collections")
         results = self.cursor.fetchall()
         names = []
