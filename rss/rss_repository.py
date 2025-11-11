@@ -1,6 +1,6 @@
 import sqlite3
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from datetime import datetime, timezone
+from typing import Any
 
 
 class RSSRepository:
@@ -10,6 +10,7 @@ class RSSRepository:
     This class provides methods for storing, retrieving and managing
     RSS feed entries with automatic cleanup of old entries.
     """
+
     def __init__(self, db_file: str) -> None:
         """
         Initialise the RSS repository with a database connection.
@@ -19,22 +20,6 @@ class RSSRepository:
         """
         self.connection = sqlite3.connect(db_file)
         self.cursor = self.connection.cursor()
-
-    def get_latest_pub_date(self) -> Optional[str]:
-        """
-        Retrieve the latest publication date from stored entries.
-
-        Returns:
-            The most recent publication date, or None if no entries exist.
-        """
-        self.cursor.execute(
-            "SELECT pub_date FROM rss_entries "
-            "ORDER BY datetime(pub_date) DESC LIMIT 1"
-        )
-        row = self.cursor.fetchone()
-        # TODO: Make this return some arbitrary date from ages ago
-        # if no date is found.
-        return row[0] if row else None
 
     def insert_entries(self, entries: list[dict[str, Any]]) -> None:
         """
@@ -53,7 +38,7 @@ class RSSRepository:
         """
         sql = """
             INSERT OR IGNORE INTO rss_entries (url, title,
-            pub_date, summary, cover_url)
+            pub_epoch, summary, cover_url)
             VALUES (:link, :title, :pub_date, :summary, :cover_link )
             """
         self.cursor.executemany(sql, entries)
@@ -70,14 +55,17 @@ class RSSRepository:
         Removes entries that are older than the specified number of days
         from the current date.
         """
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=lifetime)
+        seconds_in_day = 86_400
+        cutoff_epoch = (
+            int(datetime.now(timezone.utc).timestamp()) - lifetime * seconds_in_day
+        )
         self.cursor.execute(
-            "DELETE FROM rss_entries WHERE datetime(pub_date) < ?",
-            (cutoff_date.strftime("%Y-%m-%d %H:%M:%S"),),
+            "DELETE FROM rss_entries WHERE pub_epoch < ?",
+            (cutoff_epoch,),
         )
         self.connection.commit()
 
-    def get_recent_entries(self, limit: int = 10) -> list[tuple[str, str]]:
+    def get_recent_entries(self, limit: int = 10) -> list[tuple[str, str, str]]:
         """
         Fetch a limited number of recent entries with title and cover URL.
 
@@ -92,9 +80,10 @@ class RSSRepository:
         # Need to add extra data here eventually, maybe the download link
         self.cursor.execute(
             """
-            SELECT title, cover_url
+            SELECT url, title, cover_url
             FROM rss_entries
-            ORDER BY datetime(pub_date) DESC
+            WHERE pub_epoch IS NOT NULL
+            ORDER BY pub_epoch DESC
             LIMIT ?
         """,
             (limit,),
@@ -110,28 +99,3 @@ class RSSRepository:
         """
         self.connection.commit()
         self.connection.close()
-
-
-def init_db() -> None:
-    """
-    Initialise the database and create the rss_entries table
-    if it doesn't exist.
-
-    Creates a table with columns for URL (primary key), title,
-    publication date, summary and cover URL for storing RSS feed entries.
-    """
-    conn = sqlite3.connect("comics.db")
-    cursor = conn.cursor()
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS rss_entries (
-            url TEXT PRIMARY KEY,
-            title TEXT,
-            pub_date TEXT,
-            summary TEXT,
-            cover_url TEXT
-            )
-                """
-    )
-    conn.commit()
-    conn.close()

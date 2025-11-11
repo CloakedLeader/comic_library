@@ -1,7 +1,6 @@
-from email.utils import parsedate_to_datetime
-
-from rss import rss_scrape
-from rss_repository import RSSRepository
+from classes.helper_classes import RSSComicInfo
+from rss.rss import rss_scrape
+from rss.rss_repository import RSSRepository
 
 
 class RSSController:
@@ -11,6 +10,7 @@ class RSSController:
     This class handles fetching RSS feed data, updating the database and
     retrieving recent comic information with date-based update checks.
     """
+
     def __init__(self, repository: RSSRepository) -> None:
         """
         Initialise the RSS controller.
@@ -29,29 +29,9 @@ class RSSController:
         are newer entries than the latest stored one.
         """
         self.repo.delete_old_entries()
-        if self.is_new_update():
-            self.repo.insert_entries(self.rss_results)
+        self.repo.insert_entries(self.rss_results)
 
-    def is_new_update(self) -> bool:
-        """
-        Checks if the RSS feed contains newer updates than stored data.
-
-        Compares the publication date of the latest RSS entry with the
-        latest entry in the database using email date parsing.
-
-        Returns:
-            True if there are newer updates available, else False.
-        """
-        latest_date = self.repo.get_latest_pub_date()
-        if not latest_date:
-            return True
-        latest_db_date = parsedate_to_datetime(latest_date)
-
-        latest_feed_date = parsedate_to_datetime(self.rss_results[0]["pub_date"])
-
-        return latest_feed_date > latest_db_date
-
-    def get_recent_comic_info(self, number_of_entries: int) -> list[dict[str, str]]:
+    def get_recent_comic_info(self, number_of_entries: int) -> list[RSSComicInfo]:
         """
         Retrieves recent comic information from the database.
 
@@ -63,11 +43,11 @@ class RSSController:
         """
         entries = self.repo.get_recent_entries(limit=number_of_entries)
         output = []
-        for title, cover_url in entries:
-            output.append({"title": title, "cover_link": cover_url})
+        for url, title, cover_url in entries:
+            output.append(RSSComicInfo(url=url, title=title, cover_url=cover_url))
         return output
 
-    def run(self, num: int) -> list[dict[str, str]]:
+    def run(self, num: int) -> list[RSSComicInfo]:
         """
         Orchestrates the update and retrieval process.
 
@@ -79,7 +59,7 @@ class RSSController:
             num: The number of recent entries to return.
 
         Returns:
-            A list of dictionaries of recent comic information dictionaries.
+            A list of dictionaries of recent comic information.
         """
         self.add_rss_to_db()
         result = self.get_recent_comic_info(num)

@@ -1,5 +1,5 @@
-from typing import Any
-
+from classes.helper_classes import GUIComicInfo
+from database.gui_repo_worker import RepoWorker
 from reader import Comic, SimpleReader
 
 
@@ -13,7 +13,7 @@ class ReadingController:
     functionality to close them all at once.
     """
 
-    def __init__(self, comic: dict[str, Any]) -> None:
+    def __init__(self, comic: GUIComicInfo) -> None:
         """
         Intialise the reading controller.
 
@@ -21,7 +21,8 @@ class ReadingController:
             comic: Dictionary containing comic information
         including 'filepath' key.
         """
-        self.filepath = comic["filepath"]
+        self.comic = comic
+        self.filepath = comic.filepath
         self.open_windows: list[SimpleReader] = []
 
     def read_comic(self) -> None:
@@ -32,10 +33,25 @@ class ReadingController:
         displays the reader window and tracks it in the open window list for
         management.
         """
-        comic_data = Comic(self.filepath)
+        with RepoWorker() as pager:
+            val = pager.get_recent_page(self.comic.primary_id)
+        if val:
+            comic_data = Comic(self.comic, start_index=val)
+        else:
+            comic_data = Comic(self.comic, start_index=0)
         comic_reader = SimpleReader(comic_data)
-        comic_reader.show()
+        # comic_reader.closed.connect(self.save_current_page)
+        comic_reader.showMaximized()
         self.open_windows.append(comic_reader)
+
+    # def save_current_page(self, primary_id: str, page: int) -> None:
+    #     with RepoWorker("D://adams-comics//.covers") as saver:
+    #         if page == 0:
+    #             return None
+    #         elif page == self.comic.total_pages:
+    #             saver.mark_finished(primary_id)
+    #             Remove row from reading_progress and mark as finished.
+    #             saver.save_last_page(primary_id, page)
 
     def close_all_windows(self) -> None:
         """

@@ -1,3 +1,6 @@
+from datetime import datetime
+from email.utils import parsedate_to_datetime
+
 import feedparser
 import requests
 from bs4 import BeautifulSoup
@@ -39,9 +42,12 @@ def rss_scrape() -> list[dict]:
         total_summary = entry.get("summary", "")
         comic_description = summary_scrape(total_summary)
         entry["summary"] = comic_description
-        res = requests.get(
-            entry.get("link"), headers={"User-Agent": "Mozilla/5.0"}, timeout=30
-        )
+        raw = entry["pub_date"]
+        entry["pub_date"] = parse_pub_date(raw)
+        link = entry.get("link")
+        if link is None:
+            raise ValueError("link cannot be None")
+        res = requests.get(link, headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
         soup = BeautifulSoup(res.text, "html.parser")
         meta_tag = soup.find("meta", property="og:image")
         image_url = meta_tag.get("content") if meta_tag else None
@@ -123,40 +129,9 @@ def is_comic_entry(entry: dict[str, str]) -> bool:
     )
 
 
-def download_comic(comic_info: dict[str, str]) -> list[tuple[str, str]]:
-    """
-    Extracts download links from a comic page's HTML code.
-
-    Fetches the comic page, parses HTML to find download buttons and
-    extracts download links with their titles.
-
-    Args:
-        comic_info: Dictionary containing comic information with 'link'
-    key.
-
-    Returns:
-        List of tuples containing (title, download_url).
-
-    The function looks for div elements with class
-    "aio-button-center" and extracts download links from anchor tags
-    within them.
-    """
-    url = comic_info.get("link")
-    headers = {"User-Agent": "Mozilla/5.0"}
-
-    response = requests.get(url, headers, timeout=30)
-    soup = BeautifulSoup(response.content, "html.parser")
-
-    download_links = []
-
-    for button_div in soup.find_all("div", class_="aio-button-center"):
-        link = button_div.find("a", href=True)
-        if link:
-            href = link["href"]
-            title = link.get("title", "").strip()
-            download_links.append((title, href))
-
-    for title, link in download_links:
-        print(f"{title}: {link}")
-
-    return download_links
+def parse_pub_date(pub_date_str: str) -> int:
+    try:
+        dt = parsedate_to_datetime(pub_date_str)
+    except Exception:
+        dt = datetime.strptime(pub_date_str, "%Y-%m-%d %H:%M:%S")
+    return int(dt.timestamp())

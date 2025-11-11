@@ -1,4 +1,4 @@
-*.db
+comics.db
 *.sqlite
 __pycache__/
 .env
@@ -10,3 +10,4 @@ thumbnails/
 *.png
 ipad_app/
 *.json
+log.txt

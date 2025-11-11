@@ -1,25 +1,49 @@
 import calendar
 import os
 import re
+import xml.etree.ElementTree as ET  # nosec
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
-from enum import Enum, auto
+from datetime import datetime
+from difflib import SequenceMatcher
+from enum import Enum, IntEnum, auto
 from io import BytesIO
+from pathlib import Path
 from typing import Callable, Optional, Protocol
 
 import imagehash
 import requests
+from dotenv import load_dotenv
 from fuzzywuzzy import fuzz
 from PIL import Image
+
+from classes.helper_classes import ComicInfo
+from comic_match_logic import ResultsFilter
+from metadata_cleaning import MetadataProcessing
+
+load_dotenv()
+API_KEY = os.getenv("API_KEY")
 
 # ==================================
 #   Filename Lexing
 # ==================================
 
 
+class MatchCode(IntEnum):
+    NO_MATCH = 0
+    ONE_MATCH = 1
+    MULTIPLE_MATCHES = 2
+
+
 def is_numeric_or_number_punctuation(x: str) -> bool:
     digits = "0123456789.,"
     return x.isnumeric() or x in digits
+
+
+class QMode(Enum):
+    COMBO = auto()
+    SERIES = auto()
+    TITLE = auto()
 
 
 class ItemType(Enum):
@@ -91,7 +115,6 @@ class Item:
         typ [ItemType] = The type defined above e.g. text or parenthesis.
         pos [int] = The position of the first character in the item.
         val [str] = The string representation of the token extracted
-
         """
         self.typ: ItemType = typ
         self.pos: int = pos
@@ -236,28 +259,6 @@ class Lexer:
         self.backup()
         return initial != self.pos
 
-    def match(self, s: str) -> bool:
-        """
-        If the upcoming characters match the given string 's',
-        consume them and return True.
-        Otherwise, leave input untouched and return False.
-        """
-        end = self.pos + len(s)
-        if self.input[self.pos : end].lower() == s.lower():
-            self.pos = end
-            return True
-        return False
-
-    def match_any(self, options: list[str]) -> str | None:
-        """
-        Tries to match any of the strings in 'options'.
-        Returns the matched string if successful, else None.
-        """
-        for s in options:
-            if self.match(s):
-                return s
-        return None
-
     def scan_number(self) -> bool:
         """
         Checks if a string is numeric and if it has a suffix
@@ -304,17 +305,26 @@ def run_lexer(lex: Lexer) -> Optional[LexerFunc]:
             return run_lexer
 
     elif r.lower() == "v":
-        if lex.peek().isdigit():
-            return lex_volume_number
-        elif lex.match("ol.") or lex.match("ol") or lex.match("olume"):
+        if lex.peek().lower() == "o":
+            lex.get()  # consume 'o'
+        if lex.peek().lower() == "l":
+            lex.get()  # consume 'l'
+            if lex.peek() == ".":
+                lex.get()  # consume '.'
             return lex_volume_number_full
-        return lex_text
+        elif lex.peek().isdigit():
+            return lex_volume_number
+        else:
+            return lex_text
 
     elif r.lower() == "b":
         lex.backup()
-        if lex.match("by "):
+        if lex.input[lex.pos : lex.pos + 3].lower() == "by ":
+            lex.start = lex.pos
+            lex.pos += 2
             lex.emit(ItemType.InfoSpecifier)
             return lex_author
+        lex.get()
         return lex_text
 
     elif r.lower() in "tophc":
@@ -453,30 +463,12 @@ def lex_author(lex: Lexer) -> LexerFunc:
         if not lex.accept(" "):
             break
 
-    if name_parts >= 2:
+    if name_parts >= 1:
         lex.emit(ItemType.Author)
     else:
         lex.emit(ItemType.Text)
 
     return run_lexer
-
-
-# def lex_author(lex: Lexer) -> LexerFunc:
-#     # Consume one or more words (allowing initials)
-#     while True:
-#         lex.accept_run(str.isalpha)  # e.g., "Brian"
-#         if lex.accept(" "):
-#             peek = lex.peek()
-#             if peek.isalpha() or peek == ".":  #
-#       Accept middle initials or next name
-#                 continue
-#             else:
-#                 break
-#         else:
-#             break
-
-#     lex.emit(ItemType.Author)
-#     return run_lexer  # resume normal lexing
 
 
 def lex_collection_type(lex: Lexer) -> LexerFunc:
@@ -518,10 +510,11 @@ def lex_volume_number(lex: Lexer) -> LexerFunc:
 
 def lex_volume_number_full(lex: Lexer) -> LexerFunc:
     lex.accept_run(is_space)
-    lex.accept_run(str.isdigit)
-
-    if lex.pos > lex.start:
+    if lex.peek().isdigit():
+        lex.accept_run(str.isdigit)
         lex.emit(ItemType.VolumeNumber)
+    # if lex.pos > lex.start:
+    #     lex.emit(ItemType.VolumeNumber)
     else:
         lex.emit(ItemType.Text)
 
@@ -554,16 +547,67 @@ def lex(filename: str) -> Lexer:
     return lex
 
 
-def sort_imgs(filename: str) -> Optional[int]:
-    numbers = re.findall(r"\d+", filename)
-    return int(numbers[-1]) if numbers else -1
+class Parser:
+    def __init__(self, list_of_tokens: list[Item]):
+        self.tokens: list[Item] = list_of_tokens
+        self.metadata: dict[str, str | int] = {}
+        self.buffer: list[str] = []
+
+    def construct_metadata(self) -> dict[str, str | int]:
+        capture_title = False
+        title_parts = []
+        i = 0
+        while i < len(self.tokens):
+            item = self.tokens[i]
+
+            if item.typ == ItemType.Text and not capture_title:
+                self.buffer.append(item.val)
+
+            elif item.typ == ItemType.CollectionType:
+                self.metadata["collection_type"] = item.val
+
+            elif item.typ == ItemType.IssueNumber:
+                try:
+                    self.metadata["issue"] = int(item.val.lstrip("#"))
+                    capture_title = True
+                except ValueError:
+                    pass
+
+            elif item.typ == ItemType.VolumeNumber:
+                volume = int(re.findall(r"\d+", item.val)[0])
+                self.metadata["volume"] = volume
+                capture_title = True
+
+            elif capture_title:
+                if item.typ == ItemType.Text:
+                    title_parts.append(item.val)
+                elif item.typ == ItemType.Number:
+                    if 1900 <= int(item.val):
+                        self.metadata["year"] = int(item.val)
+                        break
+
+            elif item.typ == ItemType.Number and 1900 <= int(item.val):
+                self.metadata["year"] = int(item.val)
+                break
+
+            i += 1
+
+        if self.buffer:
+            tokens = " ".join(self.buffer).split()
+            self.metadata["series"] = " ".join(tokens)
+
+        if title_parts:
+            title = " ".join(title_parts).strip().lstrip("-").strip()
+            if title:
+                self.metadata["title"] = " ".join(title.split())
+
+        return self.metadata
 
 
 class RequestData:
 
     def __init__(
         self,
-        name: str,
         issue_num: int,
         year: int,
         series: str,
@@ -572,10 +616,10 @@ class RequestData:
     ):
         self.series = series
         self.title = title
-        self.unclean_title = name
+        self.unclean_title = (series or "") + (title or "")
         self.num = issue_num
         self.pub_year = year
-        self.publisher = publisher
+        self.publisher = publisher or ""
 
 
 header = {
@@ -595,10 +639,10 @@ class HttpRequest:
 
     def __init__(self, data: RequestData, api_key: str):
         self.data = data
-        self.payload = self.create_info_dict()
         self.api_key = api_key
+        self.payload = self.create_info_dict(self.data.unclean_title)
 
-    def create_info_dict(self):
+    def create_info_dict(self, query):
         payload = {}
         payload["api_key"] = self.api_key
         payload["resources"] = "volume"
@@ -607,15 +651,16 @@ class HttpRequest:
             "count_of_issues,description,last_issue"
         )
         payload["format"] = "json"
-        payload["query"] = self.data.unclean_title
         payload["limit"] = 50
         return payload
 
-    def build_url_search(self):
+    def build_url_search(self, query: str):
+        payload = self.payload.copy()
+        payload["query"] = query
         req = requests.Request(
             method="GET",
             url=f"{HttpRequest.base_address}/search/",
-            params=self.payload,
+            params=payload,
             headers=header,
         )
         prepared = req.prepare()
@@ -640,6 +685,8 @@ class HttpRequest:
         if type == "search":
             if not hasattr(self, "url_search"):
                 raise RuntimeError("You must build url before sending request.")
+            if self.url_search is None:
+                raise ValueError("search url cannot be None")
             response = session.get(self.url_search)
             if response.status_code != 200:
                 print(
@@ -652,6 +699,8 @@ class HttpRequest:
         elif type == "iss":
             if not hasattr(self, "url_iss"):
                 raise RuntimeError("You must build url before sending request.")
+            if self.url_iss is None:
+                raise ValueError("issue url cannot be None")
             response = session.get(self.url_iss)
             if response.status_code != 200:
                 print(
@@ -671,7 +720,7 @@ class HttpRequest:
 
     def download_img(self, url):
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=3000)
             response.raise_for_status()
             image = BytesIO(response.content)
             return image
@@ -682,8 +731,8 @@ class HttpRequest:
 
 class ResponseValidator:
 
-    issue_threshold = 80
-    volume_threshold = 60
+    issue_threshold = 70
+    volume_threshold = 50
 
     def __init__(self, response: dict, expected_data: RequestData):
         self.results = response["results"]
@@ -695,13 +744,28 @@ class ResponseValidator:
     def year_checker(self):
         def check_year(item):
             year = int(item["date_added"][:4])
-            return abs(year - self.expected_info.pub_year) <= 3
+            return abs(year - self.expected_info.pub_year) <= 4
 
         return self.filter_results(check_year)
 
     @staticmethod
     def fuzzy_match(a, b, threshold=65):
         return fuzz.token_sort_ratio(a, b) >= threshold
+
+    def pick_best_volumes(self, number: int = 5):
+        def score_name(item):
+            score = 0.0
+            name = item["name"]
+            if name:
+                score += SequenceMatcher(
+                    None, name.lower(), self.expected_info.series.lower()
+                ).ratio()
+            return score
+
+        scored_volumes = [(i, score_name(item)) for i, item in enumerate(self.results)]
+        scored_volumes.sort(key=lambda x: x[1], reverse=True)
+        top_indices = [i for i, _ in scored_volumes[:number]]
+        return [self.results[i] for i in top_indices]
 
     def title_checker(self):
         def check_title(item):
@@ -712,6 +776,7 @@ class ResponseValidator:
                 r"^#\d+$",  # matches "#1", "#12" etc
                 r"^issue\s*\d+$",  # matches "issue 3"
                 r"\bvol(?:ume)?\.?\s*(one|two|three|four|\d+|i{1,3}|iv|v)\b",
+                r"\bbook\s*(one|two|three|four|\d+|i{1,3}|iv|v)\b",
             ]
             title = item["name"]
             if title:
@@ -737,10 +802,6 @@ class ResponseValidator:
             )
 
         return self.filter_results(check_title)
-
-    # def vol_title_checker(self):
-    #     def check_title(item):
-    #         title = item["name"]
 
     def pub_checker(self, results: list):
         foriegn_keywords = {
@@ -826,6 +887,7 @@ class TaggingPipeline:
         self.cover = self.cover_getter()
         self.coverhashes = self.cover_hasher()
         # dictionary of (phash, dhash, ahash)
+        self.results: list[dict] = []
 
     def cover_getter(self):
         with zipfile.ZipFile(self.path, "r") as zip_ref:
@@ -839,8 +901,6 @@ class TaggingPipeline:
                 return
             image_files.sort()
             cover = zip_ref.read(image_files[0])
-            deb = Image.open(BytesIO(cover))
-            deb.show()
             return BytesIO(cover)
 
     def cover_hasher(self):
@@ -851,106 +911,346 @@ class TaggingPipeline:
             "ahash": imagehash.average_hash(image),
         }
 
-    def ask_user(self, results: list):
-        pass
-
     def run(self):
-        self.http.build_url_search()
-        results = self.http.get_request("search")
-        self.validator = ResponseValidator(results, self.data)
+        queries = [
+            f"{self.data.series} {self.data.title or ''}".strip(),
+            self.data.series,
+            self.data.title,
+        ]
+        potential_results = []
 
-        print(f"There are {len(results["results"])} results returned.")
-        results = self.validator.issue_count_filter()
-        self.validator.results = results
-        results = self.validator.title_checker()
-        self.validator.results = results
-        results = self.validator.pub_checker(results)
-        self.validator.results = results
-        print(
-            f"After filtering for title, publisher and issue \
-            , there are {len(results)} remaining results."
-        )
-        final_results = results
-
-        if len(final_results) == 0:
-            # No results - need to come up with logic/a solution here.
-            pass
-
-        print(f"There are {len(final_results)} volumes to check")
-        vol_info = []
-        for i in final_results:
-            id = i["id"]
-            name = i["name"]
-            vol_info.append((id, name))
-        good_matches = []
         skipped_vols = []
-        for j, k in vol_info:
-            self.http.build_url_iss(j)
-            temp_results = self.http.get_request("iss")
+        for q in queries:
+            good_matches = []
 
-            self.temp_validator = ResponseValidator(temp_results, self.data)
-            print(
-                f"""There are {len(self.temp_validator.results)}
-                issues in the matching volume: '{k}'."""
-            )
-            temp_results = self.temp_validator.year_checker()
-            self.temp_validator.results = temp_results
-            temp_results = self.temp_validator.title_checker()
-            self.temp_validator.results = temp_results
+            self.http.build_url_search(q)
+            results = self.http.get_request("search")
+            self.validator = ResponseValidator(results, self.data)
 
+            print(f"There are {len(results['results'])} results returned.")
+            results = self.validator.issue_count_filter()
+            self.validator.results = results
+            results = self.validator.pick_best_volumes(number=8)
+            self.validator.results = results
+            results = self.validator.pub_checker(results)
+            self.validator.results = results
             print(
-                f"""After filtering for title and year
-                there are {len(temp_results)} results remaining."""
+                "After filtering for title, publisher and issue "
+                + f"there are {len(results)} remaining results."
             )
-            if len(temp_results) != 0:
-                if len(temp_results) > 25:
-                    print(
-                        f"""Too many issues to compare covers,
-                           skipping volume '{k}'."""
-                    )
-                    skipped_vols.append((j, k, len(temp_results)))
-                    continue
-                self.temp_validator.cover_img_url_getter(temp_results)
-                images = []
-                with ThreadPoolExecutor(max_workers=5) as executor:
-                    images = list(
-                        executor.map(self.http.download_img, self.temp_validator.urls)
-                    )
-                matches_indices = []
-                for index, i in enumerate(images):
-                    if i is None:
-                        continue
-                    try:
-                        img_pil = Image.open(i)
-                        score = self.temp_validator.cover_img_comp_w_weight(
-                            self.coverhashes, img_pil
-                        )
-                        print(f"Index {index}: similarity score = {score:.2f}")
-                        if score > 0.85:
-                            matches_indices.append(index)
-                    except Exception as e:
-                        print(f"Error comparing image at index {index}: {e}.")
-                final_results = [temp_results[i] for i in matches_indices]
-                good_matches.extend(final_results)
-            else:
+            final_results = results
+
+            if len(final_results) == 0:
                 continue
 
-        if len(good_matches) == 1:
-            print(good_matches[0]["volume"]["name"])
-            print("There is ONE match!!!")
-            return good_matches
-        elif len(good_matches) == 0:
-            print("There are no matches.")
-            # If there is no matches need to do something.
-            # Perhaps the comic is new and hasnt
-            # been uploaded onto comicvine properly.
-        elif len(good_matches) > 1:
-            for i in good_matches:
-                print(i["volume"]["name"])
-            print(
-                f"""FINAL COUNT: There are {len(good_matches)}
-                  remaining matches."""
-            )
-            # Need to use scoring or sorting or closest title match etc.
-            # If that cant decide then we need to flag the comic
-            # and ask the user for input.
+            vol_info = []
+            for i in final_results:
+                id = i["id"]
+                name = i["name"]
+                vol_info.append((id, name))
+            for index, (j, k) in enumerate(vol_info):
+                self.http.build_url_iss(j)
+                temp_results = self.http.get_request("iss")
+
+                self.temp_validator = ResponseValidator(temp_results, self.data)
+                print(
+                    f"There are {len(self.temp_validator.results)}"
+                    + f" issues in the matching volume: '{k}'."
+                )
+                temp_results = self.temp_validator.year_checker()
+                self.temp_validator.results = temp_results
+                temp_results = self.temp_validator.title_checker()
+                self.temp_validator.results = temp_results
+
+                print(
+                    "After filtering for title and year "
+                    + f"there are {len(temp_results)} results remaining."
+                )
+                if len(temp_results) != 0:
+                    if len(temp_results) > 25:
+                        print(
+                            "Too many issues to compare covers, "
+                            + f"skipping volume '{k}'."
+                        )
+                        skipped_vols.append((j, k, len(temp_results)))
+                        continue
+                    potential_results.extend(temp_results)
+                    self.temp_validator.cover_img_url_getter(temp_results)
+                    images = []
+                    with ThreadPoolExecutor(max_workers=5) as executor:
+                        images = list(
+                            executor.map(
+                                self.http.download_img, self.temp_validator.urls
+                            )
+                        )
+                    matches_indices = []
+                    for index, i in enumerate(images):
+                        if i is None:
+                            continue
+                        try:
+                            img_pil = Image.open(i)
+                            score = self.temp_validator.cover_img_comp_w_weight(
+                                self.coverhashes, img_pil
+                            )
+                            print(f"Index {index}: similarity score = {score:.2f}")
+                            if score > 0.85:
+                                matches_indices.append(index)
+                        except Exception as e:
+                            print(f"Error comparing image at index {index}: {e}.")
+                    final_results = [temp_results[i] for i in matches_indices]
+                    good_matches.extend(final_results)
+                else:
+                    continue
+
+            if len(good_matches) == 1:
+                print(good_matches[0]["volume"]["name"])
+                print("There is ONE match!!!")
+                print(good_matches)
+                self.results.append(good_matches)
+                return MatchCode.ONE_MATCH
+            elif len(good_matches) == 0:
+                print("There are no matches.")
+                # If there is no matches need to do something.
+                # Perhaps the comic is new and hasnt
+                # been uploaded onto comicvine.
+            elif len(good_matches) > 1:
+                for i in good_matches:
+                    print(i["volume"]["name"])
+                self.results.extend(good_matches)
+                # Need to use scoring or sorting or closest title match etc.
+                # If that cant decide then we need to flag the comic
+                # and ask the user for input.
+        if len(self.results) == 0:
+            print("There are no matches")
+            return MatchCode.NO_MATCH, potential_results
+            filterer = ResultsFilter(potential_results, self.data, self.path)
+            self.filtered_for_none = filterer.present_choices()
+            return MatchCode.NO_MATCH
+        elif len(self.results) > 1:
+            print("There are multiple matches")
+            return MatchCode.MULTIPLE_MATCHES, self.results
+            filterer = ResultsFilter(self.results, self.data, self.path)
+            self.filtered_for_many = filterer.present_choices()
+            return MatchCode.MULTIPLE_MATCHES
+
+
+class TagApplication:
+    def __init__(self, comicvine_dict: dict | list, api_key: str, filename: str):
+        if isinstance(comicvine_dict, list):
+            entry = comicvine_dict[0]
+        else:
+            entry = comicvine_dict
+        self.link = entry["api_detail_url"]
+        self.issue_id = entry["id"]
+        self.volume_id = entry["volume"]["id"]
+        self.pub_link = entry["volume"]["api_detail_url"]
+        self.api_key = api_key
+        self.filename = filename
+        self.url: Optional[str] = None
+        self.issue_data = None
+        self.final_info: Optional[dict] = None
+
+    def build_url(self) -> None:
+        req = requests.Request(
+            method="GET",
+            url=self.link,
+            params={
+                "api_key": self.api_key,
+                "format": "json",
+            },
+        )
+        prepared = req.prepare()
+        self.url = prepared.url
+
+    def get_publisher(self) -> None:
+        url = f"{self.pub_link}?api_key={self.api_key}&format=json"
+        response = session.get(url)
+        data = response.json()
+        return data["results"]["publisher"]["name"]
+
+    def get_request(self) -> None:
+        if not self.url:
+            self.build_url()
+        if self.url is None:
+            raise ValueError("url cannot be None")
+        response = session.get(self.url)
+        if response.status_code != 200:
+            print(f"Request failed with status code: {response.status_code}")
+        data = response.json()
+        print(data["results"])
+        self.issue_data = data["results"]
+
+    def parse_list_of_dicts(self, field) -> list[str]:
+        if self.issue_data is None:
+            raise ValueError("issue_data cannot be None")
+        entries = self.issue_data[field]
+        things = []
+        for entry in entries:
+            things.append(entry["name"])
+        return things
+
+    def create_metadata_dict(self) -> dict:
+        if self.issue_data is None:
+            raise ValueError("issue_data cannot be None")
+        date_str = self.issue_data["cover_date"]
+        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+        year = date_obj.year
+        month = date_obj.month
+        simple_info = ComicInfo(
+            primary_key="temp",
+            filepath="temp",
+            original_filename=self.filename,
+            title=self.issue_data["name"],
+            series=self.issue_data["volume"]["name"],
+            volume_num=self.issue_data["issue_number"],
+        )
+        processor = MetadataProcessing(simple_info)
+        clean_title_info = processor.title_parsing()
+
+        information: dict = {
+            "Title": clean_title_info["title"],
+            "Series": clean_title_info["series"],
+            "Number": clean_title_info["volume_num"],
+            "Publisher": self.get_publisher(),
+            "Month": month,
+            "Year": year,
+            "Summary": self.issue_data["description"],
+            "Characters": ", ".join(
+                self.character_or_team_parsing(self.issue_data["character_credits"])
+            ),
+            "Teams": ", ".join(
+                self.character_or_team_parsing(self.issue_data["team_credits"])
+            ),
+            "api_link": self.issue_data["api_detail_url"],
+        }
+
+        information.update(
+            self.creators_entry_parsing(self.issue_data["person_credits"])
+        )
+        self.final_info = information
+        return information
+
+    @staticmethod
+    def creators_entry_parsing(list_of_creator_info: list[dict]) -> dict[str, str]:
+        mapping = {
+            "penciler": "Penciller",
+            "writer": "Writer",
+            "inker": "Inker",
+            "editor": "Editor",
+            "letterer": "Letterer",
+            "cover": "CoverArtist",
+            "colorist": "Colorist",
+            "artist": "Penciller",
+        }
+        creator_dict = {v: "" for v in mapping.values()}
+
+        for info in list_of_creator_info:
+            roles = [r.strip().lower() for r in info["role"].split(",")]
+            for role in roles:
+                if role in mapping:
+                    key = mapping[role]
+                    if creator_dict[key]:
+                        creator_dict[key] += ", " + info["name"]
+                    else:
+                        creator_dict[key] = info["name"]
+
+        return creator_dict
+
+    @staticmethod
+    def character_or_team_parsing(list_of_info: list[dict]) -> list[str]:
+        peoples = []
+        for i in list_of_info:
+            peoples.append(str(i["name"]))
+        return peoples
+
+    def fill_gaps(self):
+        MANDATORY_FIELDS = {
+            "Writer",
+            "Penciller",
+            "Year",
+            "Summary",
+            "Number",
+            "Series",
+            "Title",
+        }
+
+        for field in MANDATORY_FIELDS:
+            if field not in self.final_info or not self.final_info[field]:
+                self.final_info[field] = "PENDING"
+        for key in self.final_info:
+            if key not in MANDATORY_FIELDS:
+                if self.final_info[key] is None or self.final_info[key] == "":
+                    self.final_info[key] = "MISSING"
+
+    def create_xml(self) -> bytes:
+        root = ET.Element("ComicInfo")
+
+        if self.final_info is None:
+            raise ValueError("final_info cannot be None")
+        for key, value in self.final_info.items():
+            child = ET.SubElement(root, key)
+            child.text = str(value)
+
+        xml_bytes_io = BytesIO()
+        tree = ET.ElementTree(root)
+        tree.write(xml_bytes_io, encoding="utf-8", xml_declaration=True)
+        return xml_bytes_io.getvalue()
+
+    def insert_xml_into_cbz(self, cbz_path: str):
+        if not os.path.exists(cbz_path):
+            raise FileNotFoundError(f"{cbz_path} does not exist")
+        self.fill_gaps()
+        xml_content = self.create_xml()
+
+        with zipfile.ZipFile(cbz_path, "a") as cbz:
+            cbz.writestr("ComicInfo.xml", xml_content)
+
+
+def run_tagging_process(filepath, api_key) -> Optional[tuple[list, RequestData]]:
+    filename = Path(filepath).stem
+    lexer_instance = Lexer(filename)
+    state: Optional[LexerFunc] = run_lexer
+    while state is not None:
+        state = state(lexer_instance)
+    parser_instance = Parser(lexer_instance.items)
+    comic_info = parser_instance.construct_metadata()
+    print(comic_info)
+    series = comic_info["series"]
+    num = comic_info.get("issue", 0) or comic_info.get("volume", 0)
+    year = comic_info.get("year", 0)
+    title = comic_info.get("title")
+
+    data = RequestData(int(num), int(year), str(series), str(title))
+
+    tagger = TaggingPipeline(data=data, path=filepath, size=100, api_key=api_key)
+
+    final_result = tagger.run()
+    if final_result == MatchCode.ONE_MATCH:
+
+        inserter = TagApplication(tagger.results[0], api_key, filename)
+        inserter.get_request()
+        inserter.create_metadata_dict()
+        inserter.insert_xml_into_cbz(filepath)
+        return None
+    elif final_result[0] == MatchCode.NO_MATCH:
+        return (final_result[1], tagger.data)
+        print("Need another method to find matches")
+        best_matches = tagger.filtered_for_none
+        return (best_matches, tagger.data)
+        # Add a method to rank and return the best 3-5 matches.
+    elif final_result[0] == MatchCode.MULTIPLE_MATCHES:
+        return (final_result[1], tagger.data)
+        print("Multiple matches, require user input to disambiguate.")
+        best_matches = tagger.filtered_for_many
+        return (best_matches, tagger.data)
+        # Need to create a gui popup to allow user to select correct match.
+    else:
+        raise ValueError("Something has gone wrong")
+
+
+def extract_and_insert(match, api_key, filename, filepath):
+    inserter = TagApplication(match, api_key, filename)
+    inserter.get_request()
+    inserter.create_metadata_dict()
+    inserter.insert_xml_into_cbz(filepath)
+    return None
