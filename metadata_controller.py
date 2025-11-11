@@ -227,7 +227,7 @@ class MetadataController:
                         relative_path = new_path.relative_to(ROOT_DIR)
                         self.inputter.insert_filepath(str(relative_path))
                     except ValueError as e:
-                        print(f"[ERROR] Failed to compute relative path: e")
+                        print(f"[ERROR] Failed to compute relative path: {e}")
                     # TODO: Implement code to recover correct path, not urgent.
                     print("[INFO] Inserted filepath to database")
                     self.inputter.conn.close()
