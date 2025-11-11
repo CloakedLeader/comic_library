@@ -221,8 +221,9 @@ class MetadataController:
                     dir_path = os.path.join(dirpath, dirname)
                     new_path = os.path.join(dir_path, new_name)
                     shutil.move(self.original_filepath, new_path)
+                    new_path = Path(new_path)
                     print(f"[INFO] Moved file to {dir_path}")
-                    self.inputter.insert_filepath(new_path)
+                    self.inputter.insert_filepath(new_path.relative_to(ROOT_DIR))
                     print("[INFO] Inserted filepath to database")
                     self.inputter.conn.close()
                     return

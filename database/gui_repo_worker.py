@@ -41,14 +41,15 @@ class RepoWorker:
             if not row:
                 continue
 
-            series, title, filepath = row
+            series, title, relative_filepath = row
+            relative_filepath = Path(relative_filepath)
 
             cover_path = os.path.join(self.cover_folder, f"{id}_b.jpg")
 
             basemodel = GUIComicInfo(
                 primary_id=id,
                 title=f"{series}: {title}",
-                filepath=filepath,
+                filepath=str(ROOT_DIR / relative_filepath),
                 cover_path=cover_path,
             )
             comic_info.append(basemodel)
@@ -167,7 +168,7 @@ class RepoWorker:
             gui_info = GUIComicInfo(
                 primary_id=row[0],
                 title=f"{row[1]}: {row[2]}",
-                filepath=row[3],
+                filepath=str(ROOT_DIR / Path(row[3])),
                 cover_path=f"{self.cover_folder}//{row[0]}_b.jpg",
             )
             info.append(gui_info)
