@@ -27,8 +27,8 @@ class RepoWorker:
         return
 
     def create_basemodel(self, ids: list[str]) -> list[GUIComicInfo]:
-       """
-       Creates a GUIComicInfo class instance for a comic, given its id.
+        """
+        Creates a GUIComicInfo class instance for a comic, given its id.
 
         Parameters:
         ids: A list of uuid4's to create basemodels for. 
@@ -39,8 +39,7 @@ class RepoWorker:
         This goes through the different tables in the database and extracts information the frontend
         requires. Formats the filepath so it is absolute and then packages all the info into the required
         basemodel. Returns a list in the same order as the input.
-       
-       """
+        """
         comic_info = []
         for id in ids:
             self.cursor.execute(
@@ -155,7 +154,7 @@ class RepoWorker:
 
     def save_last_page(self, primary_key: str, last_page: int) -> None:
         """
-        Triggered by the frontend layer, this saves the a page number to the database.
+        Triggered by the frontend layer, this saves the page number to the database.
 
         Parameters:
         primary_key: A string that represents the uuid4 for the specific comic.
@@ -179,7 +178,7 @@ class RepoWorker:
                 (primary_key, last_page, 0),
             )
 
-    def mark_as_finished(self, primary_id: str, last_page: int) -> None:
+    def mark_as_finished(self, primary_key: str, last_page: int) -> None:
         """
         Changes the status of a comic from not finished to finished.
 
@@ -190,8 +189,8 @@ class RepoWorker:
         Checks if the comic already has an entry in the reading_progress table, if it does change
         its read state from 0 to 1. Else, create the entry in the table with read state equal to 1.
         """
-        # TODO: Add verification this actaully the last page by looking at comics table.
-        if self.get_recent_page(primary_id) is not None:
+        # TODO: Add verification this actually the last page by looking at comics table.
+        if self.get_recent_page(primary_key) is not None:
             self.cursor.execute(
                 """
                 UPDATE reading_progress
@@ -201,7 +200,7 @@ class RepoWorker:
                 (
                     last_page,
                     1,
-                    primary_id,
+                    primary_key,
                 ),
             )
         else:
@@ -210,7 +209,7 @@ class RepoWorker:
                 INSERT INTO reading_progress (comic_id, last_page_read, is_finished)
                 VALUES (?, ?, ?)
                 """,
-                (primary_id, last_page, 1),
+                (primary_key, last_page, 1),
             )
 
     def get_folder_info(self, pub_int: int) -> list[GUIComicInfo]:
@@ -218,7 +217,7 @@ class RepoWorker:
         Gets a list of all comics within a folder and returns a list of GUIComicInfo basemodels.
 
         Parameters:
-        pub_id: An integer which corresponds to a row in the publisher table and is unique.
+        pub_int: An integer which corresponds to a row in the publisher table and is unique.
 
         Outputs:
         A list of GUIComicInfo basemodels which belong to the folder of the publisher.
