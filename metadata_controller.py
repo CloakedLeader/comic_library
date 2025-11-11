@@ -223,7 +223,12 @@ class MetadataController:
                     shutil.move(self.original_filepath, new_path)
                     new_path = Path(new_path)
                     print(f"[INFO] Moved file to {dir_path}")
-                    self.inputter.insert_filepath(str(new_path.relative_to(ROOT_DIR)))
+                    try:
+                        relative_path = new_path.relative_to(ROOT_DIR)
+                        self.inputter.insert_filepath(relative_path)
+                    except ValueError as e:
+                        print(f"[ERROR] Failed to compute relative path: e")
+                    # TODO: Implement code to recover correct path, not urgent.
                     print("[INFO] Inserted filepath to database")
                     self.inputter.conn.close()
                     return
