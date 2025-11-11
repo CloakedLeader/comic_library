@@ -225,7 +225,7 @@ class MetadataController:
                     print(f"[INFO] Moved file to {dir_path}")
                     try:
                         relative_path = new_path.relative_to(ROOT_DIR)
-                        self.inputter.insert_filepath(relative_path)
+                        self.inputter.insert_filepath(str(relative_path))
                     except ValueError as e:
                         print(f"[ERROR] Failed to compute relative path: e")
                     # TODO: Implement code to recover correct path, not urgent.
