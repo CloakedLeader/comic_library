@@ -50,6 +50,7 @@ from rss.rss_repository import RSSRepository
 from search import text_search
 from left_widget_assets import ButtonDisplay
 from reading_order_widget import ReadingOrderCreation
+from settings import Settings
 
 
 load_dotenv()
@@ -577,6 +578,11 @@ class HomePage(QMainWindow):
         dialog = ReadingOrderCreation()
         if dialog.exec() == QDialog.Accepted:
             print(dialog.textbox.text())
+    
+    def open_settings(self):
+        dialog = Settings()
+        if dialog.exec() == QDialog.Accepted:
+            return
 
     def update_status(self, message: str) -> None:
         """
