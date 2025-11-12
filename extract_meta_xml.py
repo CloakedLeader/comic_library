@@ -2,6 +2,7 @@ import os
 import shutil
 import tempfile
 import zipfile
+from pathlib import Path
 
 from defusedxml import ElementTree as ET
 
@@ -11,8 +12,8 @@ from classes.helper_classes import ComicInfo
 class MetadataExtraction:
     def __init__(self, comic_info: ComicInfo) -> None:
         self.comic_info = comic_info
-        self.filepath: str = comic_info.filepath
-        self.temp_dir: str = tempfile.mkdtemp()
+        self.filepath: Path = comic_info.filepath
+        self.temp_dir: Path = Path(tempfile.mkdtemp())
         self.extracted: bool = False
         self.metadata_root = None
 
@@ -44,8 +45,8 @@ class MetadataExtraction:
         self.extract()
         if self.metadata_root is not None:
             return
-        xml_path = os.path.join(self.temp_dir, "ComicInfo.xml")
-        if os.path.exists(xml_path):
+        xml_path = self.temp_dir /  "ComicInfo.xml"
+        if xml_path.exists():
             tree = ET.parse(xml_path)
             self.metadata_root = tree.getroot()
 
@@ -158,7 +159,7 @@ class MetadataExtraction:
         return creator_role_list
 
     def cleanup(self) -> None:
-        if os.path.exists(self.temp_dir):
+        if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 
     def run(self) -> ComicInfo:

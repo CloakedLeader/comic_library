@@ -24,7 +24,7 @@ class ResultsFilter:
 
     def __enter__(self):
         self.filepath.parent.mkdir(parents=True, exist_ok=True)
-        print(f"Entering ResultsFilter context for: {self.filepath}")
+        print(f"Entering ResultsFilter context for: {self.filepath.name}")
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
