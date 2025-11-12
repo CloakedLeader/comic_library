@@ -1,6 +1,7 @@
 comics.db
 *.sqlite
 __pycache__/
+*.pyc
 .env
 *.cbz
 LICENSE
