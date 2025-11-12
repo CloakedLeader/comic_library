@@ -1,11 +1,12 @@
 from typing import Optional
+from pathlib import Path
 
 from pydantic import BaseModel
 
 
 class ComicInfo(BaseModel):
     primary_key: str
-    filepath: str
+    filepath: Path
     original_filename: Optional[str] = None
     title: Optional[str] = None
     series: Optional[str] = None
@@ -26,8 +27,8 @@ class ComicInfo(BaseModel):
 class GUIComicInfo(BaseModel):
     primary_id: str
     title: str
-    filepath: str
-    cover_path: str
+    filepath: Path
+    cover_path: Path
 
 
 class RSSComicInfo(BaseModel):

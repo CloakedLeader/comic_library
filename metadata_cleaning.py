@@ -1,6 +1,7 @@
 import calendar
 import re
 import traceback
+from pathlib import Path
 
 from fuzzywuzzy import fuzz
 from word2number import w2n
@@ -30,15 +31,15 @@ class MetadataProcessing:
         self.title_info: dict[str, str | int] = {}
 
     def __enter__(self):
-        print(f"[INFO] Starting metadata processing for {self.filepath}")
+        print(f"[INFO] Starting metadata processing for {self.filepath.name}")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type:
-            print(f"[ERROR] Exception while processing {self.filepath}: {exc_val}")
+            print(f"[ERROR] Exception while processing {self.filepath.name}: {exc_val}")
             traceback.print_tb(exc_tb)
         else:
-            print(f"[INFO] Sucessfully finished processing {self.filepath}")
+            print(f"[INFO] Sucessfully finished processing {self.filepath.name}")
         return False
 
     PATTERNS: list[re.Pattern] = [
@@ -213,7 +214,7 @@ class MetadataProcessing:
             return False
         return self.raw_info.volume_num == self.title_info["volume_num"]
 
-    def extract_volume_num_from_filepath(self) -> tuple[int, int]:
+    def extract_volume_num_from_filename(self) -> tuple[int, int]:
         fname = (
             self.raw_info.original_filename
             if self.raw_info.original_filename is not None
@@ -237,7 +238,7 @@ class MetadataProcessing:
     def volume_number_parsing(self) -> int:
         if self.check_issue_numbers_match():
             return int(self.title_info["volume_num"])
-        volume, _ = self.extract_volume_num_from_filepath()
+        volume, _ = self.extract_volume_num_from_filename()
         if volume > 0:
             return volume
         if self.raw_info.volume_num:

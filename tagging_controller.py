@@ -878,7 +878,7 @@ class ResponseValidator:
 
 
 class TaggingPipeline:
-    def __init__(self, data: RequestData, path: str, size: float, api_key: str) -> None:
+    def __init__(self, data: RequestData, path: Path, size: float, api_key: str) -> None:
         self.data = data
         self.path = path
         self.size = size
@@ -890,7 +890,7 @@ class TaggingPipeline:
         self.results: list[dict] = []
 
     def cover_getter(self):
-        with zipfile.ZipFile(self.path, "r") as zip_ref:
+        with zipfile.ZipFile(str(self.path), "r") as zip_ref:
             image_files = [
                 f
                 for f in zip_ref.namelist()
@@ -1196,18 +1196,18 @@ class TagApplication:
         tree.write(xml_bytes_io, encoding="utf-8", xml_declaration=True)
         return xml_bytes_io.getvalue()
 
-    def insert_xml_into_cbz(self, cbz_path: str):
-        if not os.path.exists(cbz_path):
-            raise FileNotFoundError(f"{cbz_path} does not exist")
+    def insert_xml_into_cbz(self, cbz_path: Path):
+        if not cbz_path.exists():
+            raise FileNotFoundError(f"{str(cbz_path)} does not exist")
         self.fill_gaps()
         xml_content = self.create_xml()
 
-        with zipfile.ZipFile(cbz_path, "a") as cbz:
+        with zipfile.ZipFile(str(cbz_path), "a") as cbz:
             cbz.writestr("ComicInfo.xml", xml_content)
 
 
-def run_tagging_process(filepath, api_key) -> Optional[tuple[list, RequestData]]:
-    filename = Path(filepath).stem
+def run_tagging_process(filepath: Path, api_key: str) -> Optional[tuple[list, RequestData]]:
+    filename = filepath.stem
     lexer_instance = Lexer(filename)
     state: Optional[LexerFunc] = run_lexer
     while state is not None:
@@ -1248,7 +1248,7 @@ def run_tagging_process(filepath, api_key) -> Optional[tuple[list, RequestData]]
         raise ValueError("Something has gone wrong")
 
 
-def extract_and_insert(match, api_key, filename, filepath):
+def extract_and_insert(match, api_key, filename: str, filepath: Path):
     inserter = TagApplication(match, api_key, filename)
     inserter.get_request()
     inserter.create_metadata_dict()

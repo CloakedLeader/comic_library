@@ -32,9 +32,7 @@ API_KEY = os.getenv("API_KEY")
 ROOT_DIR = Path(os.getenv("ROOT_DIR"))
 
 
-def get_comicid_from_path(
-    path: str,
-) -> int:
+def get_comicid_from_path(path: Path) -> int:
     """
     Finds the ID of the comic in the database from its filepath.
 
@@ -44,9 +42,10 @@ def get_comicid_from_path(
     Raises:
         LookupError: if the comic is not found in the database.
     """
+    path = Path(path)
     conn = sqlite3.connect("comics.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT id FROM comics WHERE path = ?", (path,))
+    cursor.execute("SELECT id FROM comics WHERE path = ?", (path),)
     result = cursor.fetchone()
     conn.close()
     if result:
@@ -66,22 +65,22 @@ path_to_obs = os.getenv("PATH_TO_WATCH")
 
 
 class MetadataController:
-    def __init__(self, primary_key: str, filepath: str, display: QMainWindow):
+    def __init__(self, primary_key: str, filepath: Path, display: QMainWindow):
         self.primary_key = primary_key
         self.original_filepath = filepath
         self.display = display
-        self.original_filename = os.path.basename(filepath)
-        self.filepath: Optional[str] = filepath
-        self.filename: Optional[str] = os.path.basename(filepath)
+        self.original_filename = filepath.stem
+        self.filepath: Path = filepath
+        self.filename: str = filepath.stem
         self.comic_info: Optional[ComicInfo] = None
         self.page_count: Optional[int] = None
 
     def reformat(self) -> None:
         temp_filepath = self.original_filepath
-        if get_ext(temp_filepath) == ".cbr":
+        if temp_filepath.suffix == ".cbr":
             temp_filepath = convert_cbz(temp_filepath)
             self.filepath = temp_filepath
-        elif get_ext(temp_filepath) != ".cbz":
+        elif temp_filepath.suffix != ".cbz":
             raise ValueError("Wrong filetype.")
 
     def has_metadata(self) -> bool:
@@ -210,28 +209,26 @@ class MetadataController:
     def extract_cover(self):
         print("[INFO] Starting cover extraction")
         image_proc = ImageExtraction(
-            self.filepath, str(ROOT_DIR / ".covers"), self.primary_key
+            self.filepath, ROOT_DIR / ".covers", self.primary_key
         )
         image_proc.run()
 
-    def move_to_publisher_folder(self, new_name, publisher_int):
-        for dirpath, dirnames, _ in os.walk(ROOT_DIR):
-            for dirname in dirnames:
-                if str(dirname).startswith(str(publisher_int)):
-                    dir_path = os.path.join(dirpath, dirname)
-                    new_path = os.path.join(dir_path, new_name)
-                    shutil.move(self.original_filepath, new_path)
-                    new_path = Path(new_path)
-                    print(f"[INFO] Moved file to {dir_path}")
-                    try:
-                        relative_path = new_path.relative_to(ROOT_DIR)
-                        self.inputter.insert_filepath(str(relative_path))
-                    except ValueError as e:
+    def move_to_publisher_folder(self, new_name: str, publisher_int: int) -> None:
+        for subdir in ROOT_DIR.iterdir():
+            if subdir.is_dir() and subdir.name.startswith(str(publisher_int)):
+                new_path = subdir / new_name
+                shutil.move(self.original_filepath, new_path)
+                print(f"[INFO] Moved file to {subdir.name}")
+
+                try:
+                    relative_path = new_path.relative_to(ROOT_DIR)
+                    self.inputter.insert_filepath(str(relative_path))
+                except ValueError as e:
                         print(f"[ERROR] Failed to compute relative path: {e}")
                     # TODO: Implement code to recover correct path, not urgent.
-                    print("[INFO] Inserted filepath to database")
-                    self.inputter.conn.close()
-                    return
+                print("[INFO] Inserted filepath to database")
+                self.inputter.conn.close()
+                return
 
     def rank_results(self, all_results, comic_info):
         with ResultsFilter(all_results, comic_info, self.filepath) as filterer:
@@ -268,13 +265,12 @@ EXCLUDE = {
 
 
 def run_tagger(display: QMainWindow):
-    for dirpath, dirnames, filenames in os.walk(ROOT_DIR / "0 - Downloads"):
-        dirnames[:] = [d for d in dirnames if d not in EXCLUDE]
-        for filename in filenames:
-            if not any(filename.lower().endswith(ext) for ext in VALID_EXTENSIONS):
-                continue
-            print(f"Starting to process {filename}")
-            full_path = os.path.join(dirpath, filename)
+    downloads_dir = ROOT_DIR / "0 - Downloads"
+    for path in downloads_dir.rglob("*"):
+        if path.is_dir() and path.name in EXCLUDE:
+            continue
+        if path.is_file() and any(path.name.lower().endswith(ext) for ext in VALID_EXTENSIONS):
+            print(f"Starting to process {path.name}")
             new_id = generate_uuid()
-            cont = MetadataController(new_id, full_path, display)
+            cont = MetadataController(new_id, path, display)
             cont.process()

@@ -14,7 +14,7 @@ ROOT_DIR = Path(os.getenv("ROOT_DIR"))
 
 class RepoWorker:
     def __init__(self):
-        self.cover_folder = str(ROOT_DIR / ".covers")
+        self.cover_folder = ROOT_DIR / ".covers"
 
     def __enter__(self):
         self.conn = sqlite3.connect("comics.db")
@@ -57,12 +57,12 @@ class RepoWorker:
             series, title, relative_filepath = row
             relative_filepath = Path(relative_filepath)
 
-            cover_path = os.path.join(self.cover_folder, f"{id}_b.jpg")
+            cover_path = self.cover_folder / f"{id}_b.jpg"
 
             basemodel = GUIComicInfo(
                 primary_id=id,
                 title=f"{series}: {title}",
-                filepath=str(ROOT_DIR / relative_filepath),
+                filepath=ROOT_DIR / relative_filepath,
                 cover_path=cover_path,
             )
             comic_info.append(basemodel)
@@ -239,8 +239,8 @@ class RepoWorker:
             gui_info = GUIComicInfo(
                 primary_id=row[0],
                 title=f"{row[1]}: {row[2]}",
-                filepath=str(ROOT_DIR / Path(row[3])),
-                cover_path=f"{self.cover_folder}//{row[0]}_b.jpg",
+                filepath=ROOT_DIR / Path(row[3]),
+                cover_path=self.cover_folder / f"{row[0]}_b.jpg",
             )
             info.append(gui_info)
         return info

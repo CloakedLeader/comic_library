@@ -112,7 +112,7 @@ class HomePage(QMainWindow):
         self.create_reading_order_button = toolbar.addAction("Create Reading Order")
         self.create_reading_order_button.triggered.connect(self.create_reading_order)
         self.settings_action = toolbar.addAction("Settings")
-        self.settings_action.triggered.connect(self.open_settings)
+        # self.settings_action.triggered.connect(self.open_settings)
 
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -538,11 +538,11 @@ class HomePage(QMainWindow):
 
     def get_user_match(
         self, query_results: list[tuple[ComicMatch, int]], actual_comic,
-        all_results, filepath: str
+        all_results, filepath: Path
     ):
 
         dialog = ComicMatcherUI(
-            actual_comic, query_results, all_results, Path(filepath)
+            actual_comic, query_results, all_results, filepath
         )
         if dialog.exec() == QDialog.Accepted:
             selected = dialog.get_selected_result()
