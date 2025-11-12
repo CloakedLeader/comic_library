@@ -45,7 +45,7 @@ class MetadataExtraction:
         self.extract()
         if self.metadata_root is not None:
             return
-        xml_path = self.temp_dir /  "ComicInfo.xml"
+        xml_path = self.temp_dir / "ComicInfo.xml"
         if xml_path.exists():
             tree = ET.parse(xml_path)
             self.metadata_root = tree.getroot()

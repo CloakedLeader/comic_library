@@ -24,7 +24,6 @@ def convert_cbz(cbr_path: Path, *, delete_original: bool = True) -> str:
     and then zips that directory into the .cbz with the same
     filename.
     """
-    cbr_path = cbr_path
 
     if not cbr_path.suffix.lower() == ".cbr":
         raise ValueError("Not a .cbr file!")
@@ -57,13 +56,6 @@ def convert_cbz(cbr_path: Path, *, delete_original: bool = True) -> str:
 
     print(f"Converted: {cbr_path.name} --> {cbz_path.name}")
     return str(cbz_path)
-
-
-# def get_ext(path: Path) -> str:
-#     """
-#     Gets the file extension of specified file.
-#     """
-#     return os.path.splitext(path)[1].lower()
 
 
 def is_comic(path: Path) -> bool:
