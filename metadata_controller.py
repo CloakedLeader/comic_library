@@ -45,7 +45,7 @@ def get_comicid_from_path(path: Path) -> int:
     path = Path(path)
     conn = sqlite3.connect("comics.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT id FROM comics WHERE path = ?", (path),)
+    cursor.execute("SELECT id FROM comics WHERE path = ?", (str(path),))
     result = cursor.fetchone()
     conn.close()
     if result:

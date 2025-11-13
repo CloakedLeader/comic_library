@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 
 
-def convert_cbz(cbr_path: Path, *, delete_original: bool = True) -> str:
+def convert_cbz(cbr_path: Path, *, delete_original: bool = True) -> Path:
     """
     Extracts files from a cbr archive and repackages them as a cbz.
 
@@ -55,7 +55,7 @@ def convert_cbz(cbr_path: Path, *, delete_original: bool = True) -> str:
         cbr_path.unlink()
 
     print(f"Converted: {cbr_path.name} --> {cbz_path.name}")
-    return str(cbz_path)
+    return cbz_path
 
 
 def is_comic(path: Path) -> bool:
