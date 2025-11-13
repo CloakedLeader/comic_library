@@ -401,7 +401,14 @@ class RepoWorker:
 
         return (names, ids)
 
-    def add_to_collection(self, collection_id, comic_id):
+    def add_to_collection(self, collection_id: int, comic_id: str) -> None:
+        """
+        Adds certain comics into a collection in the database.
+
+        Parameters:
+        collection_id: The unique identifier for the comic collection.
+        comic_id: The uuid for the comic to be added.
+        """
         self.cursor.execute(
             """
             INSERT OR IGNORE INTO collections_contents
@@ -412,6 +419,18 @@ class RepoWorker:
         )
 
     def get_collection_contents(self, collection_id: int) -> list[str] | None:
+        """
+        This gets the id of all comics in a certain collection.
+
+        Parameters:
+        collection_id: The integer unique identifier for the collection.
+
+        Outputs:
+        A list of all the comic id's in that corresponding collection.
+        
+        TODO: Allow the user to select the order they show, so need to pass more
+            info the frontend so reordering can be done on the fly.
+        """
         self.cursor.execute(
             "SELECT comic_id FROM collections_contents WHERE collection_id = ?",
             (collection_id,))
