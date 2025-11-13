@@ -35,10 +35,8 @@ class ReadingController:
         """
         with RepoWorker() as pager:
             val = pager.get_recent_page(self.comic.primary_id)
-        if val:
-            comic_data = Comic(self.comic, start_index=val)
-        else:
-            comic_data = Comic(self.comic, start_index=0)
+        start = val if val else 0
+        comic_data = Comic(self.comic, start_index=start)
         comic_reader = SimpleReader(comic_data)
         # comic_reader.closed.connect(self.save_current_page)
         comic_reader.showMaximized()

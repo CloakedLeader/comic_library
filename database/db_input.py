@@ -1,5 +1,6 @@
 import sqlite3
 from typing import Optional
+from pathlib import Path
 
 from classes.helper_classes import ComicInfo
 from file_utils import normalise_publisher_name
@@ -233,15 +234,15 @@ class MetadataInputting:
         self.insert_into_comic_creators(creator_info)
         self.conn.commit()
 
-    def insert_filepath(self, filepath):
-        print(f"[DEBUG] Updating comic ID {self.comic_id} with path {filepath}")
+    def insert_filepath(self, filepath: Path):
+        print(f"[DEBUG] Updating comic ID {self.comic_id} with path {filepath.name}")
         self.cursor.execute(
             """
             UPDATE comics
             SET file_path = ?
             WHERE id = ?
             """,
-            (filepath, self.comic_id),
+            (str(filepath), self.comic_id),
         )
         print("[DEBUG] SQL executed")
         print(f"[DEBUG] Rows updated: {self.cursor.rowcount}")

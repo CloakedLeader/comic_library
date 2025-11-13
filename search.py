@@ -104,14 +104,13 @@ def text_search(text) -> list[GUIComicInfo] | None:
         title = f"{result[1]}: {result[2]}"
         filepath = get_filepath(primary_key)
         cover_path = ROOT_DIR / ".covers" / f"{primary_key}_b.jpg"
-        # cover_path = f"D://adams-comics//.covers//{primary_key}_b.jpg"
         if filepath is None:
             continue
         comic_info = GUIComicInfo(
             primary_id=primary_key,
             title=title,
-            filepath=str(filepath),
-            cover_path=str(cover_path),
+            filepath=filepath,
+            cover_path=cover_path,
         )
         hits.append(comic_info)
 
@@ -121,4 +120,5 @@ def text_search(text) -> list[GUIComicInfo] | None:
 def get_filepath(primary_key) -> Path | None:
     cursor.execute("SELECT file_path FROM comics WHERE id = ?", (primary_key,))
     results = cursor.fetchone()
-    return Path(results[0]) if results is not None else None
+    absolute_path = ROOT_DIR / Path(results[0])
+    return absolute_path if results is not None else None

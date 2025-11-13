@@ -1,4 +1,3 @@
-import os
 import tempfile
 import uuid
 import zipfile
@@ -6,7 +5,7 @@ from pathlib import Path
 import subprocess
 
 
-def convert_cbz(cbr_path: str, *, delete_original: bool = True) -> str:
+def convert_cbz(cbr_path: Path, *, delete_original: bool = True) -> Path:
     """
     Extracts files from a cbr archive and repackages them as a cbz.
 
@@ -25,13 +24,12 @@ def convert_cbz(cbr_path: str, *, delete_original: bool = True) -> str:
     and then zips that directory into the .cbz with the same
     filename.
     """
-    cbr_path = Path(cbr_path)
 
     if not cbr_path.suffix.lower() == ".cbr":
         raise ValueError("Not a .cbr file!")
 
     if not cbr_path.exists():
-        raise ValueError(f"File does not exist: {cbr_path}")
+        raise ValueError(f"File does not exist: {str(cbr_path)}")
 
     cbz_path = cbr_path.with_suffix(".cbz")
 
@@ -45,7 +43,7 @@ def convert_cbz(cbr_path: str, *, delete_original: bool = True) -> str:
         
         if result.returncode != 0:
             raise RuntimeError(
-                f"7-Zip extraction failed for {cbr_path}:\n{result.stderr}"
+                f"7-Zip extraction failed for {cbr_path.name}:\n{result.stderr}"
             )
 
         with zipfile.ZipFile(cbz_path, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -56,30 +54,23 @@ def convert_cbz(cbr_path: str, *, delete_original: bool = True) -> str:
     if delete_original:
         cbr_path.unlink()
 
-    print(f"Converted: {cbr_path} --> {cbz_path}")
-    return str(cbz_path)
+    print(f"Converted: {cbr_path.name} --> {cbz_path.name}")
+    return cbz_path
 
 
-def get_ext(path: str) -> str:
-    """
-    Gets the file extension of specified file.
-    """
-    return os.path.splitext(path)[1].lower()
-
-
-def is_comic(path: str) -> bool:
+def is_comic(path: Path) -> bool:
     """
     Tells whether a file is a comic archive or not.
     """
     comic_archives = [".cbz", ".cbr"]
-    return get_ext(path) in comic_archives
+    return path.suffix.lower() in comic_archives
 
 
-def get_name(path: str) -> str:
+def get_name(path: Path) -> str:
     """
     Returns the filename of the specified filepath.
     """
-    return Path(path).stem
+    return path.stem
 
 
 def normalise_publisher_name(name: str) -> str:

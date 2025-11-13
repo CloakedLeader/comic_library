@@ -11,7 +11,7 @@ from PIL import Image
 
 
 class ImageExtraction:
-    def __init__(self, path: str, output_dir: str, primary_key: str) -> None:
+    def __init__(self, path: Path, output_dir: Path, primary_key: str) -> None:
         self.filepath = path
         self.output_folder = output_dir
         self.primary_key = primary_key
@@ -66,7 +66,7 @@ class ImageExtraction:
             with zf.open(cover_file_name) as img_file:
                 self.cover_bytes = img_file.read()
 
-    def save_cover(self) -> tuple[str, str]:
+    def save_cover(self) -> tuple[Path, Path]:
         """
         Saves two copies of the same image with different sizes
         and suffixes to their filename.
@@ -94,17 +94,13 @@ class ImageExtraction:
                 resized_img.save(buffer, format="JPEG", quality=quality, optimize=True)
                 variants[name] = buffer.getvalue()
 
-        file_dict: dict[str, tuple[bytes, str]] = {}
+        file_dict: dict[str, tuple[bytes, Path]] = {}
         for key, value in variants.items():
             if key == "thumbnail":
-                out_path_t = os.path.join(
-                    self.output_folder, f"{self.primary_key}_t.jpg"
-                )
+                out_path_t = self.output_folder / f"{self.primary_key}_t.jpg"
                 file_dict["thumbnail"] = (value, out_path_t)
             elif key == "browser":
-                out_path_b = os.path.join(
-                    self.output_folder, f"{self.primary_key}_b.jpg"
-                )
+                out_path_b = self.output_folder / f"{self.primary_key}_b.jpg"
                 file_dict["browser"] = (value, out_path_b)
 
         for _, (data, path) in file_dict.items():

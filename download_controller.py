@@ -1,4 +1,3 @@
-import logging
 import os
 import re
 import urllib.parse
@@ -15,7 +14,7 @@ from bs4 import BeautifulSoup
 from classes.helper_classes import RSSComicInfo
 
 load_dotenv()
-# logging.getLogger("aiofiles").setLevel(logging.WARNING)
+
 ROOT_DIR = Path(os.getenv("ROOT_DIR"))
 
 
@@ -108,7 +107,7 @@ class DownloadServiceAsync:
     It provides robust error handling and supports various comic file formats.
     """
 
-    def __init__(self, download_folder: str = ROOT_DIR / "0 - Downloads") -> None:
+    def __init__(self, download_folder: Path = ROOT_DIR / "0 - Downloads") -> None:
         """
         Initialise the download service.
 
@@ -117,8 +116,9 @@ class DownloadServiceAsync:
 
         The download folder will be created if it does not exist.
         """
-        self.download_folder = Path(download_folder)
-        self.download_folder.mkdir(parents=True, exist_ok=True)
+        self.download_folder = download_folder
+        if not download_folder.exists():  
+            self.download_folder.mkdir(parents=True, exist_ok=True)
 
     def get_filename(self, content_disposition: str) -> Optional[str]:
         """
@@ -262,7 +262,7 @@ class DownloadServiceAsync:
 
                 if not os.path.splitext(filename)[1]:
                     filename += ".cbz"
-                filepath = os.path.join(self.download_folder, filename)
+                filepath = self.download_folder / filename
 
                 async with aiofiles.open(filepath, "wb") as f:
                     async for chunk in response.content.iter_chunked(8192):
@@ -277,9 +277,8 @@ class DownloadServiceAsync:
 
     async def pixeldrain_download(
         self, download_link: str, progress_callback: Callable
-    ) -> str:
+    ) -> Path:
         file_id = self.follow_pixeldrain_redirect(download_link)
-        download_path = Path(self.download_folder)
         base_link = "https://pixeldrain.com/api/file/"
 
         meta_suffix = f"{file_id}/info"
@@ -291,7 +290,7 @@ class DownloadServiceAsync:
             filename = meta_data["name"]
             file_size = meta_data["size"]
             downloaded = 0
-            filepath = download_path / filename
+            filepath = self.download_folder / filename
 
             download_suffix = f"{file_id}?download"
             download_url = base_link + download_suffix
@@ -306,7 +305,7 @@ class DownloadServiceAsync:
                         progress_callback(percent)
 
         print(f"Downloaded: {filename}")
-        return str(filepath)
+        return filepath
 
     async def download_from_service(self, service: str, link: str, progress_callback):
         DOWNLOAD_HANDLERS = {

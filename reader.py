@@ -3,6 +3,7 @@ import zipfile
 from collections import OrderedDict
 from functools import partial
 from io import BytesIO
+from pathlib import Path
 
 from PIL import Image
 from PySide6.QtCore import Qt, QThread, QTimer, Signal
@@ -20,7 +21,6 @@ from classes.helper_classes import GUIComicInfo
 from database.gui_repo_worker import RepoWorker
 
 # from metadata_gui_panel import MetadataDialog
-from file_utils import get_name
 from metadata_gui_panel import MetadataDialog
 
 
@@ -42,7 +42,7 @@ class Comic:
         self, comic_info: GUIComicInfo, start_index: int = 0, max_cache: int = 10
     ) -> None:
         self.path = comic_info.filepath
-        self.filename = get_name(comic_info.filepath)
+        self.filename = comic_info.filepath.stem
         self.zip = zipfile.ZipFile(comic_info.filepath, "r")
         self.image_names = sorted(
             name
@@ -52,7 +52,7 @@ class Comic:
         if not self.image_names:
             raise ComicError("No images found in the file.")
         self.total_pages = len(self.image_names)
-        self.size = os.path.getsize(comic_info.filepath)
+        self.size = comic_info.filepath.stat().st_size
         self.cache: OrderedDict[str, bytes] = OrderedDict()
         self.max_cache = max_cache
         self.current_index: int = start_index

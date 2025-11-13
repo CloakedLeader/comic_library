@@ -14,17 +14,17 @@ class ComicMatch(TypedDict):
 
 
 class ResultsFilter:
-    def __init__(self, query_results: list, expected_info, filepath: str):
+    def __init__(self, query_results: list, expected_info, filepath: Path):
         temp = self.unwrap_data(query_results)
         if not isinstance(temp, list):
             raise ValueError("Expected list of dictionaries after unwrapping")
         self.query_results = temp
         self.expected_info = expected_info
-        self.filepath = Path(filepath)
+        self.filepath = filepath
 
     def __enter__(self):
         self.filepath.parent.mkdir(parents=True, exist_ok=True)
-        print(f"Entering ResultsFilter context for: {self.filepath}")
+        print(f"Entering ResultsFilter context for: {self.filepath.name}")
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):

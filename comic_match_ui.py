@@ -132,7 +132,7 @@ class ComicMatcherUI(QDialog):
         return self.selected_match if hasattr(self, "selected_match") else None
 
     @staticmethod
-    def cover_getter(filepath):
+    def cover_getter(filepath: Path):
         with zipfile.ZipFile(filepath, "r") as zip_ref:
             image_files = [
                 f
