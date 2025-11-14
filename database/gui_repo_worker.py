@@ -246,6 +246,17 @@ class RepoWorker:
         return info
 
     def input_review_column(self, review_text: str, primary_key: str) -> None:
+        """
+        This function puts the text and iteration for a review into the database.
+        
+        Parameters:
+        review_text: A string for the user written review.
+        primary_key: A string for the uuid of the comic.
+
+        This takes the last review in the database and compares it to review_text,
+        if they are the same the code does nothing. If they are different it adds the
+        review to the database with the iteration being one higher than the previous.
+        """
         self.cursor.execute(
             "SELECT iteration, review FROM reviews"
             "WHERE comic_id = ? ORDER BY iteration DESC",
@@ -273,6 +284,16 @@ class RepoWorker:
             return None
 
     def get_complete_metadata(self, primary_id: str) -> MetadataInfo:
+        """
+        This gets all the metadata for a comic, formats it and compiles it into
+        MetadataInfo.
+
+        Parameters:
+        primary_id: A string that is the uuid of the comic.
+
+        Outputs:
+        A MetadataInfo basemodel with all the corresponding data.
+        """
         role_info = {
             1: "Writer",
             2: "Penciller",
@@ -352,10 +373,28 @@ class RepoWorker:
             reviews=reviews,
         )
 
-    def create_collection(self, title: str):
+    def create_collection(self, title: str) -> int:
+        """
+        Creates a comic collection in the database.
+
+        Parameters:
+        title: A string that the user inputs to name the collection.
+
+        Outputs:
+        This returns the id of the newly created collection.
+        """
         self.cursor.execute("INSERT INTO collections (name) VALUES (?)", (title,))
+        return self.cursor.lastrowid
 
     def get_collections(self) -> tuple[list[str], list[int]]:
+        """
+        Gets the names of all collections in the database.
+
+        Outputs:
+        A tuple which has lists as its first and second element.
+            The first list is the names of the collections and the second
+            is the id's of the collections as in the db.
+        """
         self.cursor.execute("SELECT name, id from collections")
         results = self.cursor.fetchall()
         names = []
@@ -366,7 +405,14 @@ class RepoWorker:
 
         return (names, ids)
 
-    def add_to_collection(self, collection_id, comic_id):
+    def add_to_collection(self, collection_id: int, comic_id: str) -> None:
+        """
+        Adds certain comics into a collection in the database.
+
+        Parameters:
+        collection_id: The unique identifier for the comic collection.
+        comic_id: The uuid for the comic to be added.
+        """
         self.cursor.execute(
             """
             INSERT OR IGNORE INTO collections_contents
@@ -377,6 +423,19 @@ class RepoWorker:
         )
 
     def get_collection_contents(self, collection_id: int) -> list[str] | None:
+        """
+        This gets the id of all comics in a certain collection.
+
+        Parameters:
+        collection_id: The integer unique identifier for the collection.
+
+        Outputs:
+        A list of all the comic id's in that corresponding collection.
+        
+        TODO: Allow the user to select the order of comics in a
+            collection, so need to pass more info the frontend so 
+            reordering can be done on the fly.
+        """
         self.cursor.execute(
             "SELECT comic_id FROM collections_contents WHERE collection_id = ?",
             (collection_id,))
@@ -387,6 +446,16 @@ class RepoWorker:
             return None
         
     def create_reading_order(self, title: str, desc: Optional[str]) -> int:
+        """
+        Creates a comic reading order in the database.
+
+        Parameters:
+        title: The name of the reading order.
+        desc: An optional description of the reading order. Can be any string.
+
+        Outputs:
+        The id of the newly created reading order.
+        """
         now = datetime.now()
         if desc is None:
             self.cursor.execute(

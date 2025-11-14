@@ -132,10 +132,20 @@ class LexerFunc(Protocol):
 
 
 class Lexer:
+    """
+    A class to process the filename and extract the different items found.
+    """
 
-    def __init__(
-        self, string: str, *, allow_issue_start_with_letter: bool = False
-    ) -> None:
+    def __init__(self, string: str) -> None:
+        """
+        Creates an instance which tracks a certain string, finds all the Items within it.
+
+        Parameters:
+        string: This is the filename to be lexed.
+
+        This runs a state-based lexer that moves through the string and decides how to split
+        it up into Items.
+        """
         self.input: str = string
         self.state: LexerFunc | None = None
         self.pos: int = -1
@@ -145,19 +155,14 @@ class Lexer:
         self.brace_depth: int = 0
         self.sbrace_depth: int = 0
         self.items: list[Item] = []
-        self.allow_issue_start_with_letter = allow_issue_start_with_letter
 
     def get(self) -> str:
         """
         Gets the next character in the string or returns end of string message
         and adds 1 to position counter.
 
-        Parameters:
-        self = the filemame to be lexed
-
         Returns:
-        str = the next character in the filename
-        or the null character to indicate end of string.
+        The next character in the filename or the null character to indicate end of string.
         """
         if int(self.pos) >= len(self.input) - 1:
             self.pos += 1
@@ -172,20 +177,17 @@ class Lexer:
 
         Will be used to 'look' at next character and decide what to do.
 
-        Parameters:
-        self = the filename to be lexed.
-
-        Return:
-        str = the next character in the string.
-
+        Returns:
+        The next character in the string.
         """
         if int(self.pos) >= len(self.input) - 1:
             return eof
         return self.input[self.pos + 1]
 
     def backup(self) -> None:
-        # Decreases the position by one, i.e.
-        # goes back one character in the string.
+        """
+        Decreases the position by one, i.e. goes back one character in the string.
+        """
         self.pos -= 1
 
     def emit(self, t: ItemType) -> None:
@@ -194,15 +196,16 @@ class Lexer:
         updates the start variable ready for the next token.
 
         Parameters:
-        t [ItemType] = the kind of token to be added to the list.
-
+        t: The kind of token to be added to the list.
         """
         self.items.append(Item(t, self.start, self.input[self.start : self.pos + 1]))
         self.start = self.pos + 1
 
     def ignore(self) -> None:
-        # Ignores anything from the start position until
-        # the current position, used to omit whitespaces etc.
+        """
+        Ignores anything from the start position until the current position.
+        Used to omit whitespaces etc.
+        """
         self.start = self.pos
 
     def accept(self, valid: str | Callable[[str], bool]) -> bool:
@@ -211,15 +214,15 @@ class Lexer:
         is in a certain string or is a certain type of character.
 
         Parameter:
-        valid [str] = A string to see if the next character
-        in the class instance is a substring of valid
+        valid [str]: A string to see if the next character
+        in the class instance is a substring of valid.
         OR
-        valid [Callable] = A function (e.g. isdigit ) that checks if
-        the next character returns a truthy value
+        valid [Callable]: A function (e.g. isdigit ) that checks if
+        the next character returns a truthy value.
 
         Returns:
         bool = Whether or not the next character in the class
-        instance is in the input string or function
+        instance is in the input string or the Callable output.
         """
         if isinstance(valid, str):
             if self.get() in valid:
@@ -234,15 +237,14 @@ class Lexer:
 
     def accept_run(self, valid: str | Callable[[str], bool]) -> bool:
         """
-        Tries to accept a sequence of characters
-        that are of the same type/token.
+        Tries to accept a sequence of characters that are of the same type/token.
 
         Parameters:
-        valid [str] = A string to see if the next character
-        in the class instance is a substring of valid
+        valid [str]: A string to see if the next character
+        in the class instance is a substring of valid.
         OR
-        valid [Callable] = A function (e.g. isdigit ) that checks
-        if the next character returns a truthy value
+        valid [Callable]: A function (e.g. isdigit ) that checks
+        if the next character returns a truthy value.
 
         Returns:
         bool = Returns whether the position actually moved forward
@@ -272,7 +274,10 @@ class Lexer:
         return True
 
     def run(self) -> None:
-        # Keeps the lexer process running
+        """
+        This controls the state-based lexer by keeping the process running as long
+        as None isn't returned. 
+        """
         self.state = run_lexer
         while self.state is not None:
             self.state = self.state(self)
@@ -283,6 +288,17 @@ def errorf(lex: Lexer, message: str) -> None:
 
 
 def run_lexer(lex: Lexer) -> Optional[LexerFunc]:
+    """
+    This is where the logic for the seperation of tokens comes from.
+
+    Parameters:
+    lex: The Lexer instance which has to be iterated through and turned into
+        tokens.
+
+    Returns:
+    Either LexerFunc if there is still more to process, or None which terminates
+    the lexing process.
+    """
     r = lex.get()
 
     if r == eof:
@@ -383,12 +399,20 @@ def run_lexer(lex: Lexer) -> Optional[LexerFunc]:
 
 
 def lex_space(lex: Lexer) -> LexerFunc:
+    """
+    This consumes a series of whitespaces and emits them.
+    """
     if lex.accept_run(is_space):
         lex.emit(ItemType.Space)
     return run_lexer
 
 
 def lex_text(lex: Lexer) -> LexerFunc:
+    """
+    This emits a series of letters or number not seperated by a space.
+    Then tries to match the word to common words defined in 'key'.
+    Finally it decides on the ItemType and emits.
+    """
     while True:
         r = lex.get()
 
@@ -412,13 +436,16 @@ def lex_text(lex: Lexer) -> LexerFunc:
     return run_lexer
 
 
-def lex_number(lex: Lexer) -> LexerFunc | None:
-    # Attempt to scan number from current position
+def lex_number(lex: Lexer) -> LexerFunc:
+    """
+    This emits a series of numbers without any whitespace.
+    It also tries to handle common number suffixes.
+    Finally emits either a number or, text if there is a suffix.
+    """
     if not lex.scan_number():
         errorf(lex, "bad number syntax: " + lex.input[lex.start : lex.pos])
         return run_lexer
 
-    # Handle ordinal or letter suffixes (e.g. '80th' or '20s')
     if lex.pos < len(lex.input) and lex.input[lex.pos].isalpha():
         lex.accept_run(str.isalpha)
         lex.emit(ItemType.Text)
@@ -428,7 +455,11 @@ def lex_number(lex: Lexer) -> LexerFunc | None:
 
 
 def lex_issue_number(lex: Lexer) -> LexerFunc:
-    # Only called when lex.input[lex.start] == "#"
+    """
+    This attempts to find the issue number for a comic.
+    It is only called if lex.input[lex.start] == "#".
+    Finally it emits the run of numbers as type IssueNumber.
+    """
     if not lex.peek().isnumeric():
         lex.emit(ItemType.Symbol)
         return run_lexer
@@ -442,6 +473,11 @@ def lex_issue_number(lex: Lexer) -> LexerFunc:
 
 
 def lex_author(lex: Lexer) -> LexerFunc:
+    """
+    This attempts to identify an author in the string.
+    
+    TODO: Reinforce this code to be better!!
+    """
     lex.accept_run(str.isspace)
     name_parts = 0
 
@@ -472,6 +508,11 @@ def lex_author(lex: Lexer) -> LexerFunc:
 
 
 def lex_collection_type(lex: Lexer) -> LexerFunc:
+    """
+    This runs through a string attempts to match it to common collection
+    titles as defined in known_collections. If it can't match it, it
+    returns the token as Text.
+    """
     lex.accept_run(str.isalpha)
     word = lex.input[lex.start : lex.pos].casefold()
 
@@ -494,6 +535,10 @@ def lex_collection_type(lex: Lexer) -> LexerFunc:
 
 
 def lex_volume_number(lex: Lexer) -> LexerFunc:
+    """
+    This attempts to find the volume number in a token, this is called
+    when the lexer finds volume signifiers like vol or v.
+    """
     lex.accept_run(str.isdigit)
 
     if lex.pos == lex.start:
