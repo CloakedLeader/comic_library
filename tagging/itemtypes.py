@@ -70,6 +70,6 @@ class Item:
         Produce a concise debug-friendly representation of the item.
         
         Returns:
-            str: String formatted as "<val>: index: <pos>: <typ>", where `<val>` is the token value, `<pos>` is its start position and `<typ>` is its ItemType.
+            str: String formatted as "<val>: index: <pos>: <typ>".
         """
         return f"{self.val}: index: {self.pos}: {self.typ}"

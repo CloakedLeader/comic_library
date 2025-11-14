@@ -70,7 +70,7 @@ class Lexer:
         Initialises the Lexer state for lexing the given filename.
         
         Parameters:
-            string (str): The filename (or input string) to be tokenised; stored as the lexer's input. Call `run()` to perform lexing and populate `items`.
+            string (str): The filename (or input string) to be tokenised; stored as the lexer's input.
         """
         self.input: str = string
         self.state: LexerFunc | None = None
@@ -139,7 +139,9 @@ class Lexer:
         """
         Attempt to consume the next character if it matches a given set of characters or a predicate.
         
-        If `valid` is a string, the next character is consumed when it is one of the characters in that string. If `valid` is a callable, the next character is consumed when the callable returns a truthy value for that character. When a character is not accepted the lexer's position is restored.
+        If `valid` is a string, the next character is consumed when it is one of the characters in that string.
+        If `valid` is a callable, the next character is consumed when the callable returns a truthy value for that character.
+        When a character is not accepted the lexer's position is restored.
         
         Parameters:
             valid (str | Callable[[str], bool]): A string of acceptable characters or a predicate that returns truthy for acceptable characters.
@@ -163,7 +165,8 @@ class Lexer:
         Consume a consecutive run of characters that match either a set of allowed characters or a predicate.
         
         Parameters:
-            valid (str | Callable[[str], bool]): Either a string whose characters are accepted, or a callable that takes a single character and returns truthy if that character is accepted.
+            valid (str | Callable[[str], bool]): Either a string whose characters are accepted, or a callable
+            that takes a single character and returns truthy if that character is accepted.
         
         Returns:
             bool: `True` if at least one character was consumed, `False` otherwise.
@@ -181,9 +184,11 @@ class Lexer:
 
     def scan_number(self) -> bool:
         """
-        Determine whether the lexer is currently positioned at a number-like token and consume it (including an immediate alphabetic suffix, if present).
+        Determine whether the lexer is currently positioned at a number-like token and
+        consume it (including an immediate alphabetic suffix, if present).
         
-        Consumes a run of digits and numeric punctuation, optionally trims a trailing dot, then consumes any immediately following alphabetic characters without intervening whitespace.
+        Consumes a run of digits and numeric punctuation, optionally trims a trailing dot, then
+        consumes any immediately following alphabetic characters without intervening whitespace.
         
         Returns:
             `true` if a number-like sequence was found and consumed, `false` otherwise.
@@ -199,7 +204,8 @@ class Lexer:
         """
         Drive the lexer's state machine until it terminates.
         
-        Initialises the current state to `run_lexer` and repeatedly invokes the active state function until a state function returns `None`, signalling completion.
+        Initialises the current state to `run_lexer` and repeatedly invokes the
+        active state function until a state function returns `None`, signalling completion.
         """
         self.state = run_lexer
         while self.state is not None:
@@ -210,7 +216,7 @@ def errorf(lex: Lexer, message: str) -> None:
     """
     Record an error item on the lexer with the given message.
     
-    Appends an Item of type `Error` to `lex.items`, using the lexer's current `start` as the item's position and `message` as its payload.
+    Appends an Item of type `Error` to `lex.items`.
     
     Parameters:
     	lex (Lexer): Lexer instance to receive the error item.
@@ -223,7 +229,9 @@ def run_lexer(lex: Lexer) -> Optional[LexerFunc]:
     """
     Advance the lexer's state by reading the next character and dispatching to the appropriate lexer state function.
     
-    Processes one input character from `lex`, emitting tokens and updating lexer state (for example bracket depth counters) as required. Effects include emitting Item tokens to `lex.items`, adjusting `lex.pos`/`lex.start`, and recording errors via `errorf` when encountering unexpected input.
+    Processes one input character from `lex`, emitting tokens and updating lexer state as required.
+    Effects include emitting Item tokens to `lex.items`, adjusting `lex.pos`/`lex.start`,
+    and recording errors via `errorf` when encountering unexpected input.
     
     Parameters:
         lex (Lexer): The lexer instance to advance by one step.
@@ -411,7 +419,8 @@ def lex_issue_number(lex: Lexer) -> LexerFunc:
     """
     Parse an issue number starting at the current '#' and emit the corresponding token.
     
-    If the character after '#' is not a digit, emits a `Symbol` item; otherwise consumes a run of digits plus any immediate alphabetic suffix and emits an `IssueNumber` item.
+    If the character after '#' is not a digit, emits a `Symbol` item.
+    Otherwise consumes a run of digits plus any immediate alphabetic suffix and emits an `IssueNumber` item.
     
     Parameters:
         lex (Lexer): Lexer instance positioned with `lex.input[lex.start] == '#'`.
@@ -435,7 +444,8 @@ def lex_author(lex: Lexer) -> LexerFunc:
     """
     Attempt to recognise and emit an author-name token at the current lexer position.
     
-    Consumes up to three name parts (capitalised words or initials with a trailing period). If at least one name part is recognised, emits ItemType.Author; otherwise emits ItemType.Text.
+    Consumes up to three name parts (capitalised words or initials with a trailing period).
+    If at least one name part is recognised, emits ItemType.Author; otherwise emits ItemType.Text.
     
     Returns:
     	The next lexer state function to continue lexing.
@@ -473,7 +483,8 @@ def lex_collection_type(lex: Lexer) -> LexerFunc:
     """
     Recognises a contiguous alphabetic word and classifies it as a collection type or plain text.
     
-    Consumes a run of alphabetic characters, lowercases the consumed word and, if it matches a known collection token such as "tpb", "hc", "omnibus", "hardcover", "deluxe", "compendium" or "digest", emits an ItemType.CollectionType; otherwise emits ItemType.Text.
+    Consumes a run of alphabetic characters, lowercases the consumed word and,
+    if it matches a known collection token, such as "tpb", "hc", emits an ItemType.CollectionType; otherwise emits ItemType.Text.
     
     Returns:
     	The next lexer state function to execute (typically `run_lexer`).
@@ -503,7 +514,8 @@ def lex_volume_number(lex: Lexer) -> LexerFunc:
     """
     Parse a volume number following a volume signifier and emit the appropriate token.
     
-    If one or more digits are found immediately or after optional spaces, emits an ItemType.VolumeNumber for the consumed run; otherwise emits ItemType.Text.
+    If one or more digits are found immediately or after optional spaces, emits an ItemType.VolumeNumber for the consumed run.
+    Otherwise emits ItemType.Text.
     
     Returns:
     	The next lexer state function to continue lexing.
@@ -577,7 +589,7 @@ def cal(word: str) -> bool:
         word (str): The token to test.
     
     Returns:
-        True if the token is a month name/abbreviation or a 4‑digit year optionally suffixed with 's', False otherwise.
+        True if the token is a month name/abbreviation or a 4-digit year optionally suffixed with 's', False otherwise.
     """
     word_lower = word.lower()
 
