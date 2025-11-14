@@ -53,12 +53,12 @@ class Item:
 
     def __init__(self, typ: ItemType, pos: int, val: str) -> None:
         """
-        Creates a new item which has been found in the string.
-
+        Initialise an Item representing a token parsed from an input string.
+        
         Parameters:
-        typ [ItemType] = The type defined above e.g. text or parenthesis.
-        pos [int] = The position of the first character in the item.
-        val [str] = The string representation of the token extracted
+            typ (ItemType): Token type.
+            pos (int): Zero-based index of the token's first character in the source string.
+            val (str): Exact substring captured for the token.
         """
         self.typ: ItemType = typ
         self.pos: int = pos
@@ -66,4 +66,10 @@ class Item:
         self.no_space = False
 
     def __repr__(self) -> str:
+        """
+        Produce a concise debug-friendly representation of the item.
+        
+        Returns:
+            str: String formatted as "<val>: index: <pos>: <typ>", where `<val>` is the token value, `<pos>` is its start position and `<typ>` is its ItemType.
+        """
         return f"{self.val}: index: {self.pos}: {self.typ}"

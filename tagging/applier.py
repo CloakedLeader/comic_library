@@ -12,6 +12,17 @@ from metadata_cleaning import MetadataProcessing
 
 class TagApplication:
     def __init__(self, comicvine_dict: dict | list, api_key: str, filename: str, session):
+        """
+        Initialise a TagApplication from a ComicVine-style entry.
+        
+        If `comicvine_dict` is a list the first element is used; otherwise the dict is used directly. The constructor extracts API detail URLs and identifiers from the entry and stores the provided API key, filename and HTTP session. It also initialises internal state placeholders for the issue URL, fetched issue data, and the final metadata dictionary.
+        
+        Parameters:
+            comicvine_dict (dict | list): A ComicVine API entry or a list of such entries; the first entry is used when a list is provided.
+            api_key (str): API key to append to subsequent API requests.
+            filename (str): Source filename (used later when embedding metadata).
+            session: HTTP session or client used for network requests (kept for use by instance methods).
+        """
         if isinstance(comicvine_dict, list):
             entry = comicvine_dict[0]
         else:
@@ -28,6 +39,11 @@ class TagApplication:
         self.final_info: Optional[dict] = None
 
     def build_url(self) -> None:
+        """
+        Construct the fully qualified issue-detail URL with required query parameters and store it on the instance.
+        
+        Sets self.url to the prepared GET URL for self.link including the `api_key` and `format=json` query parameters.
+        """
         req = requests.Request(
             method="GET",
             url=self.link,
@@ -40,12 +56,23 @@ class TagApplication:
         self.url = prepared.url
 
     def get_publisher(self) -> None:
+        """
+        Fetch the publisher name for the issue's volume using the instance's volume link.
+        
+        Returns:
+            str: Publisher name from the API response.
+        """
         url = f"{self.pub_link}?api_key={self.api_key}&format=json"
         response = self.session.get(url)
         data = response.json()
         return data["results"]["publisher"]["name"]
 
     def get_request(self) -> None:
+        """
+        Fetches issue data from the prepared API URL and stores the parsed results on the instance.
+        
+        Ensures the request URL is built before performing an HTTP GET. If the URL remains None a ValueError is raised. Performs the request, prints a message when the response status is not 200, and sets self.issue_data to the response JSON's `results` entry.
+        """
         if not self.url:
             self.build_url()
         if self.url is None:
@@ -58,6 +85,18 @@ class TagApplication:
         self.issue_data = data["results"]
 
     def parse_list_of_dicts(self, field) -> list[str]:
+        """
+        Extracts the list of `name` values from a named list field in the loaded issue data.
+        
+        Parameters:
+            field (str): Key in `self.issue_data` whose value is a list of dicts each containing a `"name"` entry.
+        
+        Returns:
+            list[str]: List of `name` strings extracted from each dictionary in `self.issue_data[field]`.
+        
+        Raises:
+            ValueError: If `self.issue_data` is None.
+        """
         if self.issue_data is None:
             raise ValueError("issue_data cannot be None")
         entries = self.issue_data[field]
@@ -67,6 +106,15 @@ class TagApplication:
         return things
 
     def create_metadata_dict(self) -> dict:
+        """
+        Constructs a metadata dictionary for the current issue from the loaded issue data.
+        
+        Raises:
+            ValueError: If issue_data is None.
+        
+        Returns:
+            dict: Metadata mapping containing keys such as Title, Series, Number, Publisher, Month, Year, Summary, Characters, Teams and api_link; creator-related fields (e.g. Writer, Penciller) are merged into the returned dictionary.
+        """
         if self.issue_data is None:
             raise ValueError("issue_data cannot be None")
         date_str = self.issue_data["cover_date"]
@@ -109,6 +157,18 @@ class TagApplication:
 
     @staticmethod
     def creators_entry_parsing(list_of_creator_info: list[dict]) -> dict[str, str]:
+        """
+        Aggregate creator credits into a mapping of standard role keys to comma-separated names.
+        
+        Parameters:
+            list_of_creator_info (list[dict]): A list of creator entries where each entry contains at least
+                the keys "name" (creator's name) and "role" (a string of one or more roles, comma-separated).
+        
+        Returns:
+            dict[str, str]: A dictionary with keys "Penciller", "Writer", "Inker", "Editor", "Letterer",
+            "CoverArtist", and "Colorist". Each value is a comma-separated string of names for that role,
+            or an empty string if no creators were assigned to the role.
+        """
         mapping = {
             "penciler": "Penciller",
             "writer": "Writer",
@@ -135,12 +195,26 @@ class TagApplication:
 
     @staticmethod
     def character_or_team_parsing(list_of_info: list[dict]) -> list[str]:
+        """
+        Extract the 'name' field from each character or team entry.
+        
+        Parameters:
+            list_of_info (list[dict]): Sequence of dictionaries representing characters or teams; each dictionary is expected to contain a "name" key.
+        
+        Returns:
+            list[str]: A list of names (as strings) taken from each entry's "name" field.
+        """
         peoples = []
         for i in list_of_info:
             peoples.append(str(i["name"]))
         return peoples
 
     def fill_gaps(self):
+        """
+        Ensure required metadata keys exist in self.final_info and replace absent or empty values with defaults.
+        
+        Mandatory fields (Writer, Penciller, Year, Summary, Number, Series, Title) are set to "PENDING" when missing or empty. All other keys present in self.final_info that are None or the empty string are set to "MISSING". Modifies self.final_info in place.
+        """
         MANDATORY_FIELDS = {
             "Writer",
             "Penciller",
@@ -160,6 +234,17 @@ class TagApplication:
                     self.final_info[key] = "MISSING"
 
     def create_xml(self) -> bytes:
+        """
+        Create a ComicInfo XML document from the instance's final metadata and return it as bytes.
+        
+        Builds an XML document with root element `ComicInfo` and a child element for each key in `self.final_info`, using each value's string representation as element text.
+        
+        Returns:
+        	bytes: UTF-8 encoded XML document including an XML declaration.
+        
+        Raises:
+        	ValueError: If `self.final_info` is None.
+        """
         root = ET.Element("ComicInfo")
 
         if self.final_info is None:
@@ -174,6 +259,15 @@ class TagApplication:
         return xml_bytes_io.getvalue()
 
     def insert_xml_into_cbz(self, cbz_path: Path):
+        """
+        Append a generated ComicInfo.xml file into an existing CBZ archive.
+        
+        Parameters:
+            cbz_path (Path): Path to an existing CBZ file to which the generated ComicInfo.xml will be written.
+        
+        Raises:
+            FileNotFoundError: If `cbz_path` does not exist.
+        """
         if not cbz_path.exists():
             raise FileNotFoundError(f"{str(cbz_path)} does not exist")
         self.fill_gaps()
