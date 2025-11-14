@@ -42,6 +42,18 @@ session.headers.update(header)
 
 class TaggingPipeline:
     def __init__(self, data: RequestData, path: Path, size: float, api_key: str) -> None:
+        """
+        Initialise a tagging pipeline for the given CBZ file, preparing HTTP access, cover image and perceptual hashes.
+        
+        Parameters:
+            data (RequestData): Parsed metadata to use for searches and matching.
+            path (Path): Filesystem path to the CBZ archive to process.
+            size (float): Reference size value used by similarity/selection heuristics.
+            api_key (str): API key used to construct the HTTP client.
+        
+        Notes:
+            Sets up an HttpRequest using the shared session, initialises the validator to None, extracts the archive's cover image and computes its `phash`, `dhash` and `ahash`, and initialises an empty `results` list.
+        """
         self.data = data
         self.path = path
         self.size = size
@@ -75,6 +87,18 @@ class TaggingPipeline:
         }
 
     def run(self):
+        """
+        Search for matching volumes on ComicVine and compare cover images to identify matches.
+        
+        Performs a series of search queries derived from the stored request data, filters results by issue count,
+        publisher, year and title, downloads candidate cover images and compares them to the archive's cover.
+        Populates self.results with any confirmed matches.
+        
+        Returns:
+            If exactly one confirmed match is found, `MatchCode.ONE_MATCH`.
+            If no confirmed matches are found, `(MatchCode.NO_MATCH, potential_results)` where `potential_results` is a list of candidate issue dictionaries considered.
+            If multiple confirmed matches are found, `(MatchCode.MULTIPLE_MATCHES, results)` where `results` is the list of matching issue dictionaries.
+        """
         queries = [
             f"{self.data.series} {self.data.title or ''}".strip(),
             self.data.series,
@@ -198,6 +222,16 @@ class TaggingPipeline:
 
 
 def run_tagging_process(filepath: Path, api_key: str) -> Optional[tuple[list, RequestData]]:
+    """
+    Drive the tagging workflow for a CBZ file: parse filename metadata, search for matching issue data, and insert metadata into the archive when a single match is found.
+    
+    Parameters:
+        filepath (Path): Path to the CBZ file to be processed.
+        api_key (str): API key used for remote metadata lookup.
+    
+    Returns:
+        None if a single match is confirmed and metadata has been inserted into the CBZ; otherwise a tuple `(potential_matches, request_data)` where `potential_matches` is a list of candidate match dictionaries and `request_data` is the parsed RequestData built from the filename.
+    """
     filename = filepath.stem
     lexer_instance = Lexer(filename)
     state: Optional[LexerFunc] = run_lexer

@@ -10,11 +10,30 @@ API_KEY = os.getenv("API_KEY")
 
 class Parser:
     def __init__(self, list_of_tokens: list[Item]):
+        """
+        Initialise the Parser with a sequence of token items.
+        
+        Parameters:
+            list_of_tokens (list[Item]): Token items to be analysed by the parser. These are stored on the instance as `self.tokens`.
+        
+        Attributes:
+            metadata (dict[str, str | int]): Initially empty mapping for collected metadata fields (e.g. title, year, issue).
+            buffer (list[str]): Initially empty list used to accumulate text fragments during parsing.
+        """
         self.tokens: list[Item] = list_of_tokens
         self.metadata: dict[str, str | int] = {}
         self.buffer: list[str] = []
 
     def construct_metadata(self) -> dict[str, str | int]:
+        """
+        Extract metadata fields from the parser's token list.
+        
+        Parses the stored tokens to populate the parser's metadata dictionary with discovered fields. Recognises collection type, issue number, volume number, year (numeric token >= 1900), series (accumulated leading text), and title (text following an issue or volume). Numeric values are converted to integers; series and title are returned as cleaned strings when present.
+        
+        Returns:
+            dict[str, str | int]: Mapping of discovered field names to their values. Possible keys include
+            `collection_type`, `issue`, `volume`, `year`, `series`, and `title`.
+        """
         capture_title = False
         title_parts = []
         i = 0
