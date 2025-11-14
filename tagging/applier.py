@@ -13,9 +13,9 @@ from metadata_cleaning import MetadataProcessing
 class TagApplication:
     def __init__(self, comicvine_dict: dict | list, api_key: str, filename: str, session):
         """
-        Initialise a TagApplication from a ComicVine-style entry.
+        Initialise a TagApplication from a ComicVine-style entry returned from api request.
         
-        If `comicvine_dict` is a list the first element is used; otherwise the dict is used directly. The constructor extracts API detail URLs and identifiers from the entry and stores the provided API key, filename and HTTP session. It also initialises internal state placeholders for the issue URL, fetched issue data, and the final metadata dictionary.
+        If `comicvine_dict` is a list the first element is used; otherwise the dict is used directly. 
         
         Parameters:
             comicvine_dict (dict | list): A ComicVine API entry or a list of such entries; the first entry is used when a list is provided.
@@ -71,7 +71,9 @@ class TagApplication:
         """
         Fetches issue data from the prepared API URL and stores the parsed results on the instance.
         
-        Ensures the request URL is built before performing an HTTP GET. If the URL remains None a ValueError is raised. Performs the request, prints a message when the response status is not 200, and sets self.issue_data to the response JSON's `results` entry.
+        Ensures the request URL is built before performing an HTTP GET. 
+        Performs the request, prints a message when the response status is not 200.
+        Sets self.issue_data to the response JSON's `results` entry.
         """
         if not self.url:
             self.build_url()
@@ -113,7 +115,7 @@ class TagApplication:
             ValueError: If issue_data is None.
         
         Returns:
-            dict: Metadata mapping containing keys such as Title, Series, Number, Publisher, Month, Year, Summary, Characters, Teams and api_link; creator-related fields (e.g. Writer, Penciller) are merged into the returned dictionary.
+            dict: Metadata mapping containing keys such as Title, Series, Number etc.
         """
         if self.issue_data is None:
             raise ValueError("issue_data cannot be None")
@@ -213,7 +215,9 @@ class TagApplication:
         """
         Ensure required metadata keys exist in self.final_info and replace absent or empty values with defaults.
         
-        Mandatory fields (Writer, Penciller, Year, Summary, Number, Series, Title) are set to "PENDING" when missing or empty. All other keys present in self.final_info that are None or the empty string are set to "MISSING". Modifies self.final_info in place.
+        Mandatory fields (Writer, Penciller, Year, Summary, Number, Series, Title) are set to "PENDING" when missing or empty. 
+        All other keys present in self.final_info that are None or the empty string are set to "MISSING".
+        Modifies self.final_info in place.
         """
         MANDATORY_FIELDS = {
             "Writer",
@@ -237,7 +241,7 @@ class TagApplication:
         """
         Create a ComicInfo XML document from the instance's final metadata and return it as bytes.
         
-        Builds an XML document with root element `ComicInfo` and a child element for each key in `self.final_info`, using each value's string representation as element text.
+        Builds an XML document with using each value's string representation as element text.
         
         Returns:
         	bytes: UTF-8 encoded XML document including an XML declaration.
