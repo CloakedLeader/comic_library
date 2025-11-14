@@ -373,14 +373,18 @@ class RepoWorker:
             reviews=reviews,
         )
 
-    def create_collection(self, title: str) -> None:
+    def create_collection(self, title: str) -> int:
         """
         Creates a comic collection in the database.
 
         Parameters:
         title: A string that the user inputs to name the collection.
+
+        Outputs:
+        This returns the id of the newly created collection.
         """
         self.cursor.execute("INSERT INTO collections (name) VALUES (?)", (title,))
+        return self.cursor.lastrowid
 
     def get_collections(self) -> tuple[list[str], list[int]]:
         """
@@ -428,8 +432,9 @@ class RepoWorker:
         Outputs:
         A list of all the comic id's in that corresponding collection.
         
-        TODO: Allow the user to select the order they show, so need to pass more
-            info the frontend so reordering can be done on the fly.
+        TODO: Allow the user to select the order of comics in a
+            collection, so need to pass more info the frontend so 
+            reordering can be done on the fly.
         """
         self.cursor.execute(
             "SELECT comic_id FROM collections_contents WHERE collection_id = ?",
@@ -441,6 +446,16 @@ class RepoWorker:
             return None
         
     def create_reading_order(self, title: str, desc: Optional[str]) -> int:
+        """
+        Creates a comic reading order in the database.
+
+        Parameters:
+        title: The name of the reading order.
+        desc: An optional description of the reading order. Can be any string.
+
+        Outputs:
+        The id of the newly created reading order.
+        """
         now = datetime.now()
         if desc is None:
             self.cursor.execute(
