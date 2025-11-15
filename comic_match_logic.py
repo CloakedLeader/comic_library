@@ -95,7 +95,6 @@ class ResultsFilter:
         return [(r, position) for _, r, position in scored[:top_n]]
 
     def present_choices(self) -> list[tuple[ComicMatch, int]]:
-
         top_results = self.filter_results()
         best_results: list[tuple[ComicMatch, int]] = []
         for r, position in top_results:

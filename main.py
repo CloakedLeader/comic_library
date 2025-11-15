@@ -1,14 +1,13 @@
 import asyncio
-
 import os
 import os.path
 import sys
 import threading
 from pathlib import Path
 from typing import Callable, Optional, Sequence
-from dotenv import load_dotenv
 
 import uvicorn
+from dotenv import load_dotenv
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
@@ -36,21 +35,20 @@ from classes.helper_classes import GUIComicInfo, RSSComicInfo
 from cleanup import scan_and_clean
 from collections_widget import CollectionCreation
 from comic_grid_view import ComicGridView
-from comic_match_ui import ComicMatcherUI
 from comic_match_logic import ComicMatch
+from comic_match_ui import ComicMatcherUI
 from database.gui_repo_worker import RepoWorker
 from download_controller import DownloadControllerAsync, DownloadServiceAsync
 from general_comic_widget import GeneralComicWidget
+from left_widget_assets import ButtonDisplay
 from metadata_controller import run_tagger
 from metadata_gui_panel import MetadataDialog, MetadataPanel
 from reader_controller import ReadingController
+from reading_order_widget import ReadingOrderCreation
 from rss.rss_controller import RSSController
 from rss.rss_repository import RSSRepository
 from search import text_search
-from left_widget_assets import ButtonDisplay
-from reading_order_widget import ReadingOrderCreation
 from settings import Settings
-
 
 load_dotenv()
 root_string = os.getenv("ROOT_DIR")
@@ -155,10 +153,8 @@ class HomePage(QMainWindow):
         left_widget.setLayout(left_layout)
         left_layout.addWidget(self.file_tree, stretch=1)
         self.collection_display = ButtonDisplay(
-            "Collections",
-            collection_names,
-            collection_ids,
-            self.clicked_collection)
+            "Collections", collection_names, collection_ids, self.clicked_collection
+        )
         left_layout.addWidget(self.collection_display, stretch=1)
         orders = ["Krakoa Era", "Black Panther", "Hal Jordan"]
         order_ids = [22, 12, 56]
@@ -264,7 +260,6 @@ class HomePage(QMainWindow):
         #     return handler
 
         for pos, comic in enumerate(list_of_info):
-
             progress = progresses[pos] if progresses else None
             comic_widget = GeneralComicWidget(
                 comic,
@@ -408,8 +403,12 @@ class HomePage(QMainWindow):
             pixmap = QPixmap(image_path)
             image_label = QLabel()
             image_label.setPixmap(
-                pixmap.scaled(30, 30, Qt.AspectRatioMode.KeepAspectRatio,
-                              Qt.TransformationMode.SmoothTransformation)
+                pixmap.scaled(
+                    30,
+                    30,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
             )
             image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -542,13 +541,13 @@ class HomePage(QMainWindow):
         run_tagger(self)
 
     def get_user_match(
-        self, query_results: list[tuple[ComicMatch, int]], actual_comic,
-        all_results, filepath: Path
+        self,
+        query_results: list[tuple[ComicMatch, int]],
+        actual_comic,
+        all_results,
+        filepath: Path,
     ):
-
-        dialog = ComicMatcherUI(
-            actual_comic, query_results, all_results, filepath
-        )
+        dialog = ComicMatcherUI(actual_comic, query_results, all_results, filepath)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             selected = dialog.get_selected_result()
             if selected:
@@ -585,7 +584,7 @@ class HomePage(QMainWindow):
         dialog = ReadingOrderCreation()
         if dialog.exec() == QDialog.DialogCode.Accepted:
             print(dialog.textbox.text())
-    
+
     def open_settings(self):
         dialog = Settings()
         if dialog.exec() == QDialog.DialogCode.Accepted:

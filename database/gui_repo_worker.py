@@ -2,15 +2,16 @@ import os
 import sqlite3
 from collections import defaultdict
 from datetime import datetime
-from typing import Optional
-from dotenv import load_dotenv
 from pathlib import Path
+from typing import Optional
+
+from dotenv import load_dotenv
 
 from classes.helper_classes import GUIComicInfo, MetadataInfo
 
-
 load_dotenv()
 ROOT_DIR = Path(os.getenv("ROOT_DIR"))
+
 
 class RepoWorker:
     def __init__(self):
@@ -31,7 +32,7 @@ class RepoWorker:
         Creates a GUIComicInfo class instance for a comic, given its id.
 
         Parameters:
-        ids: A list of uuid4's to create basemodels for. 
+        ids: A list of uuid4's to create basemodels for.
 
         Output:
         Returns a list, in the same order as the input, of GUIComicInfo basemodels.
@@ -81,7 +82,7 @@ class RepoWorker:
             1) A list of GUIComicInfo basemodels for comics which are partially read.
             2) A list of the percentage of pages read for each comic in the previous list.
             3) A list of GUIComicInfo basemodels for comics which are finished and need a written review.
-        
+
         Goes through the relevant database tables and find comics that fulfill the requirements of not yet finished,
         or finished but without a written review.
         """
@@ -160,7 +161,7 @@ class RepoWorker:
         primary_key: A string that represents the uuid4 for the specific comic.
         last_page: An integer which represents the last read page to be saved,
             will overwrite previous saved page.
-        
+
         If the comic is not in the reading_progress table it adds it and saves the page,
         else it just overwrites what was in the last_page field.
         """
@@ -221,7 +222,7 @@ class RepoWorker:
 
         Outputs:
         A list of GUIComicInfo basemodels which belong to the folder of the publisher.
-        
+
         Finds all comics corresponding to the respective publisher and compiles their
         information into GUIComicInfo basemodels.
         """
@@ -248,7 +249,7 @@ class RepoWorker:
     def input_review_column(self, review_text: str, primary_key: str) -> None:
         """
         This function puts the text and iteration for a review into the database.
-        
+
         Parameters:
         review_text: A string for the user written review.
         primary_key: A string for the uuid of the comic.
@@ -431,20 +432,21 @@ class RepoWorker:
 
         Outputs:
         A list of all the comic id's in that corresponding collection.
-        
+
         TODO: Allow the user to select the order of comics in a
-            collection, so need to pass more info the frontend so 
+            collection, so need to pass more info the frontend so
             reordering can be done on the fly.
         """
         self.cursor.execute(
             "SELECT comic_id FROM collections_contents WHERE collection_id = ?",
-            (collection_id,))
+            (collection_id,),
+        )
         result = self.cursor.fetchall()
         if result:
             return [r[0] for r in result]
         else:
             return None
-        
+
     def create_reading_order(self, title: str, desc: Optional[str]) -> int:
         """
         Creates a comic reading order in the database.
@@ -460,10 +462,18 @@ class RepoWorker:
         if desc is None:
             self.cursor.execute(
                 "INSERT INTO reading_orders (name, created) VALUES (?, ?)",
-                (title, now,))
+                (
+                    title,
+                    now,
+                ),
+            )
         else:
             self.cursor.execute(
                 "INSERT INTO reading_orders (name, description, created) VALUES (?, ?, ?)",
-                (title, desc, now,))
+                (
+                    title,
+                    desc,
+                    now,
+                ),
+            )
         return self.cursor.lastrowid
-        

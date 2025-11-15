@@ -4,12 +4,12 @@ import urllib.parse
 from email.header import decode_header
 from pathlib import Path
 from typing import Callable, Optional
-from dotenv import load_dotenv
 
 import aiofiles
 import aiohttp
 import requests
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
 
 from classes.helper_classes import RSSComicInfo
 
@@ -117,7 +117,7 @@ class DownloadServiceAsync:
         The download folder will be created if it does not exist.
         """
         self.download_folder = download_folder
-        if not download_folder.exists():  
+        if not download_folder.exists():
             self.download_folder.mkdir(parents=True, exist_ok=True)
 
     def get_filename(self, content_disposition: str) -> Optional[str]:
@@ -219,7 +219,6 @@ class DownloadServiceAsync:
         headers = {"User-Agent": "Mozilla/5.0"}
 
         async with aiohttp.ClientSession(headers=headers) as session:
-
             async with session.get(
                 comic_download_link, allow_redirects=True
             ) as response:

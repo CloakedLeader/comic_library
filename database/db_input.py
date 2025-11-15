@@ -1,6 +1,6 @@
 import sqlite3
-from typing import Optional
 from pathlib import Path
+from typing import Optional
 
 from classes.helper_classes import ComicInfo
 from file_utils import normalise_publisher_name

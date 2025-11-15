@@ -141,7 +141,7 @@ class MetadataProcessing:
         if self.raw_info.title and self.raw_info.series:
             title_raw = self.raw_info.title.lower()
             series_raw = self.raw_info.series.lower()
-        
+
         # TODO: Change this logic to avoid null errors.
 
         if ":" in series_raw:

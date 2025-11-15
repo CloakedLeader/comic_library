@@ -3,15 +3,15 @@ import os
 import shutil
 import sqlite3
 import zipfile
-from typing import Optional
 from pathlib import Path
+from typing import Optional
 
 from defusedxml import ElementTree as ET
 from dotenv import load_dotenv
 from PySide6.QtWidgets import QMainWindow
 
 from classes.helper_classes import ComicInfo
-from comic_match_logic import ResultsFilter
+from comic_match_logic import ComicMatch, ResultsFilter
 from cover_processing import ImageExtraction
 from database.db_input import MetadataInputting, insert_new_publisher
 from extract_meta_xml import MetadataExtraction
@@ -19,7 +19,6 @@ from file_utils import convert_cbz, generate_uuid
 from metadata_cleaning import MetadataProcessing, PublisherNotKnown
 from search import insert_into_fts5
 from tagging_controller import RequestData, extract_and_insert, run_tagging_process
-from comic_match_logic import ComicMatch
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -87,7 +86,7 @@ class MetadataController:
             self.filepath = temp_filepath
         elif temp_filepath.suffix != ".cbz":
             raise ValueError("Wrong filetype.")
-        
+
     def get_pagecount(self) -> int:
         if self.filepath is None:
             print("Filename must not be None")
@@ -100,7 +99,7 @@ class MetadataController:
                 if os.path.splitext(f)[1].lower() in image_exts
             ]
             self.page_count = len(image_files)
-        
+
         return len(image_files)
 
     def has_metadata(self) -> bool:
@@ -165,7 +164,7 @@ class MetadataController:
 
     def process(self):
         self.reformat()
-        
+
         if self.has_metadata():
             self.process_with_metadata()
         else:
@@ -256,10 +255,12 @@ class MetadataController:
         return filtered_results
 
     def request_disambiguation(
-        self, results: list[tuple[ComicMatch, int]],
-        actual_comic: RequestData, all_results: list[dict]
+        self,
+        results: list[tuple[ComicMatch, int]],
+        actual_comic: RequestData,
+        all_results: list[dict],
     ):
-        match = self.display.get_user_match( # type: ignore
+        match = self.display.get_user_match(  # type: ignore
             results, actual_comic, all_results, self.filepath
         )
         if match:
@@ -289,7 +290,9 @@ def run_tagger(display: QMainWindow):
     for path in downloads_dir.rglob("*"):
         if path.is_dir() and path.name in EXCLUDE:
             continue
-        if path.is_file() and any(path.name.lower().endswith(ext) for ext in VALID_EXTENSIONS):
+        if path.is_file() and any(
+            path.name.lower().endswith(ext) for ext in VALID_EXTENSIONS
+        ):
             print(f"Starting to process {path.name}")
             new_id = generate_uuid()
             cont = MetadataController(new_id, path, display)

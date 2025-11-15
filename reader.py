@@ -1,4 +1,3 @@
-import os
 import zipfile
 from collections import OrderedDict
 from functools import partial
@@ -18,7 +17,6 @@ from PySide6.QtWidgets import (
 
 from classes.helper_classes import GUIComicInfo
 from database.gui_repo_worker import RepoWorker
-
 from metadata_gui_panel import MetadataDialog
 
 
@@ -35,7 +33,6 @@ class ImageLoadError(ComicError):
 
 
 class Comic:
-
     def __init__(
         self, comic_info: GUIComicInfo, start_index: int = 0, max_cache: int = 10
     ) -> None:

@@ -1,9 +1,9 @@
-import re
-from textwrap import dedent
 import os
-from dotenv import load_dotenv
+import re
 from pathlib import Path
+from textwrap import dedent
 
+from dotenv import load_dotenv
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
@@ -23,7 +23,6 @@ from PySide6.QtWidgets import (
 
 from classes.helper_classes import GUIComicInfo, MetadataInfo
 from database.gui_repo_worker import RepoWorker
-
 
 load_dotenv()
 root_folder = os.getenv("ROOT_DIR")
@@ -216,7 +215,9 @@ class MetadataPanel(QWidget):
         quick_icons_layout.setSpacing(10)
 
         read_status = QLabel("Read" if comic_metadata.reviews else "Unread")
-        read_status.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        read_status.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed
+        )
         quick_icons_layout.addWidget(read_status)
 
         liked_box = QCheckBox("Liked")
@@ -236,21 +237,27 @@ class MetadataPanel(QWidget):
                 <span style="color: lightgray; font-size: 20pt;">{empty_star}</span>"""
         stars_label = QLabel(stars)
         stars_label.setTextFormat(Qt.TextFormat.RichText)
-        stars_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        stars_label.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         quick_icons_layout.addWidget(stars_label)
 
         layout.addWidget(quick_icons)
 
         display_text = f"#{comic_metadata.volume_num} - {comic_metadata.name}"
         title_widget = QLabel(display_text)
-        title_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        title_widget.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         layout.addWidget(title_widget)
 
         formatted_desc = comic_metadata.description or ""
         clean_desc = re.sub(r"\s+", " ", formatted_desc).strip()
         desc_widget = QLabel(clean_desc)
         desc_widget.setWordWrap(True)
-        desc_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        desc_widget.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
         layout.addWidget(desc_widget)
 
         total_creator_info = ""

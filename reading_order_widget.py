@@ -49,9 +49,8 @@ class ReadingOrderCreation(QDialog):
             if description == "":
                 description = None
             worker.create_reading_order(name, description)
-        
+
         self.open_order_creation()
 
     def open_order_creation(self):
         pass
-

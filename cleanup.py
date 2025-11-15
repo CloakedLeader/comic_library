@@ -1,15 +1,15 @@
 import os
 import sqlite3
 from pathlib import Path
-from dotenv import load_dotenv
 
+from dotenv import load_dotenv
 
 load_dotenv()
 root_folder = os.getenv("ROOT_DIR") or ""
 ROOT_DIR = Path(root_folder)
 
-def delete_comic(filepath: str) -> None:
 
+def delete_comic(filepath: str) -> None:
     conn = sqlite3.connect("comics.db")
     cursor = conn.cursor()
 
@@ -37,7 +37,8 @@ def delete_comic(filepath: str) -> None:
     }
     for table in tables:
         cursor.execute(
-            f"DELETE FROM {table} WHERE comic_id = ?", (primary_key,)  # nosec B608
+            f"DELETE FROM {table} WHERE comic_id = ?",
+            (primary_key,),  # nosec B608
         )
 
     conn.commit()

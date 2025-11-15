@@ -63,8 +63,10 @@ class GeneralComicWidget(QWidget):
 
         if pixmap and not pixmap.isNull():
             pixmap = pixmap.scaled(
-                width, height, Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
+                width,
+                height,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
             )
             self.set_cached_pixmap(cover_path_or_url, pixmap)
         else:

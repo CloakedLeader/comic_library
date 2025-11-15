@@ -106,7 +106,6 @@ key = {
 
 
 class Item:
-
     def __init__(self, typ: ItemType, pos: int, val: str) -> None:
         """
         Creates a new item which has been found in the string.
@@ -126,7 +125,6 @@ class Item:
 
 
 class LexerFunc(Protocol):
-
     def __call__(self, __origin: "Lexer") -> "LexerFunc | None":
         pass
 
@@ -276,7 +274,7 @@ class Lexer:
     def run(self) -> None:
         """
         This controls the state-based lexer by keeping the process running as long
-        as None isn't returned. 
+        as None isn't returned.
         """
         self.state = run_lexer
         while self.state is not None:
@@ -475,7 +473,7 @@ def lex_issue_number(lex: Lexer) -> LexerFunc:
 def lex_author(lex: Lexer) -> LexerFunc:
     """
     This attempts to identify an author in the string.
-    
+
     TODO: Reinforce this code to be better!!
     """
     lex.accept_run(str.isspace)
@@ -650,7 +648,6 @@ class Parser:
 
 
 class RequestData:
-
     def __init__(
         self,
         issue_num: int,
@@ -679,7 +676,6 @@ session.headers.update(header)
 
 
 class HttpRequest:
-
     base_address = "https://comicvine.gamespot.com/api"
 
     def __init__(self, data: RequestData, api_key: str):
@@ -775,7 +771,6 @@ class HttpRequest:
 
 
 class ResponseValidator:
-
     issue_threshold = 70
     volume_threshold = 50
 
@@ -923,7 +918,9 @@ class ResponseValidator:
 
 
 class TaggingPipeline:
-    def __init__(self, data: RequestData, path: Path, size: float, api_key: str) -> None:
+    def __init__(
+        self, data: RequestData, path: Path, size: float, api_key: str
+    ) -> None:
         self.data = data
         self.path = path
         self.size = size
@@ -1251,7 +1248,9 @@ class TagApplication:
             cbz.writestr("ComicInfo.xml", xml_content)
 
 
-def run_tagging_process(filepath: Path, api_key: str) -> Optional[tuple[list, RequestData]]:
+def run_tagging_process(
+    filepath: Path, api_key: str
+) -> Optional[tuple[list, RequestData]]:
     filename = filepath.stem
     lexer_instance = Lexer(filename)
     state: Optional[LexerFunc] = run_lexer
@@ -1271,7 +1270,6 @@ def run_tagging_process(filepath: Path, api_key: str) -> Optional[tuple[list, Re
 
     final_result = tagger.run()
     if final_result == MatchCode.ONE_MATCH:
-
         inserter = TagApplication(tagger.results[0], api_key, filename)
         inserter.get_request()
         inserter.create_metadata_dict()

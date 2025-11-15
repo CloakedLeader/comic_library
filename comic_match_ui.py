@@ -18,8 +18,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from tagging_controller import RequestData
 from comic_match_logic import ComicMatch
+from tagging_controller import RequestData
 
 
 class ComicMatcherUI(QDialog):
@@ -54,7 +54,9 @@ class ComicMatcherUI(QDialog):
         self.button_holder = QWidget()
         self.button_layout = QHBoxLayout(self.button_holder)
         self.button_layout.addWidget(self.tag, alignment=Qt.AlignmentFlag.AlignRight)
-        self.button_layout.addWidget(self.exit_button, alignment=Qt.AlignmentFlag.AlignRight)
+        self.button_layout.addWidget(
+            self.exit_button, alignment=Qt.AlignmentFlag.AlignRight
+        )
         self.main_layout.addWidget(self.content, stretch=9)
         self.main_layout.addWidget(self.button_holder, stretch=1)
 
@@ -64,7 +66,9 @@ class ComicMatcherUI(QDialog):
         cover_bytes = self.cover_getter(self.filepath)
         pixmap = QPixmap()
         pixmap.loadFromData(cover_bytes.getvalue())
-        scaled_pix = pixmap.scaledToWidth(200, Qt.TransformationMode.SmoothTransformation)
+        scaled_pix = pixmap.scaledToWidth(
+            200, Qt.TransformationMode.SmoothTransformation
+        )
         title = self.actual_data.unclean_title
         year = self.actual_data.pub_year
         number = self.actual_data.num
@@ -84,7 +88,9 @@ class ComicMatcherUI(QDialog):
         cover_pixmaps = []
 
         self.table_widget = QTableWidget(len(self.matches), 3)
-        self.table_widget.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table_widget.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
         column_titles = ["Title", "Year", "Number"]
         self.table_widget.setHorizontalHeaderLabels(column_titles)
 

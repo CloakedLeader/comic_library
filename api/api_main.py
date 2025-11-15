@@ -5,7 +5,6 @@ from sqlmodel import Session, create_engine
 import api.repo_worker as repo_worker
 from database.gui_repo_worker import RepoWorker
 
-
 app = FastAPI(title="Comic Server")
 
 engine = create_engine("sqlite:///comics.db")

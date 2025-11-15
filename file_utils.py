@@ -1,8 +1,8 @@
+import subprocess
 import tempfile
 import uuid
 import zipfile
 from pathlib import Path
-import subprocess
 
 
 def convert_cbz(cbr_path: Path, *, delete_original: bool = True) -> Path:
@@ -38,9 +38,9 @@ def convert_cbz(cbr_path: Path, *, delete_original: bool = True) -> Path:
         result = subprocess.run(
             ["7z", "x", str(cbr_path), f"-o{tempdir}", "-y"],
             capture_output=True,
-            text=True
+            text=True,
         )
-        
+
         if result.returncode != 0:
             raise RuntimeError(
                 f"7-Zip extraction failed for {cbr_path.name}:\n{result.stderr}"

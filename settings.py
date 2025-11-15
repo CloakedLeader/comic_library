@@ -1,15 +1,16 @@
+import os
+
+from dotenv import load_dotenv, set_key
 from PySide6.QtWidgets import (
+    QDialog,
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
     QVBoxLayout,
     QWidget,
-    QFileDialog,
-    QDialog
 )
-import os
-from dotenv import load_dotenv, set_key
 
 ENV_PATH = ".env"
 
@@ -26,7 +27,9 @@ class Settings(QDialog):
         self.api_input.setPlaceholderText("Your API key..")
         self.main_layout.addWidget(self.api_input)
 
-        self.main_layout.addWidget(QLabel("Select the parent directory for your comics:"))
+        self.main_layout.addWidget(
+            QLabel("Select the parent directory for your comics:")
+        )
         self.path_input = QLineEdit()
         self.path_input.setPlaceholderText("No folder selected")
         self.main_layout.addWidget(self.path_input)
@@ -73,22 +76,25 @@ class Settings(QDialog):
         else:
             current_dir = ""
             current_key = ""
-        
+
         return current_key, current_dir
-    
+
     def save_env_vars(self):
         api_key = self.api_input.text().strip()
         folder = self.path_input.text().strip()
         if not os.path.exists(ENV_PATH):
             with open(ENV_PATH, "w") as f:
                 f.write("")
-        
+
         set_key(ENV_PATH, "API_KEY", api_key)
         set_key(ENV_PATH, "ROOT_DIR", folder)
         load_dotenv(ENV_PATH, override=True)
 
     def okay_pressed(self):
-        if self.api_input.text().strip() != self.key or self.path_input.text().strip() != self.dir:
+        if (
+            self.api_input.text().strip() != self.key
+            or self.path_input.text().strip() != self.dir
+        ):
             self.unsaved_changes = SaveChanges()
             result = self.unsaved_changes.exec()
 

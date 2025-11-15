@@ -126,9 +126,7 @@ class ImageExtraction:
         self.image_names.sort()
         common_files_index = int(len(self.image_names) * 0.4)
         early_files = self.image_names[:common_files_index]
-        file_paths_to_compare = random.sample(
-            early_files, min(5, len(early_files))
-        )  # nosec B311
+        file_paths_to_compare = random.sample(early_files, min(5, len(early_files)))  # nosec B311
         last_files = self.image_names[-3:]
         not_matching_files = {
             j

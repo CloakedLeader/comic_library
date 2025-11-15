@@ -1,3 +1,5 @@
+from typing import Callable
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -6,7 +8,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from typing import Callable
 
 
 class StyledButton(QWidget):
@@ -51,11 +52,12 @@ class StyledButton(QWidget):
 
 class ButtonDisplay(QWidget):
     def __init__(
-            self,
-            header: str,
-            titles: list[str],
-            ids: list[int],
-            left_clicked: Callable,):
+        self,
+        header: str,
+        titles: list[str],
+        ids: list[int],
+        left_clicked: Callable,
+    ):
         super().__init__()
 
         layout = QVBoxLayout()

@@ -1,7 +1,8 @@
 import os
 import sqlite3
-from dotenv import load_dotenv
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 from classes.helper_classes import GUIComicInfo
 
