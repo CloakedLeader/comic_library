@@ -40,15 +40,15 @@ class Settings(QDialog):
         self.exit.clicked.connect(self.reject)
         self.apply = QPushButton("Apply")
         self.apply.clicked.connect(self.save_env_vars)
-        self.finished = QPushButton("Ok")
-        self.finished.clicked.connect(self.okay_pressed)
+        self.okay_button = QPushButton("Ok")
+        self.okay_button.clicked.connect(self.okay_pressed)
         button_holder.addWidget(self.exit, 1)
         button_holder.addWidget(QWidget(), 2)
         right_holder = QHBoxLayout()
         right_widget = QWidget()
         right_widget.setLayout(right_holder)
         right_holder.addWidget(self.apply)
-        right_holder.addWidget(self.finished)
+        right_holder.addWidget(self.okay_button)
         button_holder.addWidget(right_widget, 1)
 
         self.main_layout.addWidget(button_display)
@@ -70,6 +70,9 @@ class Settings(QDialog):
                 self.api_input.setText(current_key)
             if current_dir != "":
                 self.path_input.setText(current_dir)
+        else:
+            current_dir = ""
+            current_key = ""
         
         return current_key, current_dir
     
@@ -89,11 +92,11 @@ class Settings(QDialog):
             self.unsaved_changes = SaveChanges()
             result = self.unsaved_changes.exec()
 
-            if result == QDialog.Accepted:
+            if result == QDialog.DialogCode.Accepted:
                 self.save_env_vars()
                 self.accept()
 
-            elif result == QDialog.Rejected:
+            elif result == QDialog.DialogCode.Rejected:
                 self.api_input.setText(self.key)
                 self.path_input.setText(self.dir)
                 self.accept()

@@ -14,8 +14,8 @@ from bs4 import BeautifulSoup
 from classes.helper_classes import RSSComicInfo
 
 load_dotenv()
-
-ROOT_DIR = Path(os.getenv("ROOT_DIR"))
+root_folder = os.getenv("ROOT_DIR") or ""
+ROOT_DIR = Path(root_folder)
 
 
 class DownloadControllerAsync:
@@ -198,7 +198,7 @@ class DownloadServiceAsync:
 
     async def download_comic(
         self, comic_download_link: str, progress_callback: Callable
-    ) -> str:
+    ) -> Path:
         """
         Download comic file asynchronously.
 

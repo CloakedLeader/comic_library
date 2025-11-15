@@ -52,3 +52,6 @@ class ReadingOrderCreation(QDialog):
         
         self.open_order_creation()
 
+    def open_order_creation(self):
+        pass
+

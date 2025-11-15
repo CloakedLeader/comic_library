@@ -3,7 +3,6 @@ import zipfile
 from collections import OrderedDict
 from functools import partial
 from io import BytesIO
-from pathlib import Path
 
 from PIL import Image
 from PySide6.QtCore import Qt, QThread, QTimer, Signal
@@ -20,7 +19,6 @@ from PySide6.QtWidgets import (
 from classes.helper_classes import GUIComicInfo
 from database.gui_repo_worker import RepoWorker
 
-# from metadata_gui_panel import MetadataDialog
 from metadata_gui_panel import MetadataDialog
 
 
@@ -110,7 +108,7 @@ class ImagePreloader(QThread):
                 image.tobytes("raw", "RGBA"),
                 image.width,
                 image.height,
-                QImage.Format_RGBA8888,
+                QImage.Format.Format_RGBA8888,
             )
             pixmap = QPixmap.fromImage(qimage)
 
@@ -134,8 +132,8 @@ class SimpleReader(QMainWindow):
 
         self.setWindowTitle("Comic Reader")
 
-        self.image_label = QLabel("Loading...", alignment=Qt.AlignCenter)
-        self.page_label = QLabel("Page 1", alignment=Qt.AlignCenter)
+        self.image_label = QLabel("Loading...", alignment=Qt.AlignmentFlag.AlignCenter)
+        self.page_label = QLabel("Page 1", alignment=Qt.AlignmentFlag.AlignCenter)
 
         self.menu_bar_widget = QWidget()
         self.menu_bar_layout = QHBoxLayout()
@@ -172,7 +170,7 @@ class SimpleReader(QMainWindow):
         self.comments_toolbar.hide()
         self.current_toolbar = self.navigation_toolbar
 
-        self.image_label.setFocusPolicy(Qt.StrongFocus)
+        self.image_label.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setCentralWidget(self.image_label)
 
         self.display_current_page()
@@ -218,7 +216,7 @@ class SimpleReader(QMainWindow):
 
     def render_pixmap(self, index: int, pixmap: QPixmap) -> None:
         scaled = pixmap.scaledToHeight(
-            self.image_label.height(), Qt.SmoothTransformation
+            self.image_label.height(), Qt.TransformationMode.SmoothTransformation
         )
         self.image_label.setPixmap(scaled)
         self.page_label.setText(f"Page {index + 1} / {self.comic.total_pages}")
@@ -275,9 +273,9 @@ class SimpleReader(QMainWindow):
 
     def keyPressEvent(self, event):
         key = event.key()
-        if key == Qt.Key_Right:
+        if key == Qt.Key.Key_Right:
             self.next_page()
-        elif key == Qt.Key_Left:
+        elif key == Qt.Key.Key_Left:
             self.prev_page()
 
     def mouseMoveEvent(self, event):

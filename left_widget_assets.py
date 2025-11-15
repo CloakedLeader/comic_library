@@ -72,7 +72,7 @@ class ButtonDisplay(QWidget):
         for title, id in combined:
             widget = StyledButton(title, id, self)
             widget.clicked.connect(left_clicked)
-            widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+            widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
             layout.addWidget(widget)
 
         self.setLayout(layout)

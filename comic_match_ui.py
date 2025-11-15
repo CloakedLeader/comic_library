@@ -19,13 +19,14 @@ from PySide6.QtWidgets import (
 )
 
 from tagging_controller import RequestData
+from comic_match_logic import ComicMatch
 
 
 class ComicMatcherUI(QDialog):
     def __init__(
         self,
         actual_info: RequestData,
-        best_matches: list[tuple[dict, int]],
+        best_matches: list[tuple[ComicMatch, int]],
         all_matches: list[dict],
         filepath: Path,
     ):
@@ -52,8 +53,8 @@ class ComicMatcherUI(QDialog):
         self.content_layout.addWidget(self.comic_matches)
         self.button_holder = QWidget()
         self.button_layout = QHBoxLayout(self.button_holder)
-        self.button_layout.addWidget(self.tag, alignment=Qt.AlignRight)
-        self.button_layout.addWidget(self.exit_button, alignment=Qt.AlignRight)
+        self.button_layout.addWidget(self.tag, alignment=Qt.AlignmentFlag.AlignRight)
+        self.button_layout.addWidget(self.exit_button, alignment=Qt.AlignmentFlag.AlignRight)
         self.main_layout.addWidget(self.content, stretch=9)
         self.main_layout.addWidget(self.button_holder, stretch=1)
 
@@ -63,7 +64,7 @@ class ComicMatcherUI(QDialog):
         cover_bytes = self.cover_getter(self.filepath)
         pixmap = QPixmap()
         pixmap.loadFromData(cover_bytes.getvalue())
-        scaled_pix = pixmap.scaledToWidth(200, Qt.SmoothTransformation)
+        scaled_pix = pixmap.scaledToWidth(200, Qt.TransformationMode.SmoothTransformation)
         title = self.actual_data.unclean_title
         year = self.actual_data.pub_year
         number = self.actual_data.num
@@ -83,7 +84,7 @@ class ComicMatcherUI(QDialog):
         cover_pixmaps = []
 
         self.table_widget = QTableWidget(len(self.matches), 3)
-        self.table_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table_widget.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         column_titles = ["Title", "Year", "Number"]
         self.table_widget.setHorizontalHeaderLabels(column_titles)
 
@@ -141,7 +142,7 @@ class ComicMatcherUI(QDialog):
             ]
             if not image_files:
                 print("Empty archive.")
-                return
+                raise ValueError("Not a comic file!")
             image_files.sort()
             cover = zip_ref.read(image_files[0])
             return BytesIO(cover)
@@ -158,5 +159,5 @@ class ComicMatcherUI(QDialog):
         except Exception as e:
             print(f"Failed to load image from {url}: {e}")
         fallback = QPixmap(120, 180)
-        fallback.fill(Qt.gray)
+        fallback.fill(Qt.GlobalColor.gray)
         return fallback

@@ -1,12 +1,11 @@
 import asyncio
 
-# import inspect
 import os
 import os.path
 import sys
 import threading
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, Sequence
 from dotenv import load_dotenv
 
 import uvicorn
@@ -54,7 +53,8 @@ from settings import Settings
 
 
 load_dotenv()
-ROOT_DIR = Path(os.getenv("ROOT_DIR"))
+root_string = os.getenv("ROOT_DIR")
+ROOT_DIR = Path(root_string if root_string is not None else "")
 
 
 class HomePage(QMainWindow):
@@ -116,7 +116,7 @@ class HomePage(QMainWindow):
         # self.settings_action.triggered.connect(self.open_settings)
 
         spacer = QWidget()
-        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         toolbar.addWidget(spacer)
 
         self.search_bar = QLineEdit()
@@ -218,13 +218,13 @@ class HomePage(QMainWindow):
 
     def create_scroll_area(
         self,
-        list_of_info: list[GUIComicInfo | RSSComicInfo],
+        list_of_info: Sequence[GUIComicInfo | RSSComicInfo],
         header: str,
         left_clicked: Optional[Callable],
         right_clicked: Optional[Callable],
         double_left_clicked: Optional[Callable],
         progresses: Optional[list[float]] = None,
-    ) -> QScrollArea:
+    ) -> QWidget:
         """
         Create a horizontal scroll area populated with comic widgets.
 
@@ -248,7 +248,7 @@ class HomePage(QMainWindow):
         container.setLayout(layout)
 
         title = QLabel(f"{header}")
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet(
             """font-size: 18px;
                              font-weight: bold; padding: 10px;"""
@@ -300,7 +300,7 @@ class HomePage(QMainWindow):
 
     def create_continue_reading_area(
         self, list_of_comics_marked_as_read: list[GUIComicInfo], progress: list[float]
-    ) -> QScrollArea:
+    ) -> QWidget:
         """
         Creates a scroll area for comics marked as continue reading.
 
@@ -318,7 +318,7 @@ class HomePage(QMainWindow):
 
     def create_recommended_reading_area(
         self, list_of_recommended_comics: list[GUIComicInfo]
-    ) -> QScrollArea:
+    ) -> QWidget:
         """
         Creates a scroll area for comics marked as recommended.
 
@@ -336,7 +336,7 @@ class HomePage(QMainWindow):
 
     def create_review_area(
         self, list_of_unreviewed_comics: list[GUIComicInfo]
-    ) -> QScrollArea:
+    ) -> QWidget:
         """
         Creates a scroll area for comics marked as requiring
         review.
@@ -353,7 +353,7 @@ class HomePage(QMainWindow):
             double_left_clicked=None,
         )
 
-    def create_rss_area(self, num: int = 8) -> QScrollArea:
+    def create_rss_area(self, num: int = 8) -> QWidget:
         """
         Creates a scroll area for RSS feed comics.
 
@@ -399,21 +399,22 @@ class HomePage(QMainWindow):
             """
             widget = QWidget()
             layout = QVBoxLayout()
-            layout.setAlignment(Qt.AlignCenter)
+            layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
             widget.setLayout(layout)
 
             title_label = QLabel(title)
-            title_label.setAlignment(Qt.AlignCenter)
+            title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             pixmap = QPixmap(image_path)
             image_label = QLabel()
             image_label.setPixmap(
-                pixmap.scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                pixmap.scaled(30, 30, Qt.AspectRatioMode.KeepAspectRatio,
+                              Qt.TransformationMode.SmoothTransformation)
             )
-            image_label.setAlignment(Qt.AlignCenter)
+            image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             value_label = QLabel(value)
-            value_label.setAlignment(Qt.AlignCenter)
+            value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             layout.addWidget(title_label)
             layout.addWidget(image_label)
@@ -445,7 +446,7 @@ class HomePage(QMainWindow):
         final_layout = QVBoxLayout()
         final_widget.setLayout(final_layout)
         title = QLabel("Your Statistics")
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet(
             """font-size: 12px;
                              font-weight: bold; padding: 2px;"""
@@ -521,6 +522,9 @@ class HomePage(QMainWindow):
 
     def search(self, text):
         display_info = text_search(text)
+        if display_info is None:
+            # TODO: Need to add logic here.
+            raise ValueError("Incorrect type passed!")
         search_view = ComicGridView(display_info)
         for i in reversed(range(self.search_layout.count())):
             widget_to_remove = self.search_layout.itemAt(i).widget()
@@ -545,7 +549,7 @@ class HomePage(QMainWindow):
         dialog = ComicMatcherUI(
             actual_comic, query_results, all_results, filepath
         )
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             selected = dialog.get_selected_result()
             if selected:
                 return selected
@@ -555,7 +559,7 @@ class HomePage(QMainWindow):
 
     def create_collection(self):
         dialog = CollectionCreation()
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             print(dialog.textbox.text())
 
     def clicked_collection(self, id: int):
@@ -569,6 +573,9 @@ class HomePage(QMainWindow):
         clear_widgets()
         with RepoWorker() as worker:
             comic_ids = worker.get_collection_contents(id)
+            if comic_ids is None:
+                raise ValueError("No collection found.")
+            # TODO: Add method to communicate errors to user.
             comic_infos = worker.create_basemodel(comic_ids)
         collection_grid = ComicGridView(comic_infos)
         self.coll_display.addWidget(collection_grid)
@@ -576,12 +583,12 @@ class HomePage(QMainWindow):
 
     def create_reading_order(self):
         dialog = ReadingOrderCreation()
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             print(dialog.textbox.text())
     
     def open_settings(self):
         dialog = Settings()
-        if dialog.exec() == QDialog.Accepted:
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             return
 
     def update_status(self, message: str) -> None:
@@ -632,14 +639,14 @@ def start_api():
     uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
 
 
-async def main():
-    app = QApplication(sys.argv)
-    loop = QEventLoop(app)
-    asyncio.set_event_loop(loop)
-    window = HomePage()
-    window.show()
-    with loop:
-        await loop.run_forever()
+# async def main():
+#     app = QApplication(sys.argv)
+#     loop = QEventLoop(app)
+#     asyncio.set_event_loop(loop)
+#     window = HomePage()
+#     window.show()
+#     with loop:
+#         await loop.run_forever()
 
 
 if __name__ == "__main__":

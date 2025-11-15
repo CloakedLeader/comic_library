@@ -1,7 +1,6 @@
 import calendar
 import re
 import traceback
-from pathlib import Path
 
 from fuzzywuzzy import fuzz
 from word2number import w2n
@@ -142,6 +141,8 @@ class MetadataProcessing:
         if self.raw_info.title and self.raw_info.series:
             title_raw = self.raw_info.title.lower()
             series_raw = self.raw_info.series.lower()
+        
+        # TODO: Change this logic to avoid null errors.
 
         if ":" in series_raw:
             series_name, collection_title = map(str.strip, series_raw.split(":", 1))
@@ -183,7 +184,7 @@ class MetadataProcessing:
                 issue_number = int(num_text)
             else:
                 try:
-                    issue_number = w2n.word_to_num(num_text)
+                    issue_number = int(w2n.word_to_num(num_text))
                 except ValueError:
                     issue_number = 0  # Need a logic check later, 0 signals an error.
 

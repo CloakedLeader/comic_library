@@ -41,7 +41,7 @@ class ComicGridView(QWidget):
             )
             self.comic_widgets.append(comic_widget)
             grid_layout.addWidget(
-                comic_widget, row, col, alignment=Qt.AlignTop  # | Qt.AlignLeft
+                comic_widget, row, col, alignment=Qt.AlignmentFlag.AlignTop  # | Qt.AlignLeft
             )
 
             col += 1
