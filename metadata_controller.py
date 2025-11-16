@@ -18,7 +18,8 @@ from extract_meta_xml import MetadataExtraction
 from file_utils import convert_cbz, generate_uuid
 from metadata_cleaning import MetadataProcessing, PublisherNotKnown
 from search import insert_into_fts5
-from tagging_controller import RequestData, extract_and_insert, run_tagging_process
+from tagging_controller import (RequestData, extract_and_insert,
+                                run_tagging_process)
 
 logging.basicConfig(
     level=logging.DEBUG,

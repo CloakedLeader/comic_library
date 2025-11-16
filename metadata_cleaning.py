@@ -136,77 +136,124 @@ class MetadataProcessing:
             If issue number is zero, this signifies an error in the processing.
         """
 
-        out: dict[str, str | int] = {}
-        common_title_words = {"tpb", "hc"}
-        if self.raw_info.title and self.raw_info.series:
-            title_raw = self.raw_info.title.lower()
-            series_raw = self.raw_info.series.lower()
+        # ! Function rewritten so may have broken.
 
-        # TODO: Change this logic to avoid null errors.
+        title_raw = (self.raw_info.title or "").lower()
+        series_raw = (self.raw_info.series or "").lower()
 
-        if ":" in series_raw:
-            series_name, collection_title = map(str.strip, series_raw.split(":", 1))
-        elif ":" in title_raw:
-            _, collection_title = map(str.strip, title_raw.split(":", 1))
-            series_name = series_raw
-        else:
-            series_name = series_raw
-            collection_title = title_raw
+        def split_title_and_series(raw_title: str, raw_series: str) -> tuple[str, str]:
+            """
+            Deterine series name and collection based on ':' placement.
 
-        for i in common_title_words:
-            if i == collection_title:
-                collection_title = series_name
+            Args:
+                raw_title (str): The title as captured from API.
+                raw_series (str): The series name as captured from API.
 
-        collection_type = 1
-        for keyword, type_id, _ in SERIES_OVERRIDES:
-            if keyword in series_name.lower():
-                collection_type = type_id
-                break
-            if keyword in collection_title.lower():
-                collection_type = type_id
-                break
+            Returns:
+                tuple[str, str]: (series_name, collection_title)
+            """
 
-        volume_match = re.match(
-            r"(?:vol(?:ume)?|book)\.?\s*(\d+|one|two|three|four|five|six|"
-            + r"seven|eight|nine|ten|eleven|twelve)\s*[:\-]?\s*(.*)",
-            title_raw,
-            re.I,
-        )
+            if ":" in raw_title:
+                preterm, collection_title = map(str.strip, raw_title.split(":", 1))
 
-        issue_number = None
-        rest_title = None
+                if include_volume_signifier(preterm):
+                    return raw_series.strip(), collection_title
+                else:
+                    return preterm.strip(), collection_title
 
-        if volume_match:
-            num_text = volume_match.group(1).lower()
-            rest_title = volume_match.group(2).strip().lower()
+            else:
+                if include_volume_signifier(raw_title):
+                    return raw_series.strip(), ""
+
+            if ":" in raw_series:
+                series, title = map(str.strip, raw_series.split(":", 1))
+                return series, title
+
+            return raw_series.strip(), raw_title.strip()
+
+        def include_volume_signifier(term: str) -> bool:
+            volume_pattern = re.compile(r"\b(vol(?:ume)?|book)\b", re.I)
+            return bool(volume_pattern.search(term))
+
+        def normalise_collection_title(collection_title: str, series_name: str) -> str:
+            """Replace ambiguous titles like 'tpb' or 'hc"""
+
+            if collection_title in {"tpb", "hc"}:
+                return series_name
+            return collection_title
+
+        def get_collection_type(collection_title: str, series_name: str) -> int:
+            """Determine collection type via SERIES_OVERRRIDES."""
+
+            for keyword, type_id, _ in SERIES_OVERRIDES:
+                if (
+                    keyword in series_name.lower()
+                    or keyword in collection_title.lower()
+                ):
+                    return type_id
+            return 1
+
+        def parse_volume_number(raw_title: str) -> tuple[int | None, str | None]:
+            """
+            Parses volume numbers like 'Vol. 2', 'Book One', etc.
+
+
+            Args:
+                raw_title (str): The title to be cleaned of unhelpful terms.
+
+            Returns:
+                tuple[int | None, str | None]: (volume_number or None, remaining_title or None)
+            """
+
+            pattern = (
+                r"(?:vol(?:ume)?|book)\.?\s*"
+                r"(\d+|one|two|three|four|five|six|seven|eight|nine|ten|"
+                r"eleven|twelve)\s*[:\-]?\s*(.*)"
+            )
+
+            match = re.match(pattern, raw_title, re.I)
+            if not match:
+                return None, None
+
+            num_text = match.group(1).lower()
+            rest = match.group(2).strip().lower()
 
             if num_text.isdigit():
-                issue_number = int(num_text)
+                volume_num = int(num_text)
             else:
                 try:
-                    issue_number = int(w2n.word_to_num(num_text))
+                    volume_num = int(w2n.word_to_num(num_text))
                 except ValueError:
-                    issue_number = 0  # Need a logic check later, 0 signals an error.
+                    volume_num = 0  #! Need a logic check later as 0 signals error!.
+            return volume_num, rest
+
+        series_name, collection_title = split_title_and_series(title_raw, series_raw)
+        collection_title = normalise_collection_title(collection_title, series_name)
+        collection_type = get_collection_type(series_name, collection_title)
+
+        volume_num, rest_title = parse_volume_number(title_raw)
 
         if rest_title:
-            collection_title = rest_title
+            if collection_title != rest_title:
+                # TODO: Some logic here.
+                # collection_title = rest_title
+                pass
 
-        if issue_number is None:
-            self.title_info["title"] = str(self.raw_info.title)
-            self.title_info["series"] = str(self.raw_info.series)
+        if volume_num is None:
+            print("Could not find a good volume number!")
+            # self.title_info["title"] = str(self.raw_info.title)
+            # self.title_info["series"] = str(self.raw_info.series)
+            self.title_info["title"] = self.title_case(collection_title)
+            self.title_info["series"] = self.title_case(series_name)
             self.title_info["collection_type"] = collection_type
-            self.title_info["volume_num"] = (
-                0 if self.raw_info.volume_num is None else self.raw_info.volume_num
-            )
+            self.title_info["volume_num"] = self.raw_info.volume_num or 0
             return self.title_info
 
-        else:
-            out["title"] = self.title_case(collection_title)
-            out["series"] = self.title_case(series_name)
-            out["collection_type"] = collection_type
-            out["volume_num"] = issue_number
-            self.title_info = out
-            return out
+        self.title_info["title"] = self.title_case(collection_title)
+        self.title_info["series"] = self.title_case(series_name)
+        self.title_info["collection_type"] = collection_type
+        self.title_info["volume_num"] = volume_num
+        return self.title_info
 
     def check_issue_numbers_match(self) -> bool:
         if self.title_info is None:
@@ -282,15 +329,19 @@ class MetadataProcessing:
         return santised
 
     def new_filename_and_folder(self) -> tuple[str, int]:
-        date_suffix = f"{calendar.month_abbr[self.out_data.month]} {self.out_data.year}"
+        if not hasattr(self, "out_data"):
+            self.run()
+
+        date_suffix = f"{calendar.month_abbr[self.out_data.month]} {self.out_data.year}"  # type: ignore
         volume_num = self.out_data.volume_num
         collection_id = self.out_data.collection_type
+        collection_name = ""
         for _, val, abbr in SERIES_OVERRIDES:
             if val == collection_id:
                 collection_name = abbr.strip()
                 break
-        series_name = self.sanitise(self.out_data.series).strip()
-        title_name = self.sanitise(self.out_data.title).strip()
+        series_name = self.sanitise(str(self.out_data.series)).strip()
+        title_name = self.sanitise(str(self.out_data.title)).strip()
         filename = f"{series_name} - {title_name} {collection_name} #0{volume_num} ({date_suffix}).cbz"  # noqa: E501
         filename = self.sanitise(filename).strip()
-        return filename, self.out_data.publisher_id
+        return filename, self.out_data.publisher_id  # type: ignore

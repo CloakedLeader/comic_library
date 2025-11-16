@@ -10,24 +10,11 @@ import uvicorn
 from dotenv import load_dotenv
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import (
-    QApplication,
-    QDialog,
-    QFileSystemModel,
-    QHBoxLayout,
-    QLabel,
-    QLineEdit,
-    QMainWindow,
-    QProgressBar,
-    QScrollArea,
-    QSizePolicy,
-    QSplitter,
-    QStackedWidget,
-    QToolBar,
-    QTreeView,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import (QApplication, QDialog, QFileSystemModel,
+                               QHBoxLayout, QLabel, QLineEdit, QMainWindow,
+                               QProgressBar, QScrollArea, QSizePolicy,
+                               QSplitter, QStackedWidget, QToolBar, QTreeView,
+                               QVBoxLayout, QWidget)
 from qasync import QEventLoop
 
 from api.api_main import app

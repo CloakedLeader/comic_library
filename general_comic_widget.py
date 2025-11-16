@@ -5,11 +5,7 @@ from typing import Callable, Optional
 import requests
 from PySide6.QtCore import QPoint, QRect, Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPixmap
-from PySide6.QtWidgets import (
-    QLabel,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from classes.helper_classes import GUIComicInfo, RSSComicInfo
 

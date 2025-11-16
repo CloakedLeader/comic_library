@@ -1,10 +1,5 @@
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import (
-    QGridLayout,
-    QScrollArea,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import QGridLayout, QScrollArea, QVBoxLayout, QWidget
 
 from classes.helper_classes import GUIComicInfo
 from database.gui_repo_worker import RepoWorker
