@@ -1,7 +1,7 @@
 import os
 import re
 from dotenv import load_dotenv
-from itemtypes import ItemType, Item
+from .itemtypes import ItemType, Item
 
 
 load_dotenv()

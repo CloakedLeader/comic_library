@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Callable, Optional, Protocol
 from dotenv import load_dotenv
 
-from itemtypes import Item, ItemType
+from .itemtypes import Item, ItemType
 
 
 load_dotenv()
@@ -216,9 +216,8 @@ def run_lexer(lex: Lexer) -> Optional[LexerFunc]:
         lex.emit(ItemType.EOF)
         return None
 
-    elif r.isspace():
-        lex.ignore()
-        return run_lexer
+    elif is_space(r):
+        return lex_space
 
     elif r.isnumeric():
         lex.backup()

@@ -4,7 +4,7 @@ import imagehash
 from fuzzywuzzy import fuzz
 from PIL import Image
 
-from requester import RequestData
+from .requester import RequestData
 
 
 class ResponseValidator:
@@ -140,13 +140,14 @@ class ResponseValidator:
 
     def cover_img_comp_w_weight(
         self, known_image_hashes, unsure_image_bytes, max_dist=64
-    ):
+    ) -> float:
         weights = {"phash": 0.6, "dhash": 0.2, "ahash": 0.2}
-        unsure_hashes = {
-            "phash": imagehash.phash(unsure_image_bytes),
-            "dhash": imagehash.dhash(unsure_image_bytes),
-            "ahash": imagehash.average_hash(unsure_image_bytes),
-        }
+        with Image.open(unsure_image_bytes) as img:
+            unsure_hashes = {
+                "phash": imagehash.phash(img),
+                "dhash": imagehash.dhash(img),
+                "ahash": imagehash.average_hash(img),
+            }
         score = 0.0
         for key in weights:
             dist = known_image_hashes[key] - unsure_hashes[key]

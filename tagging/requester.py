@@ -80,8 +80,8 @@ class HttpRequest:
         self.url_iss = prepared.url
         print(self.url_iss)
 
-    def get_request(self, type: str):
-        if type == "search":
+    def get_request(self, request_type: str):
+        if request_type == "search":
             if not hasattr(self, "url_search"):
                 raise RuntimeError("You must build url before sending request.")
             if self.url_search is None:
@@ -95,7 +95,7 @@ class HttpRequest:
                 print(response.text)
             data = response.json()
 
-        elif type == "iss":
+        elif request_type == "iss":
             if not hasattr(self, "url_iss"):
                 raise RuntimeError("You must build url before sending request.")
             if self.url_iss is None:
@@ -110,10 +110,10 @@ class HttpRequest:
             data = response.json()
 
         else:
-            print("Need to specify which database to search in.")
+            raise ValueError(f"Unknown request type: {request_type!r}")
         if data["error"] != "OK":
             print("Error, please investigate")
-            return
+            return None
         # Want to tell the user to manually tag the comic.
         return data
 
