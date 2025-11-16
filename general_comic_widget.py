@@ -5,11 +5,7 @@ from typing import Callable, Optional
 import requests
 from PySide6.QtCore import QPoint, QRect, Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPixmap
-from PySide6.QtWidgets import (
-    QLabel,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from classes.helper_classes import GUIComicInfo, RSSComicInfo
 
@@ -46,7 +42,7 @@ class GeneralComicWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         cover_label = QLabel()
-        cover_label.setAlignment(Qt.AlignCenter)
+        cover_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         cover_path_or_url = (
             comic_info.cover_path
@@ -63,12 +59,15 @@ class GeneralComicWidget(QWidget):
 
         if pixmap and not pixmap.isNull():
             pixmap = pixmap.scaled(
-                width, height, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                width,
+                height,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
             )
             self.set_cached_pixmap(cover_path_or_url, pixmap)
         else:
             pixmap = QPixmap(width, height)
-            pixmap.fill(Qt.gray)
+            pixmap.fill(Qt.GlobalColor.gray)
 
         if progress:
             pixmap = self.add_read_progress(pixmap, progress)
@@ -77,7 +76,7 @@ class GeneralComicWidget(QWidget):
 
         title_label = QLabel(self.comic_info.title)
         title_label.setWordWrap(True)
-        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         layout.addWidget(cover_label)
         layout.addWidget(title_label)

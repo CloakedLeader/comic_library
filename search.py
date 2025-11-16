@@ -1,12 +1,14 @@
 import os
 import sqlite3
-from dotenv import load_dotenv
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 from classes.helper_classes import GUIComicInfo
 
 load_dotenv()
-ROOT_DIR = Path(os.getenv("ROOT_DIR"))
+root_folder = os.getenv("ROOT_DIR")
+ROOT_DIR = Path(root_folder if root_folder is not None else "")
 DB_PATH = os.path.abspath("comics.db")
 conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()

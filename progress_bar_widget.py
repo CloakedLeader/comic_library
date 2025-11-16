@@ -18,7 +18,7 @@ class CoverWithProgress(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.SmoothPixmapTransform)
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
 
         painter.drawPixmap(self.rect(), self.pixmap)
 
@@ -27,7 +27,7 @@ class CoverWithProgress(QWidget):
         bar_rect = QRect(0, self.height() - bar_height, bar_width, bar_height)
 
         painter.setBrush(QColor(80, 80, 80, 180))
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.NoPen)  # type: ignore
         painter.drawRect(0, self.height() - bar_height, self.width(), bar_height)
 
         painter.setBrush(QColor(0, 200, 0, 200))

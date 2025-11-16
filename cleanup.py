@@ -1,14 +1,15 @@
 import os
 import sqlite3
 from pathlib import Path
+
 from dotenv import load_dotenv
 
-
 load_dotenv()
+root_folder = os.getenv("ROOT_DIR") or ""
+ROOT_DIR = Path(root_folder)
+
 
 def delete_comic(filepath: str) -> None:
-    base_dir = Path(os.getenv("ROOT_DIR"))
-
     conn = sqlite3.connect("comics.db")
     cursor = conn.cursor()
 
@@ -17,7 +18,7 @@ def delete_comic(filepath: str) -> None:
     if not results:
         return None
     primary_key = results[0]
-    cover_dir = base_dir / ".covers"
+    cover_dir = ROOT_DIR / ".covers"
     for suffix in ["_t.jpg", "_b.jpg"]:
         cover_file = cover_dir / f"{primary_key}{suffix}"
         if cover_file.exists():
@@ -36,7 +37,8 @@ def delete_comic(filepath: str) -> None:
     }
     for table in tables:
         cursor.execute(
-            f"DELETE FROM {table} WHERE comic_id = ?", (primary_key,)  # nosec B608
+            f"DELETE FROM {table} WHERE comic_id = ?",
+            (primary_key,),  # nosec B608
         )
 
     conn.commit()

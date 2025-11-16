@@ -1,2 +1,3 @@
-[tool.isort]
-profile = "black"
+[tool.mypy]
+files = ["src/", "tests/"]
+disable_error_code = ["attr-defined", "arg-type"]

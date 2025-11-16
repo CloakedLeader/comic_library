@@ -10,7 +10,7 @@ class ComicMatch(TypedDict):
     number: int
     cover_link: str
     description: str
-    id: int
+    # id: int
 
 
 class ResultsFilter:
@@ -61,7 +61,12 @@ class ResultsFilter:
         return 1.0 if candidate_number == self.expected_info.num else 0.0
 
     def score_results(self, result: dict) -> float:
-        name = cast(str, result.get("name") or result.get("volume").get("name"))
+        volume_name = result.get("volume")
+        if volume_name is not None:
+            subvolume_name = volume_name.get("name")
+        else:
+            subvolume_name = ""
+        name = cast(str, result.get("name") or subvolume_name)
         volume = cast(dict, result.get("volume", {}))
         cover_date = cast(str, result.get("cover_date", ""))
         issue_num = cast(str, result.get("issue_number", ""))
@@ -90,20 +95,17 @@ class ResultsFilter:
         return [(r, position) for _, r, position in scored[:top_n]]
 
     def present_choices(self) -> list[tuple[ComicMatch, int]]:
-
         top_results = self.filter_results()
-        best_results: list[ComicMatch] = [
-            (
-                {
-                    "title": str(r["name"]),
-                    "series": str(r["volume"]["name"]),
-                    "year": int(str(r["cover_date"])[:4]),
-                    "number": int(r["issue_number"]),
-                    "cover_link": str(r["image"]["thumb_url"]),
-                    "description": str(r["description"]),
-                },
-                position,
-            )
-            for r, position in top_results
-        ]
+        best_results: list[tuple[ComicMatch, int]] = []
+        for r, position in top_results:
+            typedict: ComicMatch = {
+                "title": str(r["name"]),
+                "series": str(r["volume"]["name"]),
+                "year": int(str(r["cover_date"])[:4]),
+                "number": int(r["issue_number"]),
+                "cover_link": str(r["image"]["thumb_url"]),
+                "description": str(r["description"]),
+            }
+            best_results.append((typedict, position))
+
         return best_results

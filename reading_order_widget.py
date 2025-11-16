@@ -1,12 +1,5 @@
-from PySide6.QtWidgets import (
-    QDialog,
-    QHBoxLayout,
-    QLabel,
-    QLineEdit,
-    QPushButton,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QLineEdit,
+                               QPushButton, QVBoxLayout, QWidget)
 
 from database.gui_repo_worker import RepoWorker
 
@@ -49,6 +42,8 @@ class ReadingOrderCreation(QDialog):
             if description == "":
                 description = None
             worker.create_reading_order(name, description)
-        
+
         self.open_order_creation()
 
+    def open_order_creation(self):
+        pass

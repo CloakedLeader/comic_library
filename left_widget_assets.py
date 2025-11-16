@@ -1,12 +1,8 @@
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import (
-    QHBoxLayout,
-    QLabel,
-    QSizePolicy,
-    QVBoxLayout,
-    QWidget,
-)
 from typing import Callable
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout,
+                               QWidget)
 
 
 class StyledButton(QWidget):
@@ -51,11 +47,12 @@ class StyledButton(QWidget):
 
 class ButtonDisplay(QWidget):
     def __init__(
-            self,
-            header: str,
-            titles: list[str],
-            ids: list[int],
-            left_clicked: Callable,):
+        self,
+        header: str,
+        titles: list[str],
+        ids: list[int],
+        left_clicked: Callable,
+    ):
         super().__init__()
 
         layout = QVBoxLayout()
@@ -72,7 +69,7 @@ class ButtonDisplay(QWidget):
         for title, id in combined:
             widget = StyledButton(title, id, self)
             widget.clicked.connect(left_clicked)
-            widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+            widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
             layout.addWidget(widget)
 
         self.setLayout(layout)

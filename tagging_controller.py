@@ -41,7 +41,9 @@ session.headers.update(header)
 
 
 class TaggingPipeline:
-    def __init__(self, data: RequestData, path: Path, size: float, api_key: str) -> None:
+    def __init__(
+        self, data: RequestData, path: Path, size: float, api_key: str
+    ) -> None:
         self.data = data
         self.path = path
         self.size = size

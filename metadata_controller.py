@@ -3,23 +3,23 @@ import os
 import shutil
 import sqlite3
 import zipfile
-from typing import Optional
 from pathlib import Path
+from typing import Optional
 
 from defusedxml import ElementTree as ET
 from dotenv import load_dotenv
 from PySide6.QtWidgets import QMainWindow
 
 from classes.helper_classes import ComicInfo
-from comic_match_logic import ResultsFilter
+from comic_match_logic import ComicMatch, ResultsFilter
 from cover_processing import ImageExtraction
 from database.db_input import MetadataInputting, insert_new_publisher
 from extract_meta_xml import MetadataExtraction
 from file_utils import convert_cbz, generate_uuid
 from metadata_cleaning import MetadataProcessing, PublisherNotKnown
 from search import insert_into_fts5
-from tagging_controller import RequestData, extract_and_insert, run_tagging_process
-from comic_match_logic import ComicMatch
+from tagging_controller import (RequestData, extract_and_insert,
+                                run_tagging_process)
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -28,8 +28,9 @@ logging.basicConfig(
 )
 
 load_dotenv()
-API_KEY = os.getenv("API_KEY")
-ROOT_DIR = Path(os.getenv("ROOT_DIR"))
+API_KEY = os.getenv("API_KEY", "")
+root_folder = os.getenv("ROOT_DIR")
+ROOT_DIR = Path(root_folder if root_folder is not None else "")
 
 
 def get_comicid_from_path(path: Path) -> int:
@@ -72,7 +73,11 @@ class MetadataController:
         self.original_filename = filepath.stem
         self.filepath: Path = filepath
         self.filename: str = filepath.stem
-        self.comic_info: Optional[ComicInfo] = None
+        self.comic_info: ComicInfo = ComicInfo(
+            primary_key=self.primary_key,
+            filepath=self.filepath,
+            original_filename=self.original_filename,
+        )
         self.page_count: Optional[int] = None
 
     def reformat(self) -> None:
@@ -82,6 +87,21 @@ class MetadataController:
             self.filepath = temp_filepath
         elif temp_filepath.suffix != ".cbz":
             raise ValueError("Wrong filetype.")
+
+    def get_pagecount(self) -> int:
+        if self.filepath is None:
+            print("Filename must not be None")
+            return False
+        with zipfile.ZipFile(self.filepath, "r") as archive:
+            image_exts = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+            image_files = [
+                f
+                for f in archive.namelist()
+                if os.path.splitext(f)[1].lower() in image_exts
+            ]
+            self.page_count = len(image_files)
+
+        return len(image_files)
 
     def has_metadata(self) -> bool:
         """
@@ -145,11 +165,7 @@ class MetadataController:
 
     def process(self):
         self.reformat()
-        self.comic_info = ComicInfo(
-            primary_key=self.primary_key,
-            filepath=self.filepath,
-            original_filename=self.original_filename,
-        )
+
         if self.has_metadata():
             self.process_with_metadata()
         else:
@@ -196,12 +212,16 @@ class MetadataController:
 
     def insert_into_db(self, cleaned_comic_info):
         print("[INFO] Starting inputting data to the database")
-        inputter = MetadataInputting(cleaned_comic_info, self.page_count)
+        if self.page_count is None:
+            pagecount = self.get_pagecount()
+            inputter = MetadataInputting(cleaned_comic_info, pagecount)
+        else:
+            inputter = MetadataInputting(cleaned_comic_info, self.page_count)
         try:
             inputter.run()
             flat_data = inputter.flatten_data()
         except Exception as e:
-            print(f"[Error] {e}")
+            raise ValueError(f"[Error] {e}")
         insert_into_fts5(flat_data)
         print("[SUCCESS] Added all data to the database")
         self.inputter = inputter
@@ -222,7 +242,7 @@ class MetadataController:
 
                 try:
                     relative_path = new_path.relative_to(ROOT_DIR)
-                    self.inputter.insert_filepath(str(relative_path))
+                    self.inputter.insert_filepath(relative_path)
                 except ValueError as e:
                     print(f"[ERROR] Failed to compute relative path: {e}")
                 # TODO: Implement code to recover correct path, not urgent.
@@ -236,10 +256,12 @@ class MetadataController:
         return filtered_results
 
     def request_disambiguation(
-        self, results: list[tuple[ComicMatch, int]],
-        actual_comic: RequestData, all_results: list[dict]
+        self,
+        results: list[tuple[ComicMatch, int]],
+        actual_comic: RequestData,
+        all_results: list[dict],
     ):
-        match = self.display.get_user_match(
+        match = self.display.get_user_match(  # type: ignore
             results, actual_comic, all_results, self.filepath
         )
         if match:
@@ -269,7 +291,9 @@ def run_tagger(display: QMainWindow):
     for path in downloads_dir.rglob("*"):
         if path.is_dir() and path.name in EXCLUDE:
             continue
-        if path.is_file() and any(path.name.lower().endswith(ext) for ext in VALID_EXTENSIONS):
+        if path.is_file() and any(
+            path.name.lower().endswith(ext) for ext in VALID_EXTENSIONS
+        ):
             print(f"Starting to process {path.name}")
             new_id = generate_uuid()
             cont = MetadataController(new_id, path, display)
