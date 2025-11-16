@@ -1,5 +1,6 @@
 import re
 from difflib import SequenceMatcher
+
 import imagehash
 from fuzzywuzzy import fuzz
 from PIL import Image
@@ -8,7 +9,6 @@ from .requester import RequestData
 
 
 class ResponseValidator:
-
     issue_threshold = 70
     volume_threshold = 50
 

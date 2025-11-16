@@ -1,24 +1,22 @@
 import os
-import xml.etree.ElementTree as ET  # nosec
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
 from enum import IntEnum
 from io import BytesIO
 from pathlib import Path
 from typing import Optional
+
 import imagehash
 import requests
 from dotenv import load_dotenv
 from PIL import Image
 
 from comic_match_logic import ResultsFilter
-from tagging.requester import RequestData
-from tagging.requester import HttpRequest
-from tagging.validator import ResponseValidator
 from tagging.applier import TagApplication
+from tagging.lexer import Lexer, LexerFunc, run_lexer
 from tagging.parser import Parser
-from tagging.lexer import Lexer, run_lexer, LexerFunc
+from tagging.requester import HttpRequest, RequestData
+from tagging.validator import ResponseValidator
 
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
@@ -28,6 +26,7 @@ class MatchCode(IntEnum):
     NO_MATCH = 0
     ONE_MATCH = 1
     MULTIPLE_MATCHES = 2
+
 
 header = {
     "User-Agent": "AutoComicLibrary/1.0 (contact: adam.perrott@protonmail.com;"
@@ -199,7 +198,9 @@ class TaggingPipeline:
             return MatchCode.MULTIPLE_MATCHES
 
 
-def run_tagging_process(filepath: Path, api_key: str) -> Optional[tuple[list, RequestData]]:
+def run_tagging_process(
+    filepath: Path, api_key: str
+) -> Optional[tuple[list, RequestData]]:
     filename = filepath.stem
     lexer_instance = Lexer(filename)
     state: Optional[LexerFunc] = run_lexer
@@ -219,7 +220,6 @@ def run_tagging_process(filepath: Path, api_key: str) -> Optional[tuple[list, Re
 
     final_result = tagger.run()
     if final_result == MatchCode.ONE_MATCH:
-
         inserter = TagApplication(tagger.results[0], api_key, filename, session)
         inserter.get_request()
         inserter.create_metadata_dict()

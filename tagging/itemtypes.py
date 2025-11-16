@@ -50,7 +50,6 @@ braces = [
 
 
 class Item:
-
     def __init__(self, typ: ItemType, pos: int, val: str) -> None:
         """
         Creates a new item which has been found in the string.

@@ -4,6 +4,7 @@ from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 from typing import Optional
+
 import requests
 
 from classes.helper_classes import ComicInfo
@@ -11,7 +12,9 @@ from metadata_cleaning import MetadataProcessing
 
 
 class TagApplication:
-    def __init__(self, comicvine_dict: dict | list, api_key: str, filename: str, session):
+    def __init__(
+        self, comicvine_dict: dict | list, api_key: str, filename: str, session
+    ):
         if isinstance(comicvine_dict, list):
             entry = comicvine_dict[0]
         else:

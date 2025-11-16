@@ -1,14 +1,11 @@
 import calendar
 import os
 import re
-
-from enum import Enum, IntEnum, auto
-from pathlib import Path
 from typing import Callable, Optional, Protocol
+
 from dotenv import load_dotenv
 
 from .itemtypes import Item, ItemType
-
 
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
@@ -37,7 +34,6 @@ def is_numeric_or_number_punctuation(x: str) -> bool:
 
 
 class LexerFunc(Protocol):
-
     def __call__(self, __origin: "Lexer") -> "LexerFunc | None":
         pass
 
@@ -187,7 +183,7 @@ class Lexer:
     def run(self) -> None:
         """
         This controls the state-based lexer by keeping the process running as long
-        as None isn't returned. 
+        as None isn't returned.
         """
         self.state = run_lexer
         while self.state is not None:
@@ -385,7 +381,7 @@ def lex_issue_number(lex: Lexer) -> LexerFunc:
 def lex_author(lex: Lexer) -> LexerFunc:
     """
     This attempts to identify an author in the string.
-    
+
     TODO: Reinforce this code to be better!!
     """
     lex.accept_run(str.isspace)

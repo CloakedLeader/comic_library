@@ -1,11 +1,6 @@
-import os
 import re
-from dotenv import load_dotenv
-from .itemtypes import ItemType, Item
 
-
-load_dotenv()
-API_KEY = os.getenv("API_KEY")
+from .itemtypes import Item, ItemType
 
 
 class Parser:

@@ -2,7 +2,6 @@ from io import BytesIO
 
 import requests
 
-
 header = {
     "User-Agent": "AutoComicLibrary/1.0 (contact: adam.perrott@protonmail.com;"
     " github.com/CloakedLeader/comic_library)",
@@ -13,7 +12,6 @@ header = {
 
 
 class RequestData:
-
     def __init__(
         self,
         issue_num: int,
@@ -30,9 +28,7 @@ class RequestData:
         self.publisher = publisher or ""
 
 
-
 class HttpRequest:
-
     base_address = "https://comicvine.gamespot.com/api"
 
     def __init__(self, data: RequestData, api_key: str, session):
