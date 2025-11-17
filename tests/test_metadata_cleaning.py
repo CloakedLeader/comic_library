@@ -20,6 +20,40 @@ def test_real_example():
     assert result["volume_num"] == 1
 
 
+def test_ambig_title():
+    parser = MockParser(
+        title="Volume 2", series="Fantastic Four by Ryan North: Four Stories About Hope"
+    )
+    proc = MetadataProcessing(parser.raw_info)  # type: ignore[arg-type]
+    result = proc.title_parsing()
+
+    assert result["series"] == "Fantastic Four by Ryan North"
+    assert result["title"] == "Four Stories About Hope"
+    assert result["volume_num"] == 2
+
+
+def test_basic_colon_in_title():
+    parser = MockParser(
+        title="Vol. 2: Children of the Atom", series="Ultimate X-Men by Peach Momoko"
+    )
+    proc = MetadataProcessing(parser.raw_info)  # type: ignore[arg-type]
+    result = proc.title_parsing()
+
+    assert result["series"] == "Ultimate X-Men by Peach Momoko"
+    assert result["title"] == "Children of the Atom"
+    assert result["volume_num"] == 2
+
+
+def test_hc_in_title():
+    parser = MockParser(title="HC", series="Plastic Man No More!")
+    proc = MetadataProcessing(parser.raw_info)  # type: ignore[arg-type]
+    result = proc.title_parsing()
+
+    assert result["series"] == "Plastic Man No More!"
+    assert result["title"] == "Plastic Man No More!"
+    assert result["volume_num"] == 1
+
+
 def test_basic_colon_in_series():
     parser = MockParser(title="", series="Daredevil: Born Again")
     proc = MetadataProcessing(parser.raw_info)  # type: ignore[arg-type]

@@ -13,7 +13,7 @@ def lex_and_parse(filename: str):
 def test1():
     result = lex_and_parse("Batman Omnibus Vol 1 (2019)")
 
-    # ! assert result["collection_type"] == "Omnibus"
+    assert result["collection_type"] == "Omnibus"
     assert result["year"] == 2019
     assert result["volume"] == 1
 
@@ -22,7 +22,7 @@ def test2():
     result = lex_and_parse("Batman v3 162 (2026) (Webrip) (The Last Kryptonian-DCP)")
 
     assert result["year"] == 2026
-    # ! assert result["issue"] == 162
+    assert result["issue"] == 162
     assert result["volume"] == 3
     assert result["series"] == "Batman"
 
@@ -32,7 +32,7 @@ def test3():
         "Spider-Boy - Full Circle v01 (2026) (digital) (Marika-Empire)"
     )
 
-    # ! assert result["title"] == "Full Circle"
+    assert result["title"] == "Full Circle"
     assert result["series"] == "Spider-Boy"
     assert result["year"] == 2026
     assert result["volume"] == 1
