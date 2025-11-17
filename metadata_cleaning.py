@@ -156,14 +156,14 @@ class MetadataProcessing:
             if ":" in raw_title:
                 preterm, collection_title = map(str.strip, raw_title.split(":", 1))
 
-                if include_volume_signifier(preterm):
+                if has_volume_signifier(preterm):
                     return raw_series.strip(), collection_title
                 else:
                     return preterm.strip(), collection_title
 
-            else:
-                if include_volume_signifier(raw_title):
-                    return raw_series.strip(), ""
+            # else:
+            #     if has_volume_signifier(raw_title):
+            #         return raw_series.strip(), ""
 
             if ":" in raw_series:
                 series, title = map(str.strip, raw_series.split(":", 1))
@@ -171,7 +171,7 @@ class MetadataProcessing:
 
             return raw_series.strip(), raw_title.strip()
 
-        def include_volume_signifier(term: str) -> bool:
+        def has_volume_signifier(term: str) -> bool:
             volume_pattern = re.compile(r"\b(vol(?:ume)?|book)\b", re.I)
             return bool(volume_pattern.search(term))
 

@@ -1,8 +1,16 @@
 import os
 
 from dotenv import load_dotenv, set_key
-from PySide6.QtWidgets import (QDialog, QFileDialog, QHBoxLayout, QLabel,
-                               QLineEdit, QPushButton, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (
+    QDialog,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 ENV_PATH = ".env"
 

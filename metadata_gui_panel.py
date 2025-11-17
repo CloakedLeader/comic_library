@@ -6,9 +6,20 @@ from textwrap import dedent
 from dotenv import load_dotenv
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import (QCheckBox, QGridLayout, QGroupBox, QHBoxLayout,
-                               QLabel, QMainWindow, QPushButton, QScrollArea,
-                               QSizePolicy, QTextEdit, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QPushButton,
+    QScrollArea,
+    QSizePolicy,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 from classes.helper_classes import GUIComicInfo, MetadataInfo
 from database.gui_repo_worker import RepoWorker

@@ -60,15 +60,17 @@ def main():
     # ------------------------
 
     exit_code = max(
-        exit_code, run("Ruff: linting + autofix", ["ruff", "check", "--fix", "."])
+        exit_code,
+        run(
+            "Ruff: linting + autofix (incl. import sort)",
+            ["ruff", "check", "--select", "I", "--fix", "."],
+        ),
     )
     if args.use_black:
         exit_code = max(exit_code, run("Black: auto-format", ["black", "."]))
 
     else:
         exit_code = max(exit_code, run("Ruff: auto-format", ["ruff", "format", "."]))
-
-    exit_code = max(exit_code, run("isort: import sorting", ["isort", "."]))
 
     # -------------------
     # STATIC ANALYSIS

@@ -1,3 +1,7 @@
 [tool.mypy]
 files = ["src/", "tests/"]
 disable_error_code = ["attr-defined", "arg-type"]
+
+[too.ruff]
+line-length = 88
+extend-select = ["I"]

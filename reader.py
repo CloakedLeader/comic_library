@@ -6,8 +6,14 @@ from io import BytesIO
 from PIL import Image
 from PySide6.QtCore import Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QImage, QPixmap
-from PySide6.QtWidgets import (QHBoxLayout, QLabel, QMainWindow, QToolBar,
-                               QToolButton, QWidget)
+from PySide6.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QToolBar,
+    QToolButton,
+    QWidget,
+)
 
 from classes.helper_classes import GUIComicInfo
 from database.gui_repo_worker import RepoWorker
