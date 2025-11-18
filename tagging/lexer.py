@@ -29,12 +29,35 @@ key = {
 
 
 def is_numeric_or_number_punctuation(x: str) -> bool:
+    """
+    Determine whether a single character represents a numeric digit or
+       a numeric punctutaion character('.' or ',').
+
+    Args:
+        x (str): A single character to test.
+
+    Returns:
+        bool: True if 'x' belongs in a number token. False otherwise.
+    """
     digits = "0123456789.,"
     return x.isnumeric() or x in digits
 
 
 class LexerFunc(Protocol):
+
     def __call__(self, __origin: "Lexer") -> "LexerFunc | None":
+        """
+        Execute one lexing step for the provided Lexer and yield the
+            next state.
+
+        Args:
+            __origin (Lexer): The Lexer instance whose state is being
+                executed.
+
+        Returns:
+            LexerFunc | None: The next state function to continue lexing,
+                or Nonee to stop the Lexer.
+        """
         pass
 
 
@@ -45,14 +68,13 @@ class Lexer:
 
     def __init__(self, string: str) -> None:
         """
-        Creates an instance which tracks a certain string, finds all the Items within it.
+        Intialises the Lexer state for lexing the given filename.
 
-        Parameters:
-        string: This is the filename to be lexed.
+        Args:
+            string (str): The filename (or input string) to be tokenised, stored
+                as the lexer's input.
+        """ 
 
-        This runs a state-based lexer that moves through the string and decides how to split
-        it up into Items.
-        """
         self.input: str = string
         self.state: LexerFunc | None = None
         self.pos: int = -1
@@ -65,12 +87,13 @@ class Lexer:
 
     def get(self) -> str:
         """
-        Gets the next character in the string or returns end of string message
-        and adds 1 to position counter.
+        Advance the lexer's position by one and return the character at the new position.
 
         Returns:
-        The next character in the filename or the null character to indicate end of string.
-        """
+            str: The character at the new position, or the EOF sentinel when the end of the
+                input has been reached. 
+        """    
+
         if int(self.pos) >= len(self.input) - 1:
             self.pos += 1
             return eof
@@ -80,57 +103,68 @@ class Lexer:
 
     def peek(self) -> str:
         """
-        Looks at the next character in the string but does not 'consume' it.
-
-        Will be used to 'look' at next character and decide what to do.
+        Return the next character without advancing the lexer's current position.
 
         Returns:
-        The next character in the string.
-        """
+            str: The next character from the input, or 'eof' if the end of the input
+                has been reached. 
+        """   
+
         if int(self.pos) >= len(self.input) - 1:
             return eof
         return self.input[self.pos + 1]
 
     def backup(self) -> None:
         """
-        Decreases the position by one, i.e. goes back one character in the string.
-        """
+        Move the lexer's current position back by one character.
+
+        This shifts the internal index earlier in the input so the previously read character
+            will be returned again by the next 'get()' call.
+        """    
+
         self.pos -= 1
 
     def emit(self, t: ItemType) -> None:
         """
-        Adds the newly found token to the list of tokens and
-        updates the start variable ready for the next token.
+        Emit a token spanning the input from the current start position up to the current position.
+        
+        Appends an Item with the given token type and the corresponding substring to the
+            lexer's items list, then advances the lexer's start to the next position.
+        Args:
+            t (ItemType): The token type to emit.
+        """ 
 
-        Parameters:
-        t: The kind of token to be added to the list.
-        """
         self.items.append(Item(t, self.start, self.input[self.start : self.pos + 1]))
         self.start = self.pos + 1
 
     def ignore(self) -> None:
         """
-        Ignores anything from the start position until the current position.
-        Used to omit whitespaces etc.
-        """
+        Mark the current lexeme as ignored.
+
+        Sets the lexer's start position to the current read position so character's consumed since
+            the previous start are skipped for future token emission.
+        """ 
+
         self.start = self.pos
 
     def accept(self, valid: str | Callable[[str], bool]) -> bool:
         """
-        Checks to see if the next character in the lexer instance
-        is in a certain string or is a certain type of character.
+        Attempt to consume the next character if it matches a given set of characters or a predicate.
 
-        Parameter:
-        valid [str]: A string to see if the next character
-        in the class instance is a substring of valid.
-        OR
-        valid [Callable]: A function (e.g. isdigit ) that checks if
-        the next character returns a truthy value.
+        If 'valid' is a string, the next character is consumed when it is one of the characters in
+            that string.
+        If 'valid' is a callable, the next character is consumed when the callable returns a truthy
+            value for that character.
+        When a character is not accepted the lexer's position is restored.
+
+        Args:
+            valid (str | Callable[[str], bool]): A string of acceptable characters or a predicate
+                that returns truthy for acceptable characters.
 
         Returns:
-        bool = Whether or not the next character in the class
-        instance is in the input string or the Callable output.
-        """
+            bool: Whether the character follows the rules from above.
+        """   
+
         if isinstance(valid, str):
             if self.get() in valid:
                 return True
@@ -144,19 +178,17 @@ class Lexer:
 
     def accept_run(self, valid: str | Callable[[str], bool]) -> bool:
         """
-        Tries to accept a sequence of characters that are of the same type/token.
+        Consume a consecutive run of characters that match either a set of allowed characters or
+            a predicate.
 
-        Parameters:
-        valid [str]: A string to see if the next character
-        in the class instance is a substring of valid.
-        OR
-        valid [Callable]: A function (e.g. isdigit ) that checks
-        if the next character returns a truthy value.
+        Args:
+            valid (str | Callable[[str], bool]): Either a string whose characters are acceptable,
+                or a callable that returns truthy for acceptable characters.
 
         Returns:
-        bool = Returns whether the position actually moved forward
-        or not, so you can consume entire tokens at a time.
+            bool: Whether the run of characters follow the rules from above.
         """
+
         initial = self.pos
         if isinstance(valid, str):
             while self.get() in valid:
@@ -170,9 +202,16 @@ class Lexer:
 
     def scan_number(self) -> bool:
         """
-        Checks if a string is numeric and if it has a suffix
-        of letters directly after, no whitespace.
-        """
+        Determine whether the lexer is currently positioned at a number-like token and consume
+            it.
+        
+        Consumes a run of digits and numeric punctuation, optionally trims a trailing dot, then
+            consumes any immediately following alphabetic characters without intermediate whitespace.
+
+        Returns:
+            bool: 'True' if a number-like sequence was found, 'false' otherwise.
+        """        
+
         if not self.accept_run(is_numeric_or_number_punctuation):
             return False
         if self.input[self.pos] == ".":
@@ -182,9 +221,12 @@ class Lexer:
 
     def run(self) -> None:
         """
-        This controls the state-based lexer by keeping the process running as long
-        as None isn't returned.
-        """
+        Drive the lexer's state machine until it terminates.
+
+        Intialises the current state to 'run_lexer' and repeatedly invokes the active state function
+            until a state function returns None, signalling completion.
+        """        
+
         self.state = run_lexer
         while self.state is not None:
             self.state = self.state(self)
