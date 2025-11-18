@@ -233,21 +233,31 @@ class Lexer:
 
 
 def errorf(lex: Lexer, message: str) -> None:
+    """
+    Record an error item on the lexer with the given message.
+
+    Args:
+        lex (Lexer): Lexer instance to receive the error item.
+        message (str): Text message stored in the emitted Error item.
+    """
     lex.items.append(Item(ItemType.Error, lex.start, message))
 
 
 def run_lexer(lex: Lexer) -> Optional[LexerFunc]:
     """
-    This is where the logic for the seperation of tokens comes from.
+    Advance the lexer's state by reading the next character and dispatching to the
+        appropriate lexer state function.
+    Processes one input character from 'lex', emitting tokens and updating state function
+        as required.
 
-    Parameters:
-    lex: The Lexer instance which has to be iterated through and turned into
-        tokens.
+    Args:
+        lex (Lexer): The lexer instance to advance by one step.
 
     Returns:
-    Either LexerFunc if there is still more to process, or None which terminates
-    the lexing process.
+        Optional[LexerFunc]: The next state function to execute, or None to terminate
+            lexing.
     """
+
     r = lex.get()
 
     if r == eof:
@@ -348,8 +358,15 @@ def run_lexer(lex: Lexer) -> Optional[LexerFunc]:
 
 def lex_space(lex: Lexer) -> LexerFunc:
     """
-    This consumes a series of whitespaces and emits them.
+    Consume a run of whitespace characters and emit a Space token.
+
+    Args:
+        lex (Lexer): The lexer instance to read from and emit tokens to.
+
+    Returns:
+        LexerFunc: The next state function 'run_lexer' to continue processing.
     """
+
     if lex.accept_run(is_space):
         lex.emit(ItemType.Space)
     return run_lexer
@@ -357,10 +374,16 @@ def lex_space(lex: Lexer) -> LexerFunc:
 
 def lex_text(lex: Lexer) -> LexerFunc:
     """
-    This emits a series of letters or number not seperated by a space.
-    Then tries to match the word to common words defined in 'key'.
-    Finally it decides on the ItemType and emits.
+    Recognises an alphanumeric or apostrophe-containing workd from the lexer's input
+        and emits the corresponding Item type.
+
+    Args:
+        lex (Lexer): The lexer instance to read from and to which the emitted Item is appended.
+
+    Returns:
+        LexerFunc: The next lexer state function.
     """
+
     while True:
         r = lex.get()
 
