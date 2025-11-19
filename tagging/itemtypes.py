@@ -7,6 +7,28 @@ class QMode(Enum):
     TITLE = auto()
 
 
+class LexerItem(Enum):
+    EOF = auto()
+    Error = auto()
+
+    Text = auto()
+    Number = auto()
+    Space = auto()
+
+    Dash = auto()
+    Dot = auto()
+    Symbol = auto()
+
+    LeftParen = auto()
+    RightParen = auto()
+
+    LeftBracket = auto()
+    RightBracket = auto()
+
+    LeftBrace = auto()
+    RightBrace = auto()
+
+
 class ItemType(Enum):
     Error = auto()
     EOF = auto()
@@ -50,17 +72,17 @@ braces = [
 
 
 class Item:
-    def __init__(self, typ: ItemType, pos: int, val: str) -> None:
+    def __init__(self, typ: LexerItem, pos: int, val: str) -> None:
         """
         Intialise an Item representing a token lexed from an input string.
 
         Args:
-            typ (ItemType): Token type.
+            typ (LexerItem): Token type.
             pos (int): Zero-based index of the token's first character in
                 the source string.
             val (str): Exact substring captured for the token.
         """
-        self.typ: ItemType = typ
+        self.typ: LexerItem = typ
         self.pos: int = pos
         self.val: str = val
         self.no_space = False
