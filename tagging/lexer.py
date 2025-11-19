@@ -409,10 +409,15 @@ def lex_text(lex: Lexer) -> LexerFunc:
 
 def lex_number(lex: Lexer) -> LexerFunc:
     """
-    This emits a series of numbers without any whitespace.
-    It also tries to handle common number suffixes.
-    Finally emits either a number or, text if there is a suffix.
-    """
+    Recognises a numeric token and emits a Number or Text Item.
+
+    Args:
+        lex (Lexer): The lexer instance whose input and state are advanced.
+
+    Returns:
+        LexerFunc: The next lexer state function to execute or None to terminate.
+    """    
+
     if not lex.scan_number():
         errorf(lex, "bad number syntax: " + lex.input[lex.start : lex.pos])
         return run_lexer
@@ -427,10 +432,20 @@ def lex_number(lex: Lexer) -> LexerFunc:
 
 def lex_issue_number(lex: Lexer) -> LexerFunc:
     """
-    This attempts to find the issue number for a comic.
-    It is only called if lex.input[lex.start] == "#".
-    Finally it emits the run of numbers as type IssueNumber.
+    Parse an issue number starting at the current '#' and emit the corresponding
+    token.
+
+    If the character after the '#' is not a digit, emits a 'Symbol' item.
+    Otherwise consumes a run of digits plus any immediate alphabetic suffix and
+    emits an 'IssueNumber' item.
+
+    Args:
+        lex (Lexer): Lexer instance positioned with 'lex.input[lex.start] == "#"'.
+
+    Returns:
+        LexerFunc: The next lexer state function to execute, or None to terminate.
     """
+
     if not lex.peek().isnumeric():
         lex.emit(ItemType.Symbol)
         return run_lexer
@@ -445,10 +460,19 @@ def lex_issue_number(lex: Lexer) -> LexerFunc:
 
 def lex_author(lex: Lexer) -> LexerFunc:
     """
-    This attempts to identify an author in the string.
+    Attempt to recognise and emit an author-name token at the current lexer position.
 
-    TODO: Reinforce this code to be better!!
+    Consumes up to three name parts (captilised words or initials).
+    If at least one name part is recognised, emits 'Author' token; otherwise 'Text' token.
+
+    Args:
+        lex (Lexer): The lexer instance.
+
+    Returns:
+        LexerFunc: The next state function to execute, or None to terminate.
     """
+    # TODO: Reinforce this code to be better!!
+    
     lex.accept_run(str.isspace)
     name_parts = 0
 
@@ -480,10 +504,19 @@ def lex_author(lex: Lexer) -> LexerFunc:
 
 def lex_collection_type(lex: Lexer) -> LexerFunc:
     """
-    This runs through a string attempts to match it to common collection
-    titles as defined in known_collections. If it can't match it, it
-    returns the token as Text.
+    Recognises a contigous alphabetic word and classifies it as a collection type
+    or plain text.
+
+    Consumes a run of alphabetic characters, lowercases the consumed word and attempts
+    to match it to known collected editions.
+
+    Args:
+        lex (Lexer): The lexer instance.
+
+    Returns:
+        LexerFunc: The next lexer state function to execute, or None to terminate.
     """
+
     lex.accept_run(str.isalpha)
     word = lex.input[lex.start : lex.pos].casefold()
 
@@ -507,9 +540,18 @@ def lex_collection_type(lex: Lexer) -> LexerFunc:
 
 def lex_volume_number(lex: Lexer) -> LexerFunc:
     """
-    This attempts to find the volume number in a token, this is called
-    when the lexer finds volume signifiers like vol or v.
+    Parse a volume number following a volume signifier and emit the appropriate token.
+
+    If one or more digits are found immediately or after optional space,
+    emits 'VolumeNumber' item.
+
+    Args:
+        lex (Lexer): The lexer instance.
+
+    Returns:
+        LexerFunc: The next lexer state function to execute, or None to terminate.
     """
+
     lex.accept_run(str.isdigit)
 
     if lex.pos == lex.start:
@@ -525,6 +567,17 @@ def lex_volume_number(lex: Lexer) -> LexerFunc:
 
 
 def lex_volume_number_full(lex: Lexer) -> LexerFunc:
+    """
+    Consume optional leading spaces, if a digit sequence follows, consume it and
+    emit 'VolumeNumber' item.
+
+    Args:
+        lex (Lexer): The lexer instance.
+
+    Returns:
+        LexerFunc: The next lexer state function to execute, or None to terminate.
+    """
+
     lex.accept_run(is_space)
     if lex.peek().isdigit():
         lex.accept_run(str.isdigit)
@@ -538,14 +591,45 @@ def lex_volume_number_full(lex: Lexer) -> LexerFunc:
 
 
 def is_space(character: str) -> bool:
+    """
+    Determine whether a character is treated as a whitespace by the lexer.
+
+    Args:
+        character (str): The character to test.
+
+    Returns:
+        bool: True if the character is effectively whitespace. False otherwise.
+    """
+
     return character.isspace() or character == "_"
 
 
 def is_alpha_numeric(character: str) -> bool:
+    """
+    Check whether the given character is alphabetic or numeric.
+
+    Args:
+        character (str): The character to test.
+
+    Returns:
+        bool: True if the character is alphanumeric. False otherwise.
+    """
+
     return character.isalpha() or character.isnumeric()
 
 
 def cal(word: str) -> bool:
+    """
+    Determine whether a token denotes a calendar month name/abbreviation or a 4
+    digit year.
+
+    Args:
+        word (str): The token to test.
+
+    Returns:
+        bool: True if the token is a month or year token. False otherwise.
+    """
+
     word_lower = word.lower()
 
     months = [m.lower() for m in calendar.month_name if m] + [
@@ -558,6 +642,17 @@ def cal(word: str) -> bool:
 
 
 def lex(filename: str) -> Lexer:
+    """
+    Tokenise the basename of the filename into a Lexer populated with Item tokens.
+
+    Args:
+        filename (str): Path or filename to lex, only the basename is tokenised.
+
+    Returns:
+        Lexer: A Lexer instance whose 'items' list contains the tokens produced from
+            the filename.
+    """
+
     lex = Lexer(os.path.basename(filename))
     lex.run()
     return lex

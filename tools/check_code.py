@@ -56,7 +56,7 @@ def main():
     exit_code = 0
 
     # ------------------------
-    # LINTING % FORMATTING
+    # LINTING & FORMATTING
     # ------------------------
 
     exit_code = max(
