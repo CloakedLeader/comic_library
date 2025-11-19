@@ -13,7 +13,8 @@ from metadata_cleaning import MetadataProcessing
 
 class TagApplication:
     def __init__(
-        self, comicvine_dict: dict | list, api_key: str, filename: str, session):
+        self, comicvine_dict: dict | list, api_key: str, filename: str, session
+    ):
         """
         Intialise a TagApplication from a ComicVine-style entry that had been cleaned
         after an API request.
@@ -233,7 +234,7 @@ class TagApplication:
         Mandatory fields are set to "PENDING" when missing or empty.
         All other keys present in self.final_info that are None or empty strings are
         set to "MISSING".
-        
+
         Modifies self.final_info in place.
         """
         MANDATORY_FIELDS = {

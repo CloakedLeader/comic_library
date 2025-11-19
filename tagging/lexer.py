@@ -44,7 +44,6 @@ def is_numeric_or_number_punctuation(x: str) -> bool:
 
 
 class LexerFunc(Protocol):
-
     def __call__(self, __origin: "Lexer") -> "LexerFunc | None":
         """
         Execute one lexing step for the provided Lexer and yield the
@@ -73,7 +72,7 @@ class Lexer:
         Args:
             string (str): The filename (or input string) to be tokenised, stored
                 as the lexer's input.
-        """ 
+        """
 
         self.input: str = string
         self.state: LexerFunc | None = None
@@ -91,8 +90,8 @@ class Lexer:
 
         Returns:
             str: The character at the new position, or the EOF sentinel when the end of the
-                input has been reached. 
-        """    
+                input has been reached.
+        """
 
         if int(self.pos) >= len(self.input) - 1:
             self.pos += 1
@@ -107,8 +106,8 @@ class Lexer:
 
         Returns:
             str: The next character from the input, or 'eof' if the end of the input
-                has been reached. 
-        """   
+                has been reached.
+        """
 
         if int(self.pos) >= len(self.input) - 1:
             return eof
@@ -120,19 +119,19 @@ class Lexer:
 
         This shifts the internal index earlier in the input so the previously read character
             will be returned again by the next 'get()' call.
-        """    
+        """
 
         self.pos -= 1
 
     def emit(self, t: ItemType) -> None:
         """
         Emit a token spanning the input from the current start position up to the current position.
-        
+
         Appends an Item with the given token type and the corresponding substring to the
             lexer's items list, then advances the lexer's start to the next position.
         Args:
             t (ItemType): The token type to emit.
-        """ 
+        """
 
         self.items.append(Item(t, self.start, self.input[self.start : self.pos + 1]))
         self.start = self.pos + 1
@@ -143,7 +142,7 @@ class Lexer:
 
         Sets the lexer's start position to the current read position so character's consumed since
             the previous start are skipped for future token emission.
-        """ 
+        """
 
         self.start = self.pos
 
@@ -163,7 +162,7 @@ class Lexer:
 
         Returns:
             bool: Whether the character follows the rules from above.
-        """   
+        """
 
         if isinstance(valid, str):
             if self.get() in valid:
@@ -204,13 +203,13 @@ class Lexer:
         """
         Determine whether the lexer is currently positioned at a number-like token and consume
             it.
-        
+
         Consumes a run of digits and numeric punctuation, optionally trims a trailing dot, then
             consumes any immediately following alphabetic characters without intermediate whitespace.
 
         Returns:
             bool: 'True' if a number-like sequence was found, 'false' otherwise.
-        """        
+        """
 
         if not self.accept_run(is_numeric_or_number_punctuation):
             return False
@@ -225,7 +224,7 @@ class Lexer:
 
         Intialises the current state to 'run_lexer' and repeatedly invokes the active state function
             until a state function returns None, signalling completion.
-        """        
+        """
 
         self.state = run_lexer
         while self.state is not None:
@@ -416,7 +415,7 @@ def lex_number(lex: Lexer) -> LexerFunc:
 
     Returns:
         LexerFunc: The next lexer state function to execute or None to terminate.
-    """    
+    """
 
     if not lex.scan_number():
         errorf(lex, "bad number syntax: " + lex.input[lex.start : lex.pos])
@@ -472,7 +471,7 @@ def lex_author(lex: Lexer) -> LexerFunc:
         LexerFunc: The next state function to execute, or None to terminate.
     """
     # TODO: Reinforce this code to be better!!
-    
+
     lex.accept_run(str.isspace)
     name_parts = 0
 

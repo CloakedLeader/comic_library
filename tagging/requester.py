@@ -19,7 +19,18 @@ class RequestData:
         series: str,
         title: str,
         publisher: str | None = None,
-    ):
+    ) -> None:
+        """
+        Initialise RequestData with metadata describing a comic.
+
+        Args:
+            issue_num (int): Issue number for the comic.
+            year (int): Publication year of the issue.
+            series (str): Series name.
+            title (str): Comic title.
+            publisher (str | None, optional): Publisher name. Defaults to None.
+        """
+
         self.series = series
         self.title = title
         self.unclean_title = (series or "") + (title or "")
@@ -31,25 +42,44 @@ class RequestData:
 class HttpRequest:
     base_address = "https://comicvine.gamespot.com/api"
 
-    def __init__(self, data: RequestData, api_key: str, session):
+    def __init__(
+        self, data: RequestData, api_key: str, session: requests.Session
+    ) -> None:
+        """
+        Initialises an HTTPRequest configured to query the ComicVine API.
+
+        Stores the provided request metadata and API key, retains the HTTP session
+        and prebuilds the search payload.
+
+        Args:
+            data (RequestData): Issue and series metadata used to construct queries.
+            api_key (str): API key used for API calls.
+            session (requests.Session): The HTTP session to be used by instance methods.
+        """
         self.data = data
         self.api_key = api_key
         self.session = session
-        self.payload = self.create_info_dict(self.data.unclean_title)
-
-    def create_info_dict(self, query):
-        payload = {}
-        payload["api_key"] = self.api_key
-        payload["resources"] = "volume"
-        payload["field_list"] = (
+        self.payload: dict[str, str | int] = {}
+        self.payload["api_key"] = self.api_key
+        self.payload["limit"] = 50
+        self.payload["resources"] = "volume"
+        self.payload["field_list"] = (
             "id,image,publisher,name,start_year,date_added,"
             "count_of_issues,description,last_issue"
         )
-        payload["format"] = "json"
-        payload["limit"] = 50
-        return payload
+        self.payload["format"] = "json"
 
-    def build_url_search(self, query: str):
+    def build_url_search(self, query: str) -> None:
+        """
+        Builds and stores the prepared API search URL for a given query.
+
+        Sets the instance attribute 'url_search' to the fully prepared search URL
+        and prints that URL.
+
+        Args:
+            query (str): Search string to include in the request parameters.
+        """
+
         payload = self.payload.copy()
         payload["query"] = query
         req = requests.Request(
@@ -63,6 +93,14 @@ class HttpRequest:
         print(self.url_search)
 
     def build_url_iss(self, id: int):
+        """
+        Builds and stores a prepared ComicVine API URL for querying issues belonging to
+        a specific volume.
+
+        Args:
+            id (int): The ComicVine volume identifier used in the request filter.
+        """
+
         req = requests.Request(
             method="GET",
             url=f"{HttpRequest.base_address}/issues/",
@@ -76,7 +114,24 @@ class HttpRequest:
         self.url_iss = prepared.url
         print(self.url_iss)
 
-    def get_request(self, request_type: str):
+    def get_request(self, request_type: str) -> dict | None:
+        """
+        Execute  a prepared GET request against the ComicVine API and return
+        the parsed JSON.
+
+        Args:
+            request_type (str): Either "search" or "iss" to use one of the two
+                previously built URL's.
+
+        Raises:
+            RuntimeError: If the required URL has not been build for the instance.
+            ValueError: If the required URL attribute exists but its value is None.
+
+        Returns:
+            dict | None: Parsed JSON response dictionary when the API 'error' field is
+                "OK". None if the API reports an error or invalid request syntax.
+        """
+
         if request_type == "search":
             if not hasattr(self, "url_search"):
                 raise RuntimeError("You must build url before sending request.")
@@ -113,7 +168,17 @@ class HttpRequest:
         # Want to tell the user to manually tag the comic.
         return data
 
-    def download_img(self, url):
+    def download_img(self, url: str) -> BytesIO | None:
+        """
+        Download an image from the given URL and return it as an in-memory binary stream.
+
+        Args:
+            url (str): URL of the image to download.
+
+        Returns:
+            BytesIO | None: A BytesIO containing image bytes on success. None otherwise.
+        """
+
         try:
             response = requests.get(url, timeout=3000)
             response.raise_for_status()

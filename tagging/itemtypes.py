@@ -59,7 +59,7 @@ class Item:
             pos (int): Zero-based index of the token's first character in
                 the source string.
             val (str): Exact substring captured for the token.
-        """       
+        """
         self.typ: ItemType = typ
         self.pos: int = pos
         self.val: str = val
