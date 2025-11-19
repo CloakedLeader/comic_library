@@ -5,7 +5,7 @@ from typing import Callable, Optional, Protocol
 
 from dotenv import load_dotenv
 
-from .itemtypes import Item, ItemType, LexerItem
+from .itemtypes import Item, ParserType, LexerType
 
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
@@ -13,18 +13,18 @@ API_KEY = os.getenv("API_KEY")
 eof = chr(0)
 
 key = {
-    "fcbd": ItemType.FCBD,
-    "freecomicbookday": ItemType.FCBD,
-    "cbr": ItemType.ArchiveType,
-    "cbz": ItemType.ArchiveType,
-    "rar": ItemType.ArchiveType,
-    "zip": ItemType.ArchiveType,
-    "annual": ItemType.ComicType,
-    "of": ItemType.InfoSpecifier,
-    "dc": ItemType.Publisher,
-    "marvel": ItemType.Publisher,
-    "covers": ItemType.InfoSpecifier,
-    "c2c": ItemType.C2C,
+    "fcbd": ParserType.FCBD,
+    "freecomicbookday": ParserType.FCBD,
+    "cbr": ParserType.ArchiveType,
+    "cbz": ParserType.ArchiveType,
+    "rar": ParserType.ArchiveType,
+    "zip": ParserType.ArchiveType,
+    "annual": ParserType.ComicType,
+    "of": ParserType.InfoSpecifier,
+    "dc": ParserType.Publisher,
+    "marvel": ParserType.Publisher,
+    "covers": ParserType.InfoSpecifier,
+    "c2c": ParserType.C2C,
 }
 
 
@@ -123,7 +123,7 @@ class Lexer:
 
         self.pos -= 1
 
-    def emit(self, t: LexerItem) -> None:
+    def emit(self, t: LexerType) -> None:
         """
         Emit a token spanning the input from the current start position up to the current position.
 
@@ -239,7 +239,7 @@ def errorf(lex: Lexer, message: str) -> None:
         lex (Lexer): Lexer instance to receive the error item.
         message (str): Text message stored in the emitted Error item.
     """
-    lex.items.append(Item(LexerItem.Error, lex.start, message))
+    lex.items.append(Item(LexerType.Error, lex.start, message))
 
 
 def run_lexer(lex: Lexer) -> Optional[LexerFunc]:
@@ -260,7 +260,7 @@ def run_lexer(lex: Lexer) -> Optional[LexerFunc]:
     r = lex.get()
 
     if r == eof:
-        lex.emit(LexerItem.EOF)
+        lex.emit(LexerType.EOF)
         return None
 
     elif is_space(r):
@@ -276,20 +276,20 @@ def run_lexer(lex: Lexer) -> Optional[LexerFunc]:
         return lex_text
 
     elif r == "-":
-        lex.emit(LexerItem.Dash)
+        lex.emit(LexerType.Dash)
         return run_lexer
 
     elif r == ".":
-        lex.emit(LexerItem.Dot)
+        lex.emit(LexerType.Dot)
         return run_lexer
 
     elif r == "(":
-        lex.emit(LexerItem.LeftParen)
+        lex.emit(LexerType.LeftParen)
         lex.paren_depth += 1
         return run_lexer
 
     elif r == ")":
-        lex.emit(LexerItem.RightParen)
+        lex.emit(LexerType.RightParen)
         lex.paren_depth -= 1
         if lex.paren_depth < 0:
             errorf(lex, "unexpected right paren " + r)
@@ -297,12 +297,12 @@ def run_lexer(lex: Lexer) -> Optional[LexerFunc]:
         return run_lexer
 
     elif r == "{":
-        lex.emit(LexerItem.LeftBrace)
+        lex.emit(LexerType.LeftBrace)
         lex.brace_depth += 1
         return run_lexer
 
     elif r == "}":
-        lex.emit(LexerItem.RightBrace)
+        lex.emit(LexerType.RightBrace)
         lex.brace_depth -= 1
         if lex.brace_depth < 0:
             errorf(lex, "unexpected right brace " + r)
@@ -310,12 +310,12 @@ def run_lexer(lex: Lexer) -> Optional[LexerFunc]:
         return run_lexer
 
     elif r == "[":
-        lex.emit(LexerItem.LeftBracket)
+        lex.emit(LexerType.LeftBracket)
         lex.sbrace_depth += 1
         return run_lexer
 
     elif r == "]":
-        lex.emit(LexerItem.RightBracket)
+        lex.emit(LexerType.RightBracket)
         lex.sbrace_depth -= 1
         if lex.sbrace_depth < 0:
             errorf(lex, "unexpected right square brace")
@@ -323,7 +323,7 @@ def run_lexer(lex: Lexer) -> Optional[LexerFunc]:
         return run_lexer
 
     elif r in "#&:+/;!?":
-        lex.emit(LexerItem.Symbol)
+        lex.emit(LexerType.Symbol)
         return run_lexer
 
     else:
@@ -350,7 +350,7 @@ def lex_space(lex: Lexer) -> LexerFunc:
             lex.backup()
             break
 
-    lex.emit(LexerItem.Space)
+    lex.emit(LexerType.Space)
     return run_lexer
 
 
@@ -378,7 +378,7 @@ def lex_text(lex: Lexer) -> LexerFunc:
             lex.backup()
             break
 
-    lex.emit(LexerItem.Text)
+    lex.emit(LexerType.Text)
     return run_lexer
 
 
@@ -401,7 +401,7 @@ def lex_number(lex: Lexer) -> LexerFunc:
             lex.backup()
             break
 
-    lex.emit(LexerItem.Number)
+    lex.emit(LexerType.Number)
     return run_lexer
 
 
