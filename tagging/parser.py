@@ -36,8 +36,8 @@ class Parser:
         return Item(LexerType.EOF, val="", pos=new_pos)
     
     def next(self, n=1) -> Item:
+        self.pos += n
         token = self.current()
-        self.pos += 1
         return token
     
     def try_parse_date_in_paren(self) -> Optional[int]:
@@ -50,11 +50,32 @@ class Parser:
                 self.next(); self.next()
                 return int(year_tok)
         return None
-        
+    
+    def try_parse_issue_number(self) -> Optional[int]:
+        if self.peek() == LexerType.EOF:
+            return None
+        n = 1
+        while True:
+            next_typ = self.peek(n=n).typ
+            if next_typ == LexerType.Space:
+                n += 1
+                continue
+            else:
+                break
+    
+        maybe_num = self.peek(n=n)
+        if maybe_num.typ == LexerType.Number:
+            number_tok = maybe_num.val
+            self.next(n=n)
+            return int(number_tok)
+        else:
+            return None
 
     def parse(self) -> FilenameMetadata:
         
         title_parts: list[str] = []
+
+        dash_yet = False
 
         while True:
             tok = self.current()
@@ -67,10 +88,24 @@ class Parser:
                 if maybe_date:
                     metadata_year = maybe_date
                     continue
+                else:
+                    title_parts.append(tok.val)
+                    self.next()
+                    continue
 
-                title_parts.append(tok.val)
-                self.next()
-                continue
+            if tok.typ == LexerType.Symbol:
+                if tok.val == "#":
+                    maybe_issue_num = self.try_parse_issue_number()
+                    if maybe_issue_num:
+                        metadata_issue_num = maybe_issue_num
+                        continue
+                    else:
+                        self.next()
+                        continue
+
+            if tok.typ == LexerType.Text:
+                outcome = self.decide_text_type()
+
         pass
 
 
