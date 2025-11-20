@@ -40,20 +40,7 @@ class Parser:
         token = self.current()
         return token
     
-    def try_parse_date_in_paren(self) -> Optional[int]:
-        if self.peek() == LexerType.EOF:
-            return None
-        maybe_year = self.peek()
-        if maybe_year.typ == LexerType.Number or len(maybe_year.val) == 4:
-            if self.peek(2).typ == LexerType.RightParen:
-                year_tok = maybe_year.val
-                self.next(); self.next()
-                return int(year_tok)
-        return None
-    
-    def try_parse_issue_number(self) -> Optional[int]:
-        if self.peek() == LexerType.EOF:
-            return None
+    def skip_whitespaces(self) -> int:
         n = 1
         while True:
             next_typ = self.peek(n=n).typ
@@ -62,7 +49,24 @@ class Parser:
                 continue
             else:
                 break
+        return n
     
+    def try_parse_date_in_paren(self) -> Optional[int]:
+        if self.peek() == LexerType.EOF:
+            return None
+        maybe_year = self.peek()
+        if maybe_year.typ == LexerType.Number or len(maybe_year.val) == 4:
+            if self.peek(2).typ == LexerType.RightParen:
+                year_tok = int(maybe_year.val)
+                if year_tok > 1900:
+                    self.next(); self.next()
+                    return year_tok
+        return None
+    
+    def try_parse_issue_number(self) -> Optional[int]:
+        if self.peek() == LexerType.EOF:
+            return None
+        n = self.skip_whitespaces()
         maybe_num = self.peek(n=n)
         if maybe_num.typ == LexerType.Number:
             number_tok = maybe_num.val
@@ -70,8 +74,20 @@ class Parser:
             return int(number_tok)
         else:
             return None
+        
+    def try_parse_volume_number(self) -> Optional[int]:
+        if self.peek() == LexerType.EOF:
+            return None
+        n = self.skip_whitespaces()
+        maybe_num = self.peek(n=n)
+        if maybe_num.typ == LexerType.Number:
+            number_tok = int(maybe_num.val)
+            self.next(n=n)
+            if number_tok < 12:
+                return int(number_tok)
+        return None
 
-    def parse(self) -> FilenameMetadata:
+    def parse(self):
         
         title_parts: list[str] = []
 
@@ -93,17 +109,19 @@ class Parser:
                     self.next()
                     continue
 
-            if tok.typ == LexerType.Symbol:
-                if tok.val == "#":
-                    maybe_issue_num = self.try_parse_issue_number()
-                    if maybe_issue_num:
-                        metadata_issue_num = maybe_issue_num
-                        continue
-                    else:
-                        self.next()
-                        continue
+            if tok.typ == LexerType.Symbol and tok.val == "#":
+                maybe_issue_num = self.try_parse_issue_number()
+                if maybe_issue_num:
+                    metadata_issue_num = maybe_issue_num
+                    continue
+                else:
+                    self.next()
+                    continue
 
             if tok.typ == LexerType.Text:
+                val = tok.val.lower().rstrip(".")
+                if val in ("vol", "volume", "v"):
+                    maybe_volume_num = self.try_parse_volume_number()
                 outcome = self.decide_text_type()
 
         pass
