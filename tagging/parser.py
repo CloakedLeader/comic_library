@@ -18,6 +18,14 @@ class Parser:
         self.tokens = tokens
         self.pos = 0
         self.item_length = len(tokens)
+        self.includes_dash = False
+        for i in tokens:
+            if i.typ == LexerType.Dash:
+                self.includes_dash = True
+                break
+            else:
+                continue
+        
 
     def current(self) -> Item:
         if self.pos < len(self.tokens):
@@ -99,14 +107,21 @@ class Parser:
             if number_tok < 12:
                 return int(number_tok)
         return None
+    
+    def decide_if_seperator(self) -> bool:
+        if self.prev().typ == LexerType.Space and self.peek() == LexerType.Space:
+            return True
+        else:
+            return False
 
     def parse(self):
         
         title_parts: list[str] = []
+        series_parts: list[str] = []
         useless_info: list[str] = []
 
-        dash_yet = False
-        year_yet = False
+        dash_yet: bool = False
+        year_yet: bool = False
 
         while True:
             tok = self.current()
@@ -138,16 +153,31 @@ class Parser:
                     continue
 
             if tok.typ == LexerType.Text:
-                val = tok.val.lower().rstrip(".")
-                if val in ("vol", "volume", "v"):
+                val = tok.val.lower()
+                if val.rstrip(".") in ("vol", "volume", "v"):
                     maybe_volume_num = self.try_parse_volume_number()
-                outcome = self.decide_text_type()
-                title_parts.append(val)
-
-            if tok.typ == LexerType.Text:
-                if tok.val.lower() == "by":
+                    if maybe_volume_num:
+                        metadata_volume_num = maybe_volume_num
+                        continue
+                elif val == "by":
                     maybe_author = self.try_parse_author()
+                    if maybe_author:
+                        metadata_author = maybe_author
+                        continue
+                else:
+                    if dash_yet:
+                        title_parts.append(val)
+                        self.next()
+                        continue
+                    else:
+                        series_parts.append(val)
+                        self.next()
+                        continue
 
+            if tok.typ == LexerType.Dash:
+                dash_yet = self.decide_if_seperator()
+                self.next()
+                continue
 
 
 # class Parser:
