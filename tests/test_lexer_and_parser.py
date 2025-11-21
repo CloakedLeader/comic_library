@@ -6,7 +6,7 @@ def lex_and_parse(filename: str):
     lex = Lexer(filename)
     lex.run()
     parser = Parser(lex.items)
-    comic_info = parser.construct_metadata()
+    comic_info = parser.parse()
     return comic_info
 
 

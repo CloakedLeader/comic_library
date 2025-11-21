@@ -17,6 +17,7 @@ class Parser:
     def __init__(self, tokens: list[Item]):
         self.tokens = tokens
         self.pos = 0
+        self.item_length = len(tokens)
 
     def current(self) -> Item:
         if self.pos < len(self.tokens):
@@ -52,7 +53,7 @@ class Parser:
         return n
     
     def try_parse_date_in_paren(self) -> Optional[int]:
-        if self.peek() == LexerType.EOF:
+        if self.peek().typ == LexerType.EOF:
             return None
         maybe_year = self.peek()
         if maybe_year.typ == LexerType.Number or len(maybe_year.val) == 4:
@@ -63,8 +64,20 @@ class Parser:
                     return year_tok
         return None
     
+    def try_parse_useless_info(self, seen_year_yet: bool) -> Optional[str]:
+        if self.peek().typ == LexerType.EOF:
+            return None
+        maybe_useless = self.peek()
+        if maybe_useless.typ == LexerType.Text and seen_year_yet:
+            if self.pos + 1 >= self.item_length - 3:
+                useless_tok = str(maybe_useless.val)
+                self.next()
+                return useless_tok
+        
+        return None
+    
     def try_parse_issue_number(self) -> Optional[int]:
-        if self.peek() == LexerType.EOF:
+        if self.peek().typ == LexerType.EOF:
             return None
         n = self.skip_whitespaces()
         maybe_num = self.peek(n=n)
@@ -76,7 +89,7 @@ class Parser:
             return None
         
     def try_parse_volume_number(self) -> Optional[int]:
-        if self.peek() == LexerType.EOF:
+        if self.peek().typ == LexerType.EOF:
             return None
         n = self.skip_whitespaces()
         maybe_num = self.peek(n=n)
@@ -90,8 +103,10 @@ class Parser:
     def parse(self):
         
         title_parts: list[str] = []
+        useless_info: list[str] = []
 
         dash_yet = False
+        year_yet = False
 
         while True:
             tok = self.current()
@@ -103,8 +118,12 @@ class Parser:
                 maybe_date = self.try_parse_date_in_paren()
                 if maybe_date:
                     metadata_year = maybe_date
+                    year_yet = True
                     continue
                 else:
+                    maybe_useless = self.try_parse_useless_info(year_yet)
+                    if maybe_useless:
+                        useless_info.append(maybe_useless)
                     title_parts.append(tok.val)
                     self.next()
                     continue
@@ -123,8 +142,12 @@ class Parser:
                 if val in ("vol", "volume", "v"):
                     maybe_volume_num = self.try_parse_volume_number()
                 outcome = self.decide_text_type()
+                title_parts.append(val)
 
-        pass
+            if tok.typ == LexerType.Text:
+                if tok.val.lower() == "by":
+                    maybe_author = self.try_parse_author()
+
 
 
 # class Parser:
