@@ -13,6 +13,17 @@ class FilenameMetadata(TypedDict):
     month: Optional[int]
 
 
+known_collections = {
+        "tpb",
+        "hc",
+        "hardcover",
+        "omnibus",
+        "deluxe",
+        "compendium",
+        "digest",
+    }
+
+
 class Parser:
     def __init__(self, tokens: list[Item]):
         self.tokens = tokens
@@ -109,10 +120,16 @@ class Parser:
         return None
     
     def decide_if_seperator(self) -> bool:
-        if self.prev().typ == LexerType.Space and self.peek() == LexerType.Space:
+        if self.prev().typ == LexerType.Space and self.peek().typ == LexerType.Space:
             return True
         else:
             return False
+        
+    def try_parse_author(self):
+        pass
+
+    def try_parse_collection_type(self):
+        pass
 
     def parse(self):
         
@@ -129,7 +146,10 @@ class Parser:
             if tok.typ == LexerType.EOF:
                 break
 
-            if tok.typ == LexerType.LeftParen:
+            elif tok.typ == LexerType.Space:
+                self.next()
+
+            elif tok.typ == LexerType.LeftParen:
                 maybe_date = self.try_parse_date_in_paren()
                 if maybe_date:
                     metadata_year = maybe_date
@@ -143,7 +163,7 @@ class Parser:
                     self.next()
                     continue
 
-            if tok.typ == LexerType.Symbol and tok.val == "#":
+            elif tok.typ == LexerType.Symbol and tok.val == "#":
                 maybe_issue_num = self.try_parse_issue_number()
                 if maybe_issue_num:
                     metadata_issue_num = maybe_issue_num
@@ -152,12 +172,17 @@ class Parser:
                     self.next()
                     continue
 
-            if tok.typ == LexerType.Text:
+            elif tok.typ == LexerType.Text:
                 val = tok.val.lower()
                 if val.rstrip(".") in ("vol", "volume", "v"):
                     maybe_volume_num = self.try_parse_volume_number()
                     if maybe_volume_num:
                         metadata_volume_num = maybe_volume_num
+                        continue
+                elif val in known_collections:
+                    maybe_collection_type = self.try_parse_collection_type()
+                    if maybe_collection_type:
+                        metadata_collection = maybe_collection_type
                         continue
                 elif val == "by":
                     maybe_author = self.try_parse_author()
@@ -165,73 +190,25 @@ class Parser:
                         metadata_author = maybe_author
                         continue
                 else:
-                    if dash_yet:
+                    if self.includes_dash:
+                        if dash_yet:
+                            title_parts.append(val)
+                            self.next()
+                            continue
+                        else:
+                            series_parts.append(val)
+                            self.next()
+                            continue
+                    else:
                         title_parts.append(val)
                         self.next()
                         continue
-                    else:
-                        series_parts.append(val)
-                        self.next()
-                        continue
 
-            if tok.typ == LexerType.Dash:
+            elif tok.typ == LexerType.Dash:
                 dash_yet = self.decide_if_seperator()
                 self.next()
                 continue
 
+            else:
+                self.next()
 
-# class Parser:
-#     def __init__(self, list_of_tokens: list[Item]):
-#         self.tokens: list[Item] = list_of_tokens
-#         self.metadata: dict[str, str | int] = {}
-#         self.buffer: list[str] = []
-
-#     def construct_metadata(self) -> dict[str, str | int]:
-#         capture_title = False
-#         title_parts = []
-#         i = 0
-#         while i < len(self.tokens):
-#             item = self.tokens[i]
-
-#             if item.typ == ItemType.Text and not capture_title:
-#                 self.buffer.append(item.val)
-
-#             elif item.typ == ItemType.CollectionType:
-#                 self.metadata["collection_type"] = item.val
-
-#             elif item.typ == ItemType.IssueNumber:
-#                 try:
-#                     self.metadata["issue"] = int(item.val.lstrip("#"))
-#                     capture_title = True
-#                 except ValueError:
-#                     pass
-
-#             elif item.typ == ItemType.VolumeNumber:
-#                 volume = int(re.findall(r"\d+", item.val)[0])
-#                 self.metadata["volume"] = volume
-#                 capture_title = True
-
-#             elif capture_title:
-#                 if item.typ == ItemType.Text:
-#                     title_parts.append(item.val)
-#                 elif item.typ == ItemType.Number:
-#                     if 1900 <= int(item.val):
-#                         self.metadata["year"] = int(item.val)
-#                         break
-
-#             elif item.typ == ItemType.Number and 1900 <= int(item.val):
-#                 self.metadata["year"] = int(item.val)
-#                 break
-
-#             i += 1
-
-#         if self.buffer:
-#             tokens = " ".join(self.buffer).split()
-#             self.metadata["series"] = " ".join(tokens)
-
-#         if title_parts:
-#             title = " ".join(title_parts).strip().lstrip("-").strip()
-#             if title:
-#                 self.metadata["title"] = " ".join(title.split())
-
-#         return self.metadata
