@@ -128,9 +128,6 @@ class Parser:
     def try_parse_author(self):
         pass
 
-    def try_parse_collection_type(self):
-        pass
-
     def parse(self):
         
         title_parts: list[str] = []
@@ -180,10 +177,9 @@ class Parser:
                         metadata_volume_num = maybe_volume_num
                         continue
                 elif val in known_collections:
-                    maybe_collection_type = self.try_parse_collection_type()
-                    if maybe_collection_type:
-                        metadata_collection = maybe_collection_type
-                        continue
+                    metadata_collection = val
+                    self.next()
+                    continue
                 elif val == "by":
                     maybe_author = self.try_parse_author()
                     if maybe_author:
@@ -211,4 +207,14 @@ class Parser:
 
             else:
                 self.next()
+            
+        collected_metadata  = {
+            "year": metadata_year or 0,
+            "title": " ".join(title_parts),
+            "series": " ".join(series_parts),
+            "volume": metadata_volume_num or 0,
+            "issue": metadata_issue_num or 0,
+        }
+        
+        return collected_metadata
 

@@ -14,7 +14,8 @@ def lex_and_parse(filename: str):
 
 def test_primitive():
     result = lex_and_parse("Batman No Man's Land (2015)")
-    assert result == "Batman No Man's Land".lower()
+    assert result["year"] == 2015
+    assert result["title"] == "Batman No Man's Land".lower()
 
 
 # def test1():
