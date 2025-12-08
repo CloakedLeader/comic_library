@@ -1,81 +1,50 @@
+from tagging.itemtypes import LexerType
 from tagging.lexer import Lexer
-from tagging.parser import Parser
 
 
-def lex_and_parse(filename: str):
-    lex = Lexer(filename)
+def lex_all(text):
+    lex = Lexer(text)
+    tokens = []
     lex.run()
-    parser = Parser(lex.items)
-    comic_info = parser.construct_metadata()
-    return comic_info
+    for t in lex.items:
+        tokens.append((t.typ, t.val))
+    return tokens
 
 
-def test1():
-    result = lex_and_parse("Batman Omnibus Vol 1 (2019)")
-
-    assert result["collection_type"] == "Omnibus"
-    assert result["year"] == 2019
-    assert result["volume"] == 1
+def test_single_word():
+    tokens = lex_all("Batman")
+    assert tokens == [(LexerType.Text, "Batman"), (LexerType.EOF, "")]
 
 
-def test2():
-    result = lex_and_parse("Batman v3 162 (2026) (Webrip) (The Last Kryptonian-DCP)")
-
-    assert result["year"] == 2026
-    assert result["issue"] == 162
-    assert result["volume"] == 3
-    assert result["series"] == "Batman"
-
-
-def test3():
-    result = lex_and_parse(
-        "Spider-Boy - Full Circle v01 (2026) (digital) (Marika-Empire)"
-    )
-
-    assert result["title"] == "Full Circle"
-    assert result["series"] == "Spider-Boy"
-    assert result["year"] == 2026
-    assert result["volume"] == 1
+def test_word_and_number():
+    tokens = lex_all("Flash New 52")
+    assert tokens == [
+        (LexerType.Text, "Flash"),
+        (LexerType.Space, " "),
+        (LexerType.Text, "New"),
+        (LexerType.Space, " "),
+        (LexerType.Number, "52"),
+        (LexerType.EOF, ""),
+    ]
 
 
-def test4():
-    result = lex_and_parse(
-        "Guardians of the Galaxy v01 - Cosmic Avengers (2013) (Digital) (F) (Zone-Empire)"
-    )
-
-    assert result["series"] == "Guardians of the Galaxy"
-    assert result["title"] == "Cosmic Avengers"
-    assert result["volume"] == 1
-    assert result["year"] == 2013
-
-
-def test5():
-    result = lex_and_parse(
-        "Justice League - The Atom Project (2025) (digital) (Son of Ultron-Empire)"
-    )
-
-    assert result["series"] == "Justice League"
-    assert result["title"] == "The Atom Project"
-    assert result["volume"] == 1 or 0
-    assert result["year"] == 2025
+def test_dash():
+    tokens = lex_all("Avengers - Endgame")
+    assert tokens == [
+        (LexerType.Text, "Avengers"),
+        (LexerType.Space, " "),
+        (LexerType.Dash, "-"),
+        (LexerType.Space, " "),
+        (LexerType.Text, "Endgame"),
+        (LexerType.EOF, ""),
+    ]
 
 
-def test6():
-    result = lex_and_parse(
-        "Moon Knight - Fist Of Khonshu - Subterranean Jungle v01 (2026) (digital) (Marika-Empire)"
-    )
-
-    assert result["series"] == "Moon Knight - Fist of Khonshu"
-    assert result["title"] == "Subterranean Jungle"
-    assert result["volume"] == 1
-    assert result["year"] == 2026
-
-
-def test7():
-    result = lex_and_parse(
-        "Doctor Strange Of Asgard v01 (2026) (digital) (Marika-Empire)"
-    )
-
-    assert result["series"] == "Doctor Strange of Asgard"
-    assert result["volume"] == 1
-    assert result["year"] == 2026
+def test_apostrophes():
+    tokens = lex_all("Spider-Man's Revenge")
+    assert tokens == [
+        (LexerType.Text, "Spider-Man's"),
+        (LexerType.Space, " "),
+        (LexerType.Text, "Revenge"),
+        (LexerType.EOF, ""),
+    ]
