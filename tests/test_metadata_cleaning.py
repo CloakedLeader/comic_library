@@ -143,4 +143,4 @@ def test_title_case_applied():
     result = proc.title_parsing()
 
     assert result["title"] == "The Dark Phoenix Saga"
-    assert result["series"] == "Uncanny X-men"
+    assert result["series"] == "Uncanny X-Men"
