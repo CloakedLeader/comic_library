@@ -89,6 +89,7 @@ def test_series_override_keyword():
 
     assert result["collection_type"] == 2
 
+
 # ! Ignore this test for PR purposes. This is not the topic of this branch.
 # def test_volume_number_numeric():
 #     parser = MockParser(title="Vol. 4", series="Thor")

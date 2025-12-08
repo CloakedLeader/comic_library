@@ -77,7 +77,7 @@ class Item:
         Intialise an Item representing a token lexed from an input string.
 
         Args:
-            typ (LexerItem): Token type.
+            typ (LexerType | ParserType): Token type.
             pos (int): Zero-based index of the token's first character in
                 the source string.
             val (str): Exact substring captured for the token.

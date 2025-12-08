@@ -3,6 +3,7 @@ from typing import Optional, TypedDict
 
 from .itemtypes import Item, LexerType
 
+
 class FilenameMetadata(TypedDict):
     title: str
     volume_number: int
@@ -74,7 +75,7 @@ class Parser:
         if self.peek().typ == LexerType.EOF:
             return None
         maybe_year = self.peek()
-        if maybe_year.typ == LexerType.Number or len(maybe_year.val) == 4:
+        if maybe_year.typ == LexerType.Number and len(maybe_year.val) == 4:
             if self.peek(2).typ == LexerType.RightParen:
                 year_tok = int(maybe_year.val)
                 if year_tok > 1900:
@@ -106,11 +107,12 @@ class Parser:
                 depth += 1
             elif tok.typ == LexerType.RightParen:
                 depth -= 1
-                self.next()
                 if depth == 0:
                     self.next()
                     break
-                continue
+                else:
+                    self.next()
+                    continue
             self.next()
 
     def try_parse_issue_number(self, hash: bool) -> Optional[int]:
@@ -146,7 +148,7 @@ class Parser:
                 return int(number_tok)
         return None
 
-    def decide_if_seperator(self) -> bool:
+    def decide_if_separator(self) -> bool:
         if self.prev().typ == LexerType.Space and self.peek().typ == LexerType.Space:
             return True
         else:
@@ -239,7 +241,7 @@ class Parser:
                             self.next()
                             continue
                     elif not val[-1].isdigit() and val in ("v", "vol", "volume"):
-                        maybe_volume_num = self.try_parse_volume_number() # type: ignore
+                        maybe_volume_num = self.try_parse_volume_number()  # type: ignore
                         if maybe_volume_num:
                             possible_metadata["volume"] = maybe_volume_num
                             continue
@@ -269,13 +271,12 @@ class Parser:
 
             elif tok.typ == LexerType.Dash:
                 dash_count += 1
-                dash_yet = self.decide_if_seperator()
                 self.next()
                 continue
 
             else:
                 self.next()
-        
+
         if possible_metadata["issue"] == 0:
             possible_metadata["issue"] = 1
         if possible_metadata["volume"] == 0:

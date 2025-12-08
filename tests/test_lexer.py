@@ -1,5 +1,3 @@
-import pytest
-
 from tagging.itemtypes import LexerType
 from tagging.lexer import Lexer
 

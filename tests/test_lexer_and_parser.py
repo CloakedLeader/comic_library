@@ -32,7 +32,7 @@ def test2():
     assert result["year"] == 2026
     assert result["issue"] == 162
     assert result["volume"] == 3
-    assert result["series"] or result["title"] == "batman"
+    assert result["series"] == "batman" or result["title"] == "batman"
 
 
 def test3():
@@ -84,6 +84,9 @@ def test7():
         "Doctor Strange Of Asgard v01 (2026) (digital) (Marika-Empire)"
     )
 
-    assert result["series"] or result["title"] == "doctor strange of asgard"
+    assert (
+        result["series"] == "doctor strange of asgard"
+        or result["title"] == "doctor strange of asgard"
+    )
     assert result["volume"] == 1
     assert result["year"] == 2026

@@ -77,7 +77,7 @@ class Lexer:
         self.input: str = string
         self.state: LexerFunc | None = None
         self.pos: int = 0
-        self.start: int = 0
+        self.start: int = -1
         self.last_pos: int = 0
         self.paren_depth: int = 0
         self.brace_depth: int = 0
