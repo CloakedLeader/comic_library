@@ -3,6 +3,7 @@ from typing import Optional, TypedDict
 
 from .itemtypes import Item, LexerType, ParserType
 
+
 class FilenameMetadata(TypedDict):
     title: str
     volume_number: int
@@ -14,14 +15,14 @@ class FilenameMetadata(TypedDict):
 
 
 known_collections = {
-        "tpb",
-        "hc",
-        "hardcover",
-        "omnibus",
-        "deluxe",
-        "compendium",
-        "digest",
-    }
+    "tpb",
+    "hc",
+    "hardcover",
+    "omnibus",
+    "deluxe",
+    "compendium",
+    "digest",
+}
 
 
 class Parser:
@@ -36,30 +37,29 @@ class Parser:
                 break
             else:
                 continue
-        
 
     def current(self) -> Item:
         if self.pos < len(self.tokens):
             return self.tokens[self.pos]
         return Item(LexerType.EOF, val="", pos=self.pos)
-    
+
     def peek(self, n=1) -> Item:
         new_pos = self.pos + n
         if new_pos < len(self.tokens):
             return self.tokens[new_pos]
         return Item(LexerType.EOF, val="", pos=new_pos)
-    
+
     def prev(self, n=1) -> Item:
         new_pos = self.pos - n
         if new_pos >= 0:
             return self.tokens[new_pos]
         return Item(LexerType.EOF, val="", pos=new_pos)
-    
+
     def next(self, n=1) -> Item:
         self.pos += n
         token = self.current()
         return token
-    
+
     def skip_whitespaces(self) -> int:
         n = 1
         while True:
@@ -70,7 +70,7 @@ class Parser:
             else:
                 break
         return n
-    
+
     def try_parse_date_in_paren(self) -> Optional[int]:
         if self.peek().typ == LexerType.EOF:
             return None
@@ -79,63 +79,107 @@ class Parser:
             if self.peek(2).typ == LexerType.RightParen:
                 year_tok = int(maybe_year.val)
                 if year_tok > 1900:
-                    self.next(); self.next()
+                    self.next()
+                    self.next()
                     return year_tok
         return None
-    
+
     def try_parse_useless_info(self, seen_year_yet: bool) -> Optional[str]:
         if self.peek().typ == LexerType.EOF:
             return None
         maybe_useless = self.peek()
         if maybe_useless.typ == LexerType.Text and seen_year_yet:
-            if self.pos + 1 >= self.item_length - 3:
+            if self.pos + 1 >= self.item_length - 4:
                 useless_tok = str(maybe_useless.val)
                 self.next()
                 return useless_tok
-        
+
         return None
-    
-    def try_parse_issue_number(self) -> Optional[int]:
-        if self.peek().typ == LexerType.EOF:
-            return None
-        n = self.skip_whitespaces()
-        maybe_num = self.peek(n=n)
-        if maybe_num.typ == LexerType.Number:
-            number_tok = maybe_num.val
-            self.next(n=n)
-            return int(number_tok)
-        else:
-            return None
-        
-    def try_parse_volume_number(self) -> Optional[int]:
-        if self.peek().typ == LexerType.EOF:
-            return None
-        n = self.skip_whitespaces()
-        maybe_num = self.peek(n=n)
-        if maybe_num.typ == LexerType.Number:
-            number_tok = int(maybe_num.val)
-            self.next(n=n)
-            if number_tok < 12:
+
+    def skip_parenthesis(self):
+        depth = 0
+
+        while True:
+            tok = self.current()
+            if tok.typ == LexerType.EOF:
+                break
+            if tok.typ == LexerType.LeftParen:
+                depth += 1
+            elif tok.typ == LexerType.RightParen:
+                depth -= 1
+                self.next()
+                if depth == 0:
+                    break
+                continue
+            self.next()
+
+    def try_parse_issue_number(self, hash: bool) -> Optional[int]:
+        if hash:
+            if self.peek().typ == LexerType.EOF:
+                return None
+            n = self.skip_whitespaces()
+            maybe_num = self.peek(n=n)
+            if maybe_num.typ == LexerType.Number:
+                number_tok = maybe_num.val
+                self.next(n=n)
                 return int(number_tok)
-        return None
-    
+            else:
+                return None
+        else:
+            maybe_num = self.current()
+            if maybe_num.typ == LexerType.Number:
+                number_tok = maybe_num.val
+                self.next()
+                return int(number_tok)
+            else:
+                return None
+
+    def try_parse_volume_number(self, regex_num: int) -> Optional[int]:
+        # if self.peek().typ == LexerType.EOF:
+        #     return None
+        # n = self.skip_whitespaces()
+        # maybe_num = self.peek(n=n)
+        # if maybe_num.typ == LexerType.Number:
+        #     number_tok = int(maybe_num.val)
+        #     self.next(n=n)
+        #     if number_tok < 12 and regex_num == int(number_tok):
+        #         return int(number_tok)
+        # return None
+        return regex_num
+
     def decide_if_seperator(self) -> bool:
         if self.prev().typ == LexerType.Space and self.peek().typ == LexerType.Space:
             return True
         else:
             return False
-        
+
     def try_parse_author(self):
         pass
 
-    def parse(self):
-        
-        title_parts: list[str] = []
-        series_parts: list[str] = []
-        useless_info: list[str] = []
+    def collate_metadata(self, misc: dict, title: list, series: list) -> dict:
+        collected_metadata = {
+            "year": misc["year"],
+            "title": " ".join(title),
+            "series": " ".join(series),
+            "volume": misc["volume"],
+            "issue": misc["issue"],
+            "collection": misc["collection"],
+        }
+        return collected_metadata
+
+    def parse(self) -> dict:
+        title_parts = []
+        series_parts = []
+        possible_metadata: dict[str, str | int | None] = {
+            "year": 0,
+            "issue": 0,
+            "volume": 0,
+            "collection": None,
+            "author": None,
+        }
 
         dash_yet: bool = False
-        year_yet: bool = False
+        # year_yet: bool = False
 
         while True:
             tok = self.current()
@@ -149,41 +193,59 @@ class Parser:
             elif tok.typ == LexerType.LeftParen:
                 maybe_date = self.try_parse_date_in_paren()
                 if maybe_date:
-                    metadata_year = maybe_date
+                    possible_metadata["year"] = maybe_date
                     year_yet = True
                     continue
                 else:
-                    maybe_useless = self.try_parse_useless_info(year_yet)
-                    if maybe_useless:
-                        useless_info.append(maybe_useless)
-                    title_parts.append(tok.val)
-                    self.next()
+                    self.skip_parenthesis()
+                    # maybe_useless = self.try_parse_useless_info(year_yet)
+                    # if maybe_useless:
+                    #     useless_info.append(maybe_useless)
+                    # title_parts.append(tok.val)
+                    # self.next()
                     continue
 
             elif tok.typ == LexerType.Symbol and tok.val == "#":
-                maybe_issue_num = self.try_parse_issue_number()
+                maybe_issue_num = self.try_parse_issue_number(True)
                 if maybe_issue_num:
-                    metadata_issue_num = maybe_issue_num
+                    possible_metadata["issue"] = maybe_issue_num
                     continue
+                else:
+                    self.next()
+                    continue
+
+            elif tok.typ == LexerType.Number:
+                if possible_metadata["issue"] == 0:
+                    maybe_iss_num = self.try_parse_issue_number(False)
+                    if maybe_iss_num:
+                        possible_metadata["issue"] = maybe_iss_num
+                        continue
+                    else:
+                        self.next()
+                        continue
                 else:
                     self.next()
                     continue
 
             elif tok.typ == LexerType.Text:
                 val = tok.val.lower()
-                if val.rstrip(".") in ("vol", "volume", "v"):
-                    maybe_volume_num = self.try_parse_volume_number()
-                    if maybe_volume_num:
-                        metadata_volume_num = maybe_volume_num
-                        continue
+                if val[0] == "v":
+                    m = re.match(r"^(v(?:ol(?:ume)?)?)\.?(\d+)$", val.rstrip("."))
+                    if m:
+                        maybe_volume_num = int(m.group(2))
+                        # maybe_volume_num = self.try_parse_volume_number(int(m.group(2)))
+                        if maybe_volume_num:
+                            possible_metadata["volume"] = maybe_volume_num
+                            self.next()
+                            continue
                 elif val in known_collections:
-                    metadata_collection = val
+                    possible_metadata["collection"] = val
                     self.next()
                     continue
                 elif val == "by":
                     maybe_author = self.try_parse_author()
                     if maybe_author:
-                        metadata_author = maybe_author
+                        possible_metadata["author"] = maybe_author
                         continue
                 else:
                     if self.includes_dash:
@@ -207,14 +269,8 @@ class Parser:
 
             else:
                 self.next()
-            
-        collected_metadata  = {
-            "year": metadata_year or 0,
-            "title": " ".join(title_parts),
-            "series": " ".join(series_parts),
-            "volume": metadata_volume_num or 0,
-            "issue": metadata_issue_num or 0,
-        }
-        
-        return collected_metadata
 
+            possible_metadata["issue"] = 1
+            possible_metadata["volume"] = 1
+
+        return self.collate_metadata(possible_metadata, title_parts, series_parts)

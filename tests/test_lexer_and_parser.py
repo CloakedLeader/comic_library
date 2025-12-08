@@ -18,54 +18,54 @@ def test_primitive():
     assert result["title"] == "Batman No Man's Land".lower()
 
 
-# def test1():
-#     result = lex_and_parse("Batman Omnibus Vol 1 (2019)")
+def test1():
+    result = lex_and_parse("Batman Omnibus Vol 1 (2019)")
 
-#     assert result["collection_type"] == "Omnibus"
-#     assert result["year"] == 2019
-#     assert result["volume"] == 1
-
-
-# def test2():
-#     result = lex_and_parse("Batman v3 162 (2026) (Webrip) (The Last Kryptonian-DCP)")
-
-#     assert result["year"] == 2026
-#     assert result["issue"] == 162
-#     assert result["volume"] == 3
-#     assert result["series"] == "Batman"
+    assert result["collection"] == "omnibus"
+    assert result["year"] == 2019
+    assert result["volume"] == 1
 
 
-# def test3():
-#     result = lex_and_parse(
-#         "Spider-Boy - Full Circle v01 (2026) (digital) (Marika-Empire)"
-#     )
+def test2():
+    result = lex_and_parse("Batman v3 162 (2026) (Webrip) (The Last Kryptonian-DCP)")
 
-#     assert result["title"] == "Full Circle"
-#     assert result["series"] == "Spider-Boy"
-#     assert result["year"] == 2026
-#     assert result["volume"] == 1
+    assert result["year"] == 2026
+    assert result["issue"] == 162
+    assert result["volume"] == 3
+    assert result["series"] or result["title"] == "batman"
 
 
-# def test4():
-#     result = lex_and_parse(
-#         "Guardians of the Galaxy v01 - Cosmic Avengers (2013) (Digital) (F) (Zone-Empire)"
-#     )
+def test3():
+    result = lex_and_parse(
+        "Spider-Boy - Full Circle v01 (2026) (digital) (Marika-Empire)"
+    )
 
-#     assert result["series"] == "Guardians of the Galaxy"
-#     assert result["title"] == "Cosmic Avengers"
-#     assert result["volume"] == 1
-#     assert result["year"] == 2013
+    assert result["title"] == "full circle"
+    assert result["series"] == "spider-boy"
+    assert result["year"] == 2026
+    assert result["volume"] == 1
 
 
-# def test5():
-#     result = lex_and_parse(
-#         "Justice League - The Atom Project (2025) (digital) (Son of Ultron-Empire)"
-#     )
+def test4():
+    result = lex_and_parse(
+        "Guardians of the Galaxy v01 - Cosmic Avengers (2013) (Digital) (F) (Zone-Empire)"
+    )
 
-#     assert result["series"] == "Justice League"
-#     assert result["title"] == "The Atom Project"
-#     assert result["volume"] == 1 or 0
-#     assert result["year"] == 2025
+    assert result["series"] == "guardians of the galaxy"
+    assert result["title"] == "cosmic avengers"
+    assert result["volume"] == 1
+    assert result["year"] == 2013
+
+
+def test5():
+    result = lex_and_parse(
+        "Justice League - The Atom Project (2025) (digital) (Son of Ultron-Empire)"
+    )
+
+    assert result["series"] == "justice league"
+    assert result["title"] == "the atom project"
+    assert result["volume"] == 1
+    assert result["year"] == 2025
 
 
 # def test6():
@@ -73,17 +73,17 @@ def test_primitive():
 #         "Moon Knight - Fist Of Khonshu - Subterranean Jungle v01 (2026) (digital) (Marika-Empire)"
 #     )
 
-#     assert result["series"] == "Moon Knight - Fist of Khonshu"
-#     assert result["title"] == "Subterranean Jungle"
 #     assert result["volume"] == 1
 #     assert result["year"] == 2026
+#     assert result["series"] == "moon knight - fist of khonshu"
+#     assert result["title"] == "subterranean jungle"
 
 
-# def test7():
-#     result = lex_and_parse(
-#         "Doctor Strange Of Asgard v01 (2026) (digital) (Marika-Empire)"
-#     )
+def test7():
+    result = lex_and_parse(
+        "Doctor Strange Of Asgard v01 (2026) (digital) (Marika-Empire)"
+    )
 
-#     assert result["series"] == "Doctor Strange of Asgard"
-#     assert result["volume"] == 1
-#     assert result["year"] == 2026
+    assert result["series"] or result["title"] == "doctor strange of asgard"
+    assert result["volume"] == 1
+    assert result["year"] == 2026

@@ -5,7 +5,7 @@ from typing import Callable, Optional, Protocol
 
 from dotenv import load_dotenv
 
-from .itemtypes import Item, ParserType, LexerType
+from .itemtypes import Item, LexerType, ParserType
 
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
