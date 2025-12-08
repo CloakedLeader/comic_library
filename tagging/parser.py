@@ -1,8 +1,7 @@
 import re
 from typing import Optional, TypedDict
 
-from .itemtypes import Item, LexerType, ParserType
-
+from .itemtypes import Item, LexerType
 
 class FilenameMetadata(TypedDict):
     title: str
@@ -109,6 +108,7 @@ class Parser:
                 depth -= 1
                 self.next()
                 if depth == 0:
+                    self.next()
                     break
                 continue
             self.next()
@@ -134,18 +134,17 @@ class Parser:
             else:
                 return None
 
-    def try_parse_volume_number(self, regex_num: int) -> Optional[int]:
-        # if self.peek().typ == LexerType.EOF:
-        #     return None
-        # n = self.skip_whitespaces()
-        # maybe_num = self.peek(n=n)
-        # if maybe_num.typ == LexerType.Number:
-        #     number_tok = int(maybe_num.val)
-        #     self.next(n=n)
-        #     if number_tok < 12 and regex_num == int(number_tok):
-        #         return int(number_tok)
-        # return None
-        return regex_num
+    def try_parse_volume_number(self) -> Optional[int]:
+        if self.peek().typ == LexerType.EOF:
+            return None
+        n = self.skip_whitespaces()
+        maybe_num = self.peek(n=n)
+        if maybe_num.typ == LexerType.Number:
+            number_tok = int(maybe_num.val)
+            self.next(n=n)
+            if number_tok < 12:
+                return int(number_tok)
+        return None
 
     def decide_if_seperator(self) -> bool:
         if self.prev().typ == LexerType.Space and self.peek().typ == LexerType.Space:
@@ -155,6 +154,14 @@ class Parser:
 
     def try_parse_author(self):
         pass
+
+    def count_dashes(self) -> int:
+        count = 0
+        for token in self.tokens:
+            if token.typ == LexerType.Dash:
+                count += 1
+
+        return count
 
     def collate_metadata(self, misc: dict, title: list, series: list) -> dict:
         collected_metadata = {
@@ -178,8 +185,8 @@ class Parser:
             "author": None,
         }
 
-        dash_yet: bool = False
-        # year_yet: bool = False
+        dashes = self.count_dashes()
+        dash_count = 0
 
         while True:
             tok = self.current()
@@ -194,15 +201,9 @@ class Parser:
                 maybe_date = self.try_parse_date_in_paren()
                 if maybe_date:
                     possible_metadata["year"] = maybe_date
-                    year_yet = True
                     continue
                 else:
                     self.skip_parenthesis()
-                    # maybe_useless = self.try_parse_useless_info(year_yet)
-                    # if maybe_useless:
-                    #     useless_info.append(maybe_useless)
-                    # title_parts.append(tok.val)
-                    # self.next()
                     continue
 
             elif tok.typ == LexerType.Symbol and tok.val == "#":
@@ -233,10 +234,14 @@ class Parser:
                     m = re.match(r"^(v(?:ol(?:ume)?)?)\.?(\d+)$", val.rstrip("."))
                     if m:
                         maybe_volume_num = int(m.group(2))
-                        # maybe_volume_num = self.try_parse_volume_number(int(m.group(2)))
                         if maybe_volume_num:
                             possible_metadata["volume"] = maybe_volume_num
                             self.next()
+                            continue
+                    elif not val[-1].isdigit() and val in ("v", "vol", "volume"):
+                        maybe_volume_num = self.try_parse_volume_number() # type: ignore
+                        if maybe_volume_num:
+                            possible_metadata["volume"] = maybe_volume_num
                             continue
                 elif val in known_collections:
                     possible_metadata["collection"] = val
@@ -248,8 +253,8 @@ class Parser:
                         possible_metadata["author"] = maybe_author
                         continue
                 else:
-                    if self.includes_dash:
-                        if dash_yet:
+                    if dashes > 0:
+                        if dash_count >= dashes:
                             title_parts.append(val)
                             self.next()
                             continue
@@ -263,14 +268,17 @@ class Parser:
                         continue
 
             elif tok.typ == LexerType.Dash:
+                dash_count += 1
                 dash_yet = self.decide_if_seperator()
                 self.next()
                 continue
 
             else:
                 self.next()
-
+        
+        if possible_metadata["issue"] == 0:
             possible_metadata["issue"] = 1
+        if possible_metadata["volume"] == 0:
             possible_metadata["volume"] = 1
 
         return self.collate_metadata(possible_metadata, title_parts, series_parts)

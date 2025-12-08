@@ -68,15 +68,15 @@ def test5():
     assert result["year"] == 2025
 
 
-# def test6():
-#     result = lex_and_parse(
-#         "Moon Knight - Fist Of Khonshu - Subterranean Jungle v01 (2026) (digital) (Marika-Empire)"
-#     )
+def test6():
+    result = lex_and_parse(
+        "Moon Knight - Fist Of Khonshu - Subterranean Jungle v01 (2026) (digital) (Marika-Empire)"
+    )
 
-#     assert result["volume"] == 1
-#     assert result["year"] == 2026
-#     assert result["series"] == "moon knight - fist of khonshu"
-#     assert result["title"] == "subterranean jungle"
+    assert result["volume"] == 1
+    assert result["year"] == 2026
+    assert result["series"] == "moon knight fist of khonshu"
+    assert result["title"] == "subterranean jungle"
 
 
 def test7():

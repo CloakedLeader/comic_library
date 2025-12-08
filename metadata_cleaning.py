@@ -73,16 +73,21 @@ class MetadataProcessing:
             "yet",
         }
 
+        def smart_cap(word: str) -> str:
+            return "-".join(part.capitalize() for part in word.split("-"))
+
         words = title.lower().split()
         if not words:
             return ""
 
         result = []
         for i, word in enumerate(words):
-            if i == 0 or i == len(words) - 1 or word not in minor_words:
-                result.append(word.capitalize())
+            lower = word.lower()
+
+            if i == 0 or i == len(words) - 1 or lower not in minor_words:
+                result.append(smart_cap(lower))
             else:
-                result.append(word)
+                result.append(lower)
 
         return " ".join(result)
 
