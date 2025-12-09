@@ -5,6 +5,7 @@ import sys
 import threading
 from pathlib import Path
 from typing import Callable, Optional, Sequence
+import inspect
 
 import uvicorn
 from dotenv import load_dotenv
@@ -250,20 +251,21 @@ class HomePage(QMainWindow):
                              font-weight: bold; padding: 10px;"""
         )
 
-        # def make_click_handler(func, comic):
-        #     def handler():
-        #         if inspect.iscoroutinefunction(func):
-        #             asyncio.create_task(func(comic))
-        #         else:
-        #             func(comic)
+        def wrap_handler(func) -> Optional[Callable]:
+            if func is None:
+                return None
+            if inspect.iscoroutinefunction(func):
+                    def wrapper(*args, **kwargs):
+                        asyncio.create_task(func(*args,**kwargs))
+                    return wrapper
+            return func
 
-        #     return handler
-
+            
         for pos, comic in enumerate(list_of_info):
             progress = progresses[pos] if progresses else None
             comic_widget = GeneralComicWidget(
                 comic,
-                left_clicked,
+                wrap_handler(left_clicked),
                 right_clicked,
                 double_left_clicked,
                 progress=progress,
@@ -606,6 +608,12 @@ class HomePage(QMainWindow):
         if value >= 100:
             QTimer.singleShot(1500, self.progress_bar.hide)
             self.progress_bar.setValue(0)
+
+    @staticmethod
+    def wrap_async(coro_func, *args, **kwargs):
+        def wrapper():
+            asyncio.create_task(coro_func(*args, **kwargs))
+        return wrapper
 
 
 def count_files_and_storage(directory: str) -> tuple[int, float]:
