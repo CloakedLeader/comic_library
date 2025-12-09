@@ -1,20 +1,17 @@
 from download_controller import DownloadServiceAsync
 from pathlib import Path
-import requests
-from bs4 import BeautifulSoup
+import asyncio
 
 def dummy(num):
     print(num)
 
-service = DownloadServiceAsync(Path("0 - Downloads"))
-response = requests.get("https://getcomics.org/marvel/werewolf-by-night-red-band-7-2025/", timeout=30)
-soup = BeautifulSoup(response.content, "html.parser")
-print(soup)
+async def main():
+    async with DownloadServiceAsync(Path("0 - Downloads")) as downloader:
+        download_links = await downloader.get_download_links(r"https://getcomics.org/marvel/werewolf-by-night-red-band-7-2025/")
+    
+        simple_link = download_links[0][1]
+        print(simple_link)
+        filepath = await downloader.download_comic(simple_link, dummy)
 
-
-# article_link = service.get_download_links("https://getcomics.org/marvel/werewolf-by-night-red-band-7-2025/")
-
-
-# simple_link = download_link[0]
-# print(simple_link)
-# filepath = service.download_comic(download_link, dummy)
+if __name__ == "__main__":
+    asyncio.run(main())
