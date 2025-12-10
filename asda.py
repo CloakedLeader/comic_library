@@ -3,7 +3,7 @@ from pathlib import Path
 import asyncio
 
 def dummy(num):
-    print(num)
+    pass
 
 async def main():
     async with DownloadServiceAsync(Path("0 - Downloads")) as downloader:

@@ -6,6 +6,7 @@ import threading
 from pathlib import Path
 from typing import Callable, Optional, Sequence
 import inspect
+import logging
 
 import uvicorn
 from dotenv import load_dotenv
@@ -39,7 +40,7 @@ from comic_grid_view import ComicGridView
 from comic_match_logic import ComicMatch
 from comic_match_ui import ComicMatcherUI
 from database.gui_repo_worker import RepoWorker
-from download_controller import DownloadControllerAsync, DownloadServiceAsync
+from download_controller import DownloadControllerAsync
 from general_comic_widget import GeneralComicWidget
 from left_widget_assets import ButtonDisplay
 from metadata_controller import run_tagger
@@ -54,6 +55,13 @@ from settings import Settings
 load_dotenv()
 root_string = os.getenv("ROOT_DIR")
 ROOT_DIR = Path(root_string if root_string is not None else "")
+
+log_file = open("debug.log", "w", encoding="utf-8")
+sys.stdout = log_file
+sys.stderr = log_file
+
+logging.getLogger("asyncio").setLevel(logging.WARNING)
+logging.getLogger("qasync").setLevel(logging.WARNING)
 
 
 class HomePage(QMainWindow):
@@ -256,7 +264,8 @@ class HomePage(QMainWindow):
                 return None
             if inspect.iscoroutinefunction(func):
                     def wrapper(*args, **kwargs):
-                        asyncio.create_task(func(*args,**kwargs))
+                        task = asyncio.create_task(func(*args,**kwargs))
+                        task.add_done_callback(self.handle_async_exceptions)
                     return wrapper
             return func
 
@@ -361,9 +370,7 @@ class HomePage(QMainWindow):
         repository = RSSRepository("comics.db")
         rss_cont = RSSController(repository)
         recent_comics_list = rss_cont.run(num)
-        self.rss_controller = DownloadControllerAsync(
-            view=self, service=DownloadServiceAsync()
-        )
+        self.rss_controller = DownloadControllerAsync(view=self)
         return self.create_scroll_area(
             recent_comics_list,
             header="GetComics RSS Feed",
@@ -609,11 +616,11 @@ class HomePage(QMainWindow):
             QTimer.singleShot(1500, self.progress_bar.hide)
             self.progress_bar.setValue(0)
 
-    @staticmethod
-    def wrap_async(coro_func, *args, **kwargs):
-        def wrapper():
-            asyncio.create_task(coro_func(*args, **kwargs))
-        return wrapper
+    def handle_async_exceptions(self, task: asyncio.Task):
+        try:
+            task.result()
+        except Exception as e:
+            print(f"[Async callback exception] {e}")
 
 
 def count_files_and_storage(directory: str) -> tuple[int, float]:
@@ -644,16 +651,6 @@ def count_files_and_storage(directory: str) -> tuple[int, float]:
 
 def start_api():
     uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
-
-
-# async def main():
-#     app = QApplication(sys.argv)
-#     loop = QEventLoop(app)
-#     asyncio.set_event_loop(loop)
-#     window = HomePage()
-#     window.show()
-#     with loop:
-#         await loop.run_forever()
 
 
 if __name__ == "__main__":

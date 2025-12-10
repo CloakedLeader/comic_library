@@ -5,7 +5,6 @@ from email.header import decode_header
 from pathlib import Path
 from typing import Callable, Optional
 from playwright.async_api import async_playwright
-import random
 
 import aiofiles
 import aiohttp
@@ -29,7 +28,7 @@ class DownloadControllerAsync:
     download workflow including status updates and error handling.
     """
 
-    def __init__(self, view, service: "DownloadServiceAsync") -> None:
+    def __init__(self, view, download_folder: Path = ROOT_DIR / "0 - Downloads"):
         """
         Initialise the download controller.
 
@@ -38,15 +37,21 @@ class DownloadControllerAsync:
             service: The download servie for handling actual file downloads.
         """
         self.view = view
-        self.download_service = service
+        self.download_service: DownloadServiceAsync | None = None
+        self.download_folder = download_folder
         self.comic_dict: dict[str, str] = {}
 
+    async def ensure_service(self):
+        if self.download_service is None:
+            self.download_service = DownloadServiceAsync(self.download_folder)
+            await self.download_service.__aenter__()
+            
     async def handle_rss_comic_clicked(self, comic_info: RSSComicInfo) -> None:
         """
         Handle the event when an RSS comic is clicked for download.
 
         Args:
-            comic_dict: Dictionary containing comic information with keys:
+            comic_info (RSSComicInfo): Pydantic Model containing comic information with keys:
                 - 'title': Comic title for display
                 - 'link': URL to comic article page.
                 - 'cover': URl to comic cover image.
@@ -63,7 +68,9 @@ class DownloadControllerAsync:
             requests.RequestException: If there are network issues accessing the page.
             aiohttp.ClientError: If there are issues with the async HTTP client.
             IOError: If there are file system issues during download.
-        """
+
+        """ 
+        await self.ensure_service()
         self.comic_info = comic_info
         self.view.update_status(f"Starting download of: {comic_info.title}")
         print(f"[DEBUG] comic_info.title type: {type(comic_info.title)}")
@@ -78,26 +85,31 @@ class DownloadControllerAsync:
         except (requests.RequestException, aiohttp.ClientError, IOError) as e:
             print(e)
             return
-        for service, link in download_links:
-            if service != "Read Online":
-                try:
-                    filepath = await self.download_service.download_from_service(
-                        service,
-                        link,
-                        progress_callback=self.progress_update,
-                    )
-                except (requests.RequestException, aiohttp.ClientError, IOError) as e:
-                    print(e)
-                    continue
-                self.view.update_status(
-                    f"Successfully downloaded: {comic_info.title} to {filepath}"
-                    + " via service: "
-                    + str(service)
-                )
-                break
+        # for service, link in download_links:
+        #     if service != "Read Online":
+        #         try:
+        #             filepath = await self.download_service.download_from_service(
+        #                 service,
+        #                 link,
+        #                 progress_callback=self.progress_update,
+        #             )
+        #         except (requests.RequestException, aiohttp.ClientError, IOError) as e:
+        #             print(e)
+        #             continue
+        #         self.view.update_status(
+        #             f"Successfully downloaded: {comic_info.title} to {filepath}"
+        #             + " via service: "
+        #             + str(service)
+        #         )
+        #         break
 
     def progress_update(self, percent: int):
         self.view.update_progress_bar(percent)
+
+    async def cleanup(self):
+        if self.download_service:
+            await self.download_service.__aexit__(None, None, None)
+            self.download_service = None
 
 
 class DownloadServiceAsync:
@@ -204,7 +216,7 @@ class DownloadServiceAsync:
         for button_div in soup.find_all("div", class_="aio-button-center"):
             link = button_div.find("a", href=True)
             if link:
-                href = link["href"]
+                href = str(link["href"])
                 title = str(link["title"]).strip()
                 download_links.append((title, href))
 
@@ -233,10 +245,8 @@ class DownloadServiceAsync:
         to URL path, finally, uses "downloaded_comic.cbz" as a last resort.
         """
 
-        final_url, filename = await self.resolve_download_link(comic_download_link)
-        print(f"Final url: {final_url}")
         filepath = await self.download_with_progress(
-            final_url,
+            comic_download_link,
             self.download_folder,
             progress_callback,
         )
@@ -285,6 +295,8 @@ class DownloadServiceAsync:
 
                 filepath = download_folder / filename
 
+                last_percent = -1
+
                 async with aiofiles.open(filepath, "wb") as f:
                     async for chunk in response.content.iter_chunked(8192):
                         await f.write(chunk)
@@ -292,9 +304,10 @@ class DownloadServiceAsync:
 
                         if max_size > 0:
                             percent = int(downloaded * 100 / max_size)
-                            progress_callback(percent)
+                            if percent != last_percent:
+                                last_percent = percent
+                                progress_callback(percent)
 
-                progress_callback(100)
                 return filepath 
 
     async def resolve_download_link(self, link: str) -> tuple[str, str | None]:
@@ -304,6 +317,8 @@ class DownloadServiceAsync:
             download = await dl_info.value
             return download.url, download.suggested_filename
         except Exception as e:
+            if "Download is starting" in str(e):
+                print("Detected download-start navigation error")
             final_url = str(self.page.url)
             return final_url, None
         
