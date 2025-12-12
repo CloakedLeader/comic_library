@@ -36,13 +36,27 @@ class Comic:
     def __init__(
         self, comic_info: GUIComicInfo, start_index: int = 0, max_cache: int = 10
     ) -> None:
+        """
+        Creates an instance of the Comic Class and sets up a lot of instance variables that will be used
+        in the following function calls.
+
+        Args:
+            comic_info (GUIComicInfo): A pydantic model including all the relevant data the UI needs to
+                display the comic.
+            start_index (int, optional): The page index to start the reader from, usually the last read page.
+                Defaults to 0.
+            max_cache (int, optional): The number of pages to keep in memory at all time. Defaults to 10.
+
+        Raises:
+            ComicError: This error is raised when no images are found in the comic archive folder.
+        """    
         self.path = comic_info.filepath
         self.filename = comic_info.filepath.stem
         self.zip = zipfile.ZipFile(comic_info.filepath, "r")
         self.image_names = sorted(
             name
             for name in self.zip.namelist()
-            if name.lower().endswith((".jpg", ".jpeg", ".png"))
+            if name.lower().endswith((".jpg", ".jpeg", ".png")) # TODO: Use sort_function.py here.
         )
         if not self.image_names:
             raise ComicError("No images found in the file.")
@@ -55,6 +69,21 @@ class Comic:
         self.info = comic_info
 
     def get_image_data(self, index: int) -> bytes:
+        """
+        Gets the comic image data corresponding to the index. First it searches through the cache
+        and then goes to the zipfile if it is not in recent memory.
+
+        Args:
+            index (int): The page index of the required page.
+
+        Raises:
+            PageIndexError: An error returned if the index is not valid for the comic.
+            ImageLoadError: An error returned if the code couldnt read the image from
+                the comic archive.
+
+        Returns:
+            bytes: The raw bytes of the image at page: index.
+        """
         if index < 0 or index >= self.total_pages:
             raise PageIndexError(f"Index {index} out of range.")
 
@@ -76,6 +105,12 @@ class Comic:
         return data
 
     def next_image_data(self) -> bytes:
+        """
+        Increases the index counter by one and gets the bytes content of the next page.
+
+        Returns:
+            bytes: The raw bytes of the image to display.
+        """
         self.current_index += 1
         return self.get_image_data(self.current_index)
 
@@ -89,7 +124,7 @@ class ImagePreloader(QThread):
         self.comic = comic
         self.index = index
 
-    def run(self):
+    def run(self) -> None:
         try:
             data = self.comic.get_image_data(self.index)
         except Exception as e:
