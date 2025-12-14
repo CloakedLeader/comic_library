@@ -52,7 +52,7 @@ class ReadingController:
         with RepoWorker() as saver:
             if page == 0:
                 return None
-            elif page == self.comic.total_pages:
+            elif page >= self.comic.total_pages - 1:
                 saver.mark_as_finished(primary_id, page)
                 return None
             saver.save_last_page(primary_id, page)
