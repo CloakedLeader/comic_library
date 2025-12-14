@@ -20,9 +20,10 @@ class ReadingController:
         Args:
             comic: Dictionary containing comic information including 'filepath' key.
         """
-        self.comic = comic
+        self.comic_info = comic
+        self.comic = Comic(comic)
         self.filepath = comic.filepath
-        self.open_windows: list[SimpleReader] = []
+        self.open_windows: list[tuple[str, SimpleReader]] = []
 
     def read_comic(self) -> None:
         """
@@ -33,22 +34,29 @@ class ReadingController:
         management.
         """
         with RepoWorker() as pager:
-            val = pager.get_recent_page(self.comic.primary_id)
-        start = val if val else 0
-        comic_data = Comic(self.comic, start_index=start)
-        comic_reader = SimpleReader(comic_data)
-        # comic_reader.closed.connect(self.save_current_page)
+            val = pager.get_recent_page(self.comic.id)
+        self.comic.set_page_index(val if val else 0)
+        comic_reader = SimpleReader(self.comic)
+        comic_reader.closed.connect(self.save_current_page)
         comic_reader.showMaximized()
-        self.open_windows.append(comic_reader)
+        self.open_windows.append((self.comic.id, comic_reader))
 
-    # def save_current_page(self, primary_id: str, page: int) -> None:
-    #     with RepoWorker("D://adams-comics//.covers") as saver:
-    #         if page == 0:
-    #             return None
-    #         elif page == self.comic.total_pages:
-    #             saver.mark_finished(primary_id)
-    #             Remove row from reading_progress and mark as finished.
-    #             saver.save_last_page(primary_id, page)
+    def save_current_page(self, primary_id: str, page: int) -> None:
+        """
+        Saves the last read page to the database.
+
+        Args:
+            primary_id (str): The unique ID of the comic.
+            page (int): The page to save to the database.
+        """        
+        with RepoWorker() as saver:
+            if page == 0:
+                return None
+            elif page == self.comic.total_pages:
+                saver.mark_as_finished(primary_id, page)
+                return None
+            saver.save_last_page(primary_id, page)
+            return None
 
     def close_all_windows(self) -> None:
         """
@@ -58,5 +66,5 @@ class ReadingController:
         windows, closes them and clears the internal list of open windows.
         """
         for window in self.open_windows:
-            window.close()
+            window[1].close()
         self.open_windows.clear()
