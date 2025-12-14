@@ -62,6 +62,11 @@ sys.stderr = log_file
 
 logging.getLogger("asyncio").setLevel(logging.WARNING)
 logging.getLogger("qasync").setLevel(logging.WARNING)
+logging.basicConfig(
+    filename="debug.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class HomePage(QMainWindow):
@@ -562,13 +567,13 @@ class HomePage(QMainWindow):
             if selected:
                 return selected
 
-        print("User cancelled or no selection made.")
+        logging.info("User cancelled or no selection made.")
         return None
 
     def create_collection(self):
         dialog = CollectionCreation()
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            print(dialog.textbox.text())
+            logging.info(dialog.textbox.text())
 
     def clicked_collection(self, id: int):
         def clear_widgets():
@@ -592,7 +597,7 @@ class HomePage(QMainWindow):
     def create_reading_order(self):
         dialog = ReadingOrderCreation()
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            print(dialog.textbox.text())
+            logging.info(dialog.textbox.text())
 
     def open_settings(self):
         dialog = Settings()
@@ -620,7 +625,7 @@ class HomePage(QMainWindow):
         try:
             task.result()
         except Exception as e:
-            print(f"[Async callback exception] {e}")
+            logging.error(f"[Async callback exception] {e}")
 
 
 def count_files_and_storage(directory: str) -> tuple[int, float]:

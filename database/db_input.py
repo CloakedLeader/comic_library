@@ -1,9 +1,17 @@
 import sqlite3
 from pathlib import Path
 from typing import Optional
+import logging
 
 from classes.helper_classes import ComicInfo
 from file_utils import normalise_publisher_name
+
+
+logging.basicConfig(
+    filename="debug.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 SHARED_ALIASES = [
     "Robin",
@@ -235,7 +243,7 @@ class MetadataInputting:
         self.conn.commit()
 
     def insert_filepath(self, filepath: Path):
-        print(f"[DEBUG] Updating comic ID {self.comic_id} with path {filepath.name}")
+        logging.debug(f"Updating comic ID {self.comic_id} with path {filepath.name}")
         self.cursor.execute(
             """
             UPDATE comics
@@ -244,8 +252,8 @@ class MetadataInputting:
             """,
             (str(filepath), self.comic_id),
         )
-        print("[DEBUG] SQL executed")
-        print(f"[DEBUG] Rows updated: {self.cursor.rowcount}")
+        logging.info("SQL executed successfully.")
+        logging.debug(f"Rows updated: {self.cursor.rowcount}")
         self.conn.commit()
 
 

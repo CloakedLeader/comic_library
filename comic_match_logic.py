@@ -1,6 +1,14 @@
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import TypedDict, cast
+import logging
+
+
+logging.basicConfig(
+    filename="debug.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class ComicMatch(TypedDict):
@@ -24,14 +32,14 @@ class ResultsFilter:
 
     def __enter__(self):
         self.filepath.parent.mkdir(parents=True, exist_ok=True)
-        print(f"Entering ResultsFilter context for: {self.filepath.name}")
+        logging.info(f"Entering ResultsFilter context for: {self.filepath.name}")
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type:
-            print(f"Exception occured: {exc_type.__name__}: {exc_value}")
+            logging.error(f"Exception occured: {exc_type.__name__}: {exc_value}")
         else:
-            print("Exiting ResultsFilter context cleanly.")
+            logging.debug("Exiting ResultsFilter context cleanly.")
         return False
 
     @staticmethod
@@ -79,7 +87,7 @@ class ResultsFilter:
         return score
 
     def filter_results(self, top_n: int = 5) -> list[tuple[dict, int]]:
-        print(f"Adam here you go:\n{self.query_results}")
+        logging.info(f"Adam here you go:\n{self.query_results}")
         ids: set[int] = set()
         scored: list[tuple[float, dict, int]] = []
         # Each tuple has (score, result, position)

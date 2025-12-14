@@ -1,6 +1,7 @@
 import zipfile
 from io import BytesIO
 from pathlib import Path
+import logging
 
 import requests
 from PySide6.QtCore import Qt
@@ -20,6 +21,13 @@ from PySide6.QtWidgets import (
 
 from comic_match_logic import ComicMatch
 from tagging_controller import RequestData
+
+
+logging.basicConfig(
+    filename="debug.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class ComicMatcherUI(QDialog):
@@ -127,15 +135,15 @@ class ComicMatcherUI(QDialog):
     def confirm_match(self):
         row = self.table_widget.currentRow()
         if row != -1:
-            print(f"Selected row: {row}")
+            logging.debug(f"Selected row: {row}")
             overall_index = self.matches[row][1]
             self.selected_match = self.all_matches[overall_index]
             self.accept()
         else:
-            print("No row selected")
+            logging.warning("No row selected")
 
     def get_selected_result(self):
-        print(self.selected_match)
+        logging.debug(self.selected_match)
         return self.selected_match if hasattr(self, "selected_match") else None
 
     @staticmethod
@@ -147,7 +155,7 @@ class ComicMatcherUI(QDialog):
                 if f.lower().endswith((".jpg", ".jpeg", ".png"))
             ]
             if not image_files:
-                print("Empty archive.")
+                logging.error("Empty archive.")
                 raise ValueError("Not a comic file!")
             image_files.sort()
             cover = zip_ref.read(image_files[0])
@@ -163,7 +171,7 @@ class ComicMatcherUI(QDialog):
             if pixmap.loadFromData(image_data.read()):
                 return pixmap
         except Exception as e:
-            print(f"Failed to load image from {url}: {e}")
+            logging.error(f"Failed to load image from {url}: {e}")
         fallback = QPixmap(120, 180)
         fallback.fill(Qt.GlobalColor.gray)
         return fallback

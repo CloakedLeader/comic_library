@@ -1,6 +1,7 @@
 import os
 from io import BytesIO
 from typing import Callable, Optional
+import logging
 
 import requests
 from PySide6.QtCore import QPoint, QRect, Qt, Signal
@@ -8,6 +9,13 @@ from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from classes.helper_classes import GUIComicInfo, RSSComicInfo
+
+
+logging.basicConfig(
+    filename="debug.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class GeneralComicWidget(QWidget):
@@ -95,7 +103,7 @@ class GeneralComicWidget(QWidget):
         if event.button() == Qt.LeftButton:
             self.left_clicked.emit(self.comic_info)
         if event.button() == Qt.RightButton:
-            print("Right click detected on", self.comic_info.title)
+            logging.debug("Right click detected on", self.comic_info.title)
             self.right_clicked.emit(self.comic_info, event.globalPos())
 
     def mouseDoubleClickEvent(self, event):
@@ -134,5 +142,5 @@ class GeneralComicWidget(QWidget):
             if pixmap.loadFromData(image_data.read()):
                 return pixmap
         except Exception as e:
-            print(f"Failed to load image from {link}: {e}")
+            logging.error(f"Failed to load image from {link}: {e}")
         return None

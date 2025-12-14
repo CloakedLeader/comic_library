@@ -5,6 +5,7 @@ from email.header import decode_header
 from pathlib import Path
 from typing import Callable, Optional
 from playwright.async_api import async_playwright
+import logging
 
 import aiofiles
 import aiohttp
@@ -17,6 +18,12 @@ from classes.helper_classes import RSSComicInfo
 load_dotenv()
 root_folder = os.getenv("ROOT_DIR") or ""
 ROOT_DIR = Path(root_folder)
+
+logging.basicConfig(
+    filename="debug.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class DownloadControllerAsync:
@@ -73,8 +80,7 @@ class DownloadControllerAsync:
         await self.ensure_service()
         self.comic_info = comic_info
         self.view.update_status(f"Starting download of: {comic_info.title}")
-        print(f"[DEBUG] comic_info.title type: {type(comic_info.title)}")
-        print(f"[DEBUG] comic_info.url: {comic_info.url}")
+        logging.debug(f"comic_info.url: {comic_info.url}")
         download_links = await self.download_service.get_download_links(comic_info.url)
         download_links = self.download_service.sort(download_links)
         download_now_link = download_links[0][1]
@@ -83,7 +89,7 @@ class DownloadControllerAsync:
                 download_now_link, self.progress_update
             )
         except (requests.RequestException, aiohttp.ClientError, IOError) as e:
-            print(e)
+            logging.error(e)
             return
         # for service, link in download_links:
         #     if service != "Read Online":
@@ -260,14 +266,14 @@ class DownloadServiceAsync:
             progress_callback: Callable):
         async with aiohttp.ClientSession() as session:
             async with session.get(url, allow_redirects=True) as response:
-                print("\n=== Redirect history ===")
+                logging.debug("\n=== Redirect history ===")
                 for i, r in enumerate(response.history, start=1):
-                    print(f"\nHop {i}: {r.url}")
-                    print(r.headers)
+                    logging.debug(f"\nHop {i}: {r.url}")
+                    logging.debug(r.headers)
 
-                print("\n=== Final response ===")
-                print(response.url.human_repr())
-                print(dict(response.headers))
+                logging.debug("\n=== Final response ===")
+                logging.debug(response.url.human_repr())
+                logging.info(dict(response.headers))
 
                 if response.status != 200:
                     raise Exception(f"Download failed with status code {response.status}")
@@ -318,7 +324,7 @@ class DownloadServiceAsync:
             return download.url, download.suggested_filename
         except Exception as e:
             if "Download is starting" in str(e):
-                print("Detected download-start navigation error")
+                logging.error("Detected download-start navigation error")
             final_url = str(self.page.url)
             return final_url, None
         
@@ -347,11 +353,11 @@ class DownloadServiceAsync:
                     async for chunk in response.content.iter_chunked(8192):
                         await f.write(chunk)
                         downloaded += len(chunk)
-                        print(f"[DEBUG] Writing {len(chunk)} bytes to file...")
+                        # print(f"[DEBUG] Writing {len(chunk)} bytes to file...")
                         percent = int(downloaded * 100 / file_size)
                         progress_callback(percent)
 
-        print(f"Downloaded: {filename}")
+        logging.info(f"Downloaded: {filename}")
         return filepath
 
     async def download_from_service(self, service: str, link: str, progress_callback):
@@ -364,7 +370,7 @@ class DownloadServiceAsync:
             filepath = await handler(link, progress_callback)
             return filepath
         else:
-            print(f"No handler for service: {service}")
+            logging.warning(f"No handler for service: {service}")
             return None
 
     @staticmethod

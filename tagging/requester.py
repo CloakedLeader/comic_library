@@ -1,6 +1,14 @@
 from io import BytesIO
+import logging
 
 import requests
+
+
+logging.basicConfig(
+    filename="debug.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 header = {
     "User-Agent": "AutoComicLibrary/1.0 (contact: adam.perrott@protonmail.com;"
@@ -90,7 +98,7 @@ class HttpRequest:
         )
         prepared = req.prepare()
         self.url_search = prepared.url
-        print(self.url_search)
+        logging.info(f"The search URL is: {self.url_search}")
 
     def build_url_iss(self, id: int):
         """
@@ -112,7 +120,7 @@ class HttpRequest:
         )
         prepared = req.prepare()
         self.url_iss = prepared.url
-        print(self.url_iss)
+        logging.info(f"The issue URL is: {self.url_iss}")
 
     def get_request(self, request_type: str) -> dict | None:
         """
@@ -139,11 +147,11 @@ class HttpRequest:
                 raise ValueError("search url cannot be None")
             response = self.session.get(self.url_search)
             if response.status_code != 200:
-                print(
-                    f"Request failed with status code: \
+                logging.warning(
+                    f"Search request failed with status code: \
                       {response.status_code}"
                 )
-                print(response.text)
+                logging.warning("/n" + response.text)
             data = response.json()
 
         elif request_type == "iss":
@@ -153,17 +161,17 @@ class HttpRequest:
                 raise ValueError("issue url cannot be None")
             response = self.session.get(self.url_iss)
             if response.status_code != 200:
-                print(
-                    f"Request failed with status code: \
+                logging.warning(
+                    f"Issue request failed with status code: \
                       {response.status_code}"
                 )
-                print(response.text)
+                logging.warning("/n" + response.text)
             data = response.json()
 
         else:
             raise ValueError(f"Unknown request type: {request_type!r}")
         if data["error"] != "OK":
-            print("Error, please investigate")
+            logging.warning("Error, please investigate")
             return None
         # Want to tell the user to manually tag the comic.
         return data
@@ -185,5 +193,5 @@ class HttpRequest:
             image = BytesIO(response.content)
             return image
         except Exception as e:
-            print(f"Failed to process {url}: {e}")
+            logging.warning(f"Failed to process {url}: {e}")
             return None

@@ -4,11 +4,19 @@ from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 from typing import Optional
+import logging
 
 import requests
 
 from classes.helper_classes import ComicInfo
 from metadata_cleaning import MetadataProcessing
+
+
+logging.basicConfig(
+    filename="debug.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class TagApplication:
@@ -90,9 +98,8 @@ class TagApplication:
             raise ValueError("url cannot be None")
         response = self.session.get(self.url)
         if response.status_code != 200:
-            print(f"Request failed with status code: {response.status_code}")
+            logging.warning(f"Request failed with status code: {response.status_code}")
         data = response.json()
-        print(data["results"])
         self.issue_data = data["results"]
 
     def parse_list_of_dicts(self, field) -> list[str]:

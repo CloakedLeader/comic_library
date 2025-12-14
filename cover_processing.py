@@ -4,9 +4,17 @@ import zipfile
 from io import BytesIO
 from pathlib import Path
 from typing import Optional
+import logging
 
 import Levenshtein
 from PIL import Image
+
+
+logging.basicConfig(
+    filename="debug.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class ImageExtraction:
@@ -144,6 +152,6 @@ class ImageExtraction:
         try:
             self.extract_image_bytes()
             self.save_cover()
-            print("[INFO] Cover saved!")
+            logging.info("Cover saved!")
         except Exception as e:
-            print(f"[ERROR] {e}")
+            logging.error({e})

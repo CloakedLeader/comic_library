@@ -5,6 +5,7 @@ from enum import IntEnum
 from io import BytesIO
 from pathlib import Path
 from typing import Optional
+import logging
 
 import imagehash
 import requests
@@ -20,6 +21,11 @@ from tagging.validator import ResponseValidator
 
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
+logging.basicConfig(
+    filename="app.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class MatchCode(IntEnum):
@@ -61,7 +67,7 @@ class TaggingPipeline:
                 if f.lower().endswith((".jpg", ".jpeg", ".png"))
             ]
             if not image_files:
-                print("Empty archive.")
+                logging.debug(f"Empty archive in {self.path}")
                 return
             image_files.sort()
             cover = zip_ref.read(image_files[0])
@@ -91,16 +97,16 @@ class TaggingPipeline:
             results = self.http.get_request("search")
             self.validator = ResponseValidator(results, self.data)
 
-            print(f"There are {len(results['results'])} results returned.")
+            logging.debug(f"There are {len(results['results'])} results returned for query {q}.")
             results = self.validator.issue_count_filter()
             self.validator.results = results
             results = self.validator.pick_best_volumes(number=8)
             self.validator.results = results
             results = self.validator.pub_checker(results)
             self.validator.results = results
-            print(
+            logging.debug(
                 "After filtering for title, publisher and issue "
-                + f"there are {len(results)} remaining results."
+                + f"there are {len(results)} remaining results for query {q}."
             )
             final_results = results
 
@@ -117,22 +123,22 @@ class TaggingPipeline:
                 temp_results = self.http.get_request("iss")
 
                 self.temp_validator = ResponseValidator(temp_results, self.data)
-                print(
+                logging.debug(
                     f"There are {len(self.temp_validator.results)}"
-                    + f" issues in the matching volume: '{k}'."
+                    + f" issues in the matching volume: '{k}' for query {q}."
                 )
                 temp_results = self.temp_validator.year_checker()
                 self.temp_validator.results = temp_results
                 temp_results = self.temp_validator.title_checker()
                 self.temp_validator.results = temp_results
 
-                print(
+                logging.debug(
                     "After filtering for title and year "
-                    + f"there are {len(temp_results)} results remaining."
+                    + f"there are {len(temp_results)} results remaining for query {q}"
                 )
                 if len(temp_results) != 0:
                     if len(temp_results) > 25:
-                        print(
+                        logging.debug(
                             "Too many issues to compare covers, "
                             + f"skipping volume '{k}'."
                         )
@@ -156,42 +162,42 @@ class TaggingPipeline:
                             score = self.temp_validator.cover_img_comp_w_weight(
                                 self.coverhashes, img_pil
                             )
-                            print(f"Index {index}: similarity score = {score:.2f}")
+                            logging.debug(f"Index {index}: similarity score = {score:.2f}")
                             if score > 0.85:
                                 matches_indices.append(index)
                         except Exception as e:
-                            print(f"Error comparing image at index {index}: {e}.")
+                            logging.error(f"Error comparing image at index {index}: {e}.")
                     final_results = [temp_results[i] for i in matches_indices]
                     good_matches.extend(final_results)
                 else:
                     continue
 
             if len(good_matches) == 1:
-                print(good_matches[0]["volume"]["name"])
-                print("There is ONE match!!!")
-                print(good_matches)
+                logging.info(good_matches[0]["volume"]["name"])
+                logging.info("There is ONE match!!!")
+                logging.info(good_matches)
                 self.results.append(good_matches)
                 return MatchCode.ONE_MATCH
             elif len(good_matches) == 0:
-                print("There are no matches.")
+                logging.warning("There are no matches.")
                 # If there is no matches need to do something.
                 # Perhaps the comic is new and hasnt
                 # been uploaded onto comicvine.
             elif len(good_matches) > 1:
                 for i in good_matches:
-                    print(i["volume"]["name"])
+                    logging.debug(i["volume"]["name"])
                 self.results.extend(good_matches)
                 # Need to use scoring or sorting or closest title match etc.
                 # If that cant decide then we need to flag the comic
                 # and ask the user for input.
         if len(self.results) == 0:
-            print("There are no matches")
+            logging.warning("There are no matches")
             return MatchCode.NO_MATCH, potential_results
             filterer = ResultsFilter(potential_results, self.data, self.path)
             self.filtered_for_none = filterer.present_choices()
             return MatchCode.NO_MATCH
         elif len(self.results) > 1:
-            print("There are multiple matches")
+            logging.warning("There are multiple matches")
             return MatchCode.MULTIPLE_MATCHES, self.results
             filterer = ResultsFilter(self.results, self.data, self.path)
             self.filtered_for_many = filterer.present_choices()
@@ -208,7 +214,7 @@ def run_tagging_process(
         state = state(lexer_instance)
     parser_instance = Parser(lexer_instance.items)
     comic_info = parser_instance.construct_metadata()
-    print(comic_info)
+    logging.debug(comic_info)
     series = comic_info["series"]
     num = comic_info.get("issue", 0) or comic_info.get("volume", 0)
     year = comic_info.get("year", 0)
