@@ -18,8 +18,7 @@ class ReadingController:
         Intialise the reading controller.
 
         Args:
-            comic: Dictionary containing comic information
-        including 'filepath' key.
+            comic: Dictionary containing comic information including 'filepath' key.
         """
         self.comic = comic
         self.filepath = comic.filepath
