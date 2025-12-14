@@ -1,21 +1,9 @@
-INFO:     Started server process [15128]
+INFO:     Started server process [8688]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-[DEBUG] comic_info.title type: <class 'str'>
-[DEBUG] comic_info.url: https://getcomics.org/marvel/the-end-2099-1-2025/
-
-=== Redirect history ===
-
-Hop 1: https://getcomics.org/dlds/+KVnl5b63nMO8DgN1N8YABY8g60IW6jjN2OMg5jdEzmtMPpuEAcRXqismssoT25SKjrzJUNC3SDTLk2/XE+4itHrqmc/YesjLSHh/1eGfvOvApXIl0d++brhB63lygZPVZLkvAblcY0sdyZcWo7rwzcyWSkqXl4nrRInq0p6CpHuHUExV3enyugjmoEK2uSI:v9B6yI6UqLhgQSK8qUdfZg==
-<CIMultiDictProxy('Date': 'Wed, 10 Dec 2025 11:16:41 GMT', 'Content-Type': 'text/html; charset="utf-8"', 'Transfer-Encoding': 'chunked', 'Connection': 'keep-alive', 'Server': 'cloudflare', 'Nel': '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}', 'Expires': 'Wed, 11 Jan 1984 05:00:00 GMT', 'Cache-Control': 'no-cache, must-revalidate, max-age=0, no-store, private', 'Cache-Control': 'no-cache', 'Location': 'https://fs1.comicfiles.ru/2025.12.10/The%20End%202099%20001%20%282026%29%20%286%20covers%29%20%28Digital%29%20%28dekabro-Empire%29.cbz', 'X-Cache-Status': 'HIT', 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'SAMEORIGIN', 'Referrer-Policy': 'no-referrer-when-downgrade', 'cf-cache-status': 'DYNAMIC', 'Report-To': '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=zl8aZTIVBx%2B4ltPh5pu%2FX53SU42iQTsN%2B5tGjeatI4mVZtOOLxusynrnF3w3OIQ7njqzu5EKlNtEk5nOGrK%2BYPa1FyZBsUazjTVNaPM%3D"}]}', 'CF-RAY': '9abc54dd0a305e4a-LHR', 'alt-svc': 'h3=":443"; ma=86400')>
-
-=== Final response ===
-https://fs1.comicfiles.ru/2025.12.10/The End 2099 001 (2026) (6 covers) (Digital) (dekabro-Empire).cbz
-{'Date': 'Wed, 10 Dec 2025 11:16:41 GMT', 'Content-Type': 'application/octet-stream', 'Content-Length': '117902362', 'Connection': 'keep-alive', 'Server': 'cloudflare', 'Last-Modified': 'Wed, 10 Dec 2025 09:04:33 GMT', 'Nel': '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}', 'Etag': '"693937a1-7070c1a"', 'Accept-Ranges': 'bytes', 'cf-cache-status': 'DYNAMIC', 'Strict-Transport-Security': 'max-age=0; includeSubDomains; preload', 'X-Content-Type-Options': 'nosniff', 'Report-To': '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=QOqVzbr67DCg1%2B1aOGWq%2BuqskMh2evGkx6uyIiiw3wl942nbdyL49j4v2mSXmbBfir%2B4IoXREURYqWkLndUtafmradUvyeHbqaZhizYKVK5S"}]}', 'CF-RAY': '9abc54e0491af7ca-LHR', 'alt-svc': 'h3=":443"; ma=86400'}
-
 Traceback (most recent call last):
-  File "g:\comic_library\main.py", line 671, in <module>
+  File "g:\comic_library\main.py", line 676, in <module>
     with loop:
          ^^^^
   File "F:\Python313\Lib\site-packages\qasync\__init__.py", line 760, in __exit__
@@ -36,3 +24,4 @@ Traceback (most recent call last):
   File "F:\Python313\Lib\site-packages\qasync\_windows.py", line 147, in _poll
     status = _overlapped.GetQueuedCompletionStatus(self._iocp, ms)
 KeyboardInterrupt
+-Length': '46708754', 'Connection': 'keep-alive', 'Server': 'cloudflare', 'Last-Modified': 'Wed, 10 Dec 2025 10:04:24 GMT', 'Nel': '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}', 'Etag': '"693945a8-2c8b812"', 'Accept-Ranges': 'bytes', 'cf-cache-status': 'DYNAMIC', 'Strict-Transport-Security': 'max-age=0; includeSubDomains; preload', 'X-Content-Type-Options': 'nosniff', 'Report-To': '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=pMQ%2Bi5G%2BAWgbqRqjHcfehBjti0q0f7gIbjQYYX11kc1GrRellLnpSueytuPqOPrvOCRnKdoja6QaYu448n7ENiiJ9AdQk0RqdI%2B4TjExhA%3D%3D"}]}', 'CF-RAY': '9addf4aaece5eef9-LHR', 'alt-svc': 'h3=":443"; ma=86400'}
