@@ -9,13 +9,13 @@ class ReadingController:
 
     This class handles the creation and management of comic reader
     instances, allowing multiple comics to be read simultaneously.
-    It maintains a list of open reader windows and provides
-    functionality to close them all at once.
+    It maintains a dictionary of open reader windows keyed by the comic
+    primary key and provides functionality to close them all at once.
     """
 
     def __init__(self) -> None:
         """
-        Intialise the reading controller.
+        Intialises the reading controller.
         """
         self.open_windows: dict[str, SimpleReader] = {}
 
@@ -33,38 +33,49 @@ class ReadingController:
 
         with RepoWorker() as pager:
             val = pager.get_recent_page(comic_data.primary_id)
-        comic = Comic(comic_data, val if val else 0)
+        comic = Comic(comic_data, val if val is not None else 0)
         comic_reader = SimpleReader(comic)
-        comic_reader.closed.connect(self.save_current_page)
+        comic_reader.closed.connect(self.window_shutdown)
         comic_reader.showMaximized()
 
         self.open_windows[comic_data.primary_id] = comic_reader
 
-    def save_current_page(self, primary_id: str, page: int) -> None:
-        """
-        Saves the last read page to the database.
+    # def save_current_page(self, primary_id: str, page: int) -> None:
+    #     """
+    #     Saves the last read page to the database.
 
-        Args:
-            primary_id (str): The unique ID of the comic.
-            page (int): The page to save to the database.
-        """
+    #     Args:
+    #         primary_id (str): The unique ID of the comic.
+    #         page (int): The page to save to the database.
+    #     """
+    #     reader = self.open_windows.get(primary_id)
+    #     if reader is None:
+    #         return
+
+    #     with RepoWorker() as saver:
+    #         if page == 0:
+    #             pass
+    #         elif page >= reader.comic.total_pages - 1:
+    #             saver.mark_as_finished(primary_id, page)
+    #         else:
+    #             saver.save_last_page(primary_id, page)
+
+    #     self.window_shutdown(primary_id)
+    
+    def window_shutdown(self, primary_id: str, page: int) -> None:
         reader = self.open_windows.get(primary_id)
         if reader is None:
             return
-
-        with RepoWorker() as saver:
-            if page == 0:
-                pass
-            elif page >= reader.comic.total_pages - 1:
-                saver.mark_as_finished(primary_id, page)
-            else:
-                saver.save_last_page(primary_id, page)
-
-        self.window_shutdown(primary_id)
-    
-    def window_shutdown(self, primary_id: str) -> None:
-        reader = self.open_windows.pop(primary_id, None)
-        if reader is not None:
+        try:
+            with RepoWorker() as saver:
+                if page == 0:
+                    pass
+                elif page >= reader.comic.total_pages - 1:
+                    saver.mark_as_finished(primary_id, page)
+                else:
+                    saver.save_last_page(primary_id, page)
+        finally:
+            self.open_windows.pop(primary_id, None)
             reader.close()
 
     def close_all_windows(self) -> None:
