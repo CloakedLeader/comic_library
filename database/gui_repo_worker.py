@@ -136,7 +136,7 @@ class RepoWorker:
 
         return continue_info, progresses, review_info
 
-    def get_recent_page(self, primary_key: str) -> None | int:
+    def get_recent_page(self, primary_key: str) -> int:
         """
         Gets the last read page from the database, might not be the actual last read page.
 
@@ -151,7 +151,7 @@ class RepoWorker:
             (primary_key,),
         )
         row = self.cursor.fetchone()
-        return row[0] if row else None
+        return row[0] if row else 0
 
     def save_last_page(self, primary_key: str, last_page: int) -> None:
         """

@@ -79,6 +79,7 @@ class HomePage(QMainWindow):
         self.metadata_panel: Optional[MetadataPanel] = None
         self.setWindowTitle("Comic Library Homepage")
 
+        self.reader_controller = ReadingController()
         with RepoWorker() as repo_worker:
             continue_list, progress_list, review_list = repo_worker.run()
             collection_names, collection_ids = repo_worker.get_collections()
@@ -287,8 +288,7 @@ class HomePage(QMainWindow):
             Dictionary containing information about the comic
             including filepath and database id.
         """
-        cont = ReadingController(comic)
-        cont.read_comic()
+        self.reader_controller.read_comic(comic)
 
     def print_hi(self, comic_info: GUIComicInfo) -> None:
         print("Hi " + comic_info.title + "!")
