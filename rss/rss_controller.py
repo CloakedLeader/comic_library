@@ -19,7 +19,8 @@ class RSSController:
             repository: RSSRepository instance for database operations.
         """
         self.repo = repository
-        self.rss_results = rss_scrape()
+        self.latest = repository.get_latest_entry()
+        self.rss_results = rss_scrape(self.latest)
 
     def add_rss_to_db(self) -> None:
         """

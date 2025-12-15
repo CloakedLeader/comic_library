@@ -89,6 +89,11 @@ class RSSRepository:
             (limit,),
         )
         return self.cursor.fetchall()
+    
+    def get_latest_entry(self) -> str | None:
+        self.cursor.execute("SELECT url FROM rss_entries ORDER BY pub_epoch DESC")
+        row = self.cursor.fetchone()
+        return row[0] if row else None
 
     def close(self) -> None:
         """

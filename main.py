@@ -179,7 +179,7 @@ class HomePage(QMainWindow):
             continue_list, progress_list
         )
         # need_review = self.create_review_area(review_list)
-        rss = self.create_rss_area(20)
+        rss = self.create_rss_area(25)
 
         # content_layout.addWidget(stats_bar, stretch=1)
         content_layout.addWidget(continue_reading, stretch=3)
