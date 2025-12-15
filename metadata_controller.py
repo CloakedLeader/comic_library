@@ -223,7 +223,9 @@ class MetadataController:
             return None
         results, actual = result
         ranked = self.rank_results(results, actual)
-        selected = self.request_disambiguation(ranked, actual, results) # TODO: Test this and then remove as wrong logic if there is only 1 good match.
+        selected = self.request_disambiguation(
+            ranked, actual, results
+        )  # TODO: Test this and then remove as wrong logic if there is only 1 good match.
         if not selected:
             print("[INFO] User cancelled disambiguation")
             return None
@@ -244,7 +246,9 @@ class MetadataController:
             ValueError: If in the process of inputting there is an error, this is raised.
         """
         print("[INFO] Starting inputting data to the database")
-        self.page_count = self.get_pagecount() if self.page_count is None else self.page_count
+        self.page_count = (
+            self.get_pagecount() if self.page_count is None else self.page_count
+        )
         inputter = MetadataInputting(cleaned_comic_info, self.page_count)
         try:
             inputter.run()

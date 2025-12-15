@@ -16,11 +16,12 @@ Auto-fixes:
 """
 
 import argparse
+import os
 import subprocess
 import sys
 
 
-def run(title: str, cmd: list[str]) -> int:
+def run(title: str, cmd: list[str], env: dict | None = None) -> int:
     """Run a command with pretty output and return its exit code.
 
     Args:
@@ -33,7 +34,7 @@ def run(title: str, cmd: list[str]) -> int:
 
     print(f"\n=== {title} ===")
     try:
-        result = subprocess.run(cmd)
+        result = subprocess.run(cmd, env=env)
         return result.returncode
     except FileNotFoundError:
         print(f"Skipping {title}: '{cmd[0]}' not installed")
@@ -83,14 +84,33 @@ def main():
     # -----------------------------
 
     if not args.skip_tests:
-        exit_code = max(exit_code, run("Pytest: unit tests", ["pytest", "-q"]))
+        exit_code = max(
+            exit_code,
+            run(
+                "Pytest: unit tests",
+                ["pytest", "-q", "--rootdir=.", "--import-mode=importlib"],
+                env={**os.environ, "PYTHONPATH": "."},
+            ),
+        )
 
     # -----------------------------
     # SECURITY SCANS (optional)
     # -----------------------------
     if not args.skip_security:
-        exit_code = max(exit_code, run("Bandit: security scan", ["bandit", "-r", "."]))
-        exit_code = max(exit_code, run("Safety: dependency scan", ["safety", "scan"]))
+        exit_code = max(
+            exit_code,
+            run(
+                "Bandit: security scan",
+                ["bandit", "-r", ".", "--exclude", "tests"],
+            ),
+        )
+        exit_code = max(
+            exit_code,
+            run(
+                "Safety: dependency scan",
+                ["safety", "scan", "--full-report"],
+            ),
+        )
 
     # -----------------------------
     # SUMMARY

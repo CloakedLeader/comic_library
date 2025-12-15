@@ -4,7 +4,7 @@ from functools import partial
 from io import BytesIO
 
 from PIL import Image
-from PySide6.QtCore import Qt, QTimer, Signal, QObject, QRunnable, QThreadPool
+from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, QTimer, Signal
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -48,14 +48,16 @@ class Comic:
 
         Raises:
             ComicError: This error is raised when no images are found in the comic archive folder.
-        """    
+        """
         self.path = comic_info.filepath
         self.filename = comic_info.filepath.stem
         self.zip = zipfile.ZipFile(comic_info.filepath, "r")
         self.image_names = sorted(
             name
             for name in self.zip.namelist()
-            if name.lower().endswith((".jpg", ".jpeg", ".png")) # TODO: Use sort_function.py here.
+            if name.lower().endswith(
+                (".jpg", ".jpeg", ".png")
+            )  # TODO: Use sort_function.py here.
         )
         if not self.image_names:
             raise ComicError("No images found in the file.")
@@ -146,7 +148,7 @@ class ImageLoadTask(QRunnable):
             pixmap = QPixmap.fromImage(qimage)
 
             self.signals.finished.emit(self.index, pixmap)
-        
+
         except Exception as e:
             self.signals.error.emit(self.index, str(e))
 
@@ -174,7 +176,7 @@ class PagePreloader(QObject):
         for idx in list(self.image_cache):
             if idx not in wanted:
                 del self.image_cache[idx]
-        
+
         for idx in wanted:
             if idx in self.image_cache or idx in self.loading:
                 continue

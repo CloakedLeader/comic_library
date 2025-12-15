@@ -6,6 +6,8 @@ import imagehash
 from PIL import Image
 from rapidfuzz import fuzz
 
+from classes.helper_classes import APIResults
+
 from .requester import RequestData
 
 
@@ -13,7 +15,7 @@ class ResponseValidator:
     issue_threshold = 70
     volume_threshold = 50
 
-    def __init__(self, response: dict, expected_data: RequestData) -> None:
+    def __init__(self, response: APIResults, expected_data: RequestData) -> None:
         """
         Initialise the validator with API response results and the expected
         request data.
@@ -25,7 +27,7 @@ class ResponseValidator:
                 to return.
         """
 
-        self.results = response["results"]
+        self.results = response.results
         self.expected_info = expected_data
 
     def filter_results(self, predicate: Callable) -> list:

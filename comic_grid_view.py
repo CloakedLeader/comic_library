@@ -11,8 +11,14 @@ from right_click_menus import GridViewContextMenuManager
 class ComicGridView(QWidget):
     metadata_requested = Signal(GUIComicInfo)
 
-    def __init__(self, comics: list[GUIComicInfo], colums: int = 5):
+    def __init__(
+        self,
+        comics: list[GUIComicInfo],
+        reading_controller: ReadingController,
+        colums: int = 5,
+    ):
         super().__init__()
+        self.cont = reading_controller
         with RepoWorker() as repo_worker:
             collection_names, collection_ids = repo_worker.get_collections()
         self.context_menu = GridViewContextMenuManager(collection_ids, collection_names)
@@ -55,8 +61,7 @@ class ComicGridView(QWidget):
         self.setLayout(layout)
 
     def open_reader(self, comic_info: GUIComicInfo):
-        cont = ReadingController(comic_info)
-        cont.read_comic()
+        self.cont.read_comic(comic_info)
 
     def metadata_panel(self, comic_info: GUIComicInfo):
         self.metadata_requested.emit(comic_info)

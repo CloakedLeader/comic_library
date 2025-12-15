@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from qasync import QEventLoop
+from qasync import QEventLoop  # type: ignore[import-untyped]
 
 from api.api_main import app
 from classes.helper_classes import GUIComicInfo, RSSComicInfo
@@ -472,7 +472,9 @@ class HomePage(QMainWindow):
                             widget.setParent(None)
                             widget.deleteLater()
 
-                    self.grid_view = ComicGridView(grid_view_data)
+                    self.grid_view = ComicGridView(
+                        grid_view_data, self.reader_controller
+                    )
                     self.grid_view.metadata_requested.connect(self.show_metadata_panel)
 
                     if self.browse_splitter.count() == 0:
@@ -524,7 +526,7 @@ class HomePage(QMainWindow):
         if display_info is None:
             # TODO: Need to add logic here.
             raise ValueError("Incorrect type passed!")
-        search_view = ComicGridView(display_info)
+        search_view = ComicGridView(display_info, self.reader_controller)
         for i in reversed(range(self.search_layout.count())):
             widget_to_remove = self.search_layout.itemAt(i).widget()
             if widget_to_remove:
@@ -576,7 +578,7 @@ class HomePage(QMainWindow):
                 raise ValueError("No collection found.")
             # TODO: Add method to communicate errors to user.
             comic_infos = worker.create_basemodel(comic_ids)
-        collection_grid = ComicGridView(comic_infos)
+        collection_grid = ComicGridView(comic_infos, self.reader_controller)
         self.coll_display.addWidget(collection_grid)
         self.stack.setCurrentWidget(self.collections_widget)
 

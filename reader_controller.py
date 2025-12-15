@@ -39,7 +39,7 @@ class ReadingController:
         comic_reader.showMaximized()
 
         self.open_windows[comic_data.primary_id] = comic_reader
-    
+
     def window_shutdown(self, primary_id: str, page: int) -> None:
         """
         Save reading progress and remove window from tracking.

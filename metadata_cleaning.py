@@ -2,8 +2,8 @@ import calendar
 import re
 import traceback
 
-from fuzzywuzzy import fuzz
-from word2number import w2n
+from fuzzywuzzy import fuzz  # type: ignore[import-untyped]
+from word2number import w2n  # type: ignore[import-untyped]
 
 from classes.helper_classes import ComicInfo
 from database.db_utils import get_publisher_info

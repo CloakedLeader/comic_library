@@ -1,7 +1,7 @@
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 
-import feedparser
+import feedparser  # type: ignore[import-untyped]
 import requests
 from bs4 import BeautifulSoup
 
@@ -36,15 +36,15 @@ def rss_scrape(latest_link: str | None) -> list[dict]:
         if latest_link is not None and link == latest_link:
             break
         entry = {
-                "title": e.title,
-                "link": link,
-                "pub_date": e.get("published", None),
-                "summary": e.summary,
-            }
+            "title": e.title,
+            "link": link,
+            "pub_date": e.get("published", None),
+            "summary": e.summary,
+        }
         if not is_comic_entry(entry):
             continue
         new_entries.append(entry)
-    
+
     new_entries.reverse()
 
     return format_rss(new_entries)

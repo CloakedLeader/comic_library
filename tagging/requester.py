@@ -2,6 +2,8 @@ from io import BytesIO
 
 import requests
 
+from classes.helper_classes import APIResults
+
 header = {
     "User-Agent": "AutoComicLibrary/1.0 (contact: adam.perrott@protonmail.com;"
     " github.com/CloakedLeader/comic_library)",
@@ -92,7 +94,7 @@ class HttpRequest:
         self.url_search = prepared.url
         print(self.url_search)
 
-    def build_url_iss(self, id: int):
+    def build_url_iss(self, id: int) -> None:
         """
         Builds and stores a prepared ComicVine API URL for querying issues belonging to
         a specific volume.
@@ -114,7 +116,7 @@ class HttpRequest:
         self.url_iss = prepared.url
         print(self.url_iss)
 
-    def get_request(self, request_type: str) -> dict | None:
+    def get_request(self, request_type: str) -> APIResults:
         """
         Execute  a prepared GET request against the ComicVine API and return
         the parsed JSON.
@@ -163,10 +165,20 @@ class HttpRequest:
         else:
             raise ValueError(f"Unknown request type: {request_type!r}")
         if data["error"] != "OK":
-            print("Error, please investigate")
-            return None
-        # Want to tell the user to manually tag the comic.
-        return data
+            raise RuntimeError("Error, please investigate")
+        return self.format_api_results(data)
+
+    @staticmethod
+    def format_api_results(complete_results: dict) -> APIResults:
+        return APIResults(
+            error=complete_results["error"],
+            limit=complete_results["limit"],
+            offset=complete_results["offset"],
+            result_per_page=complete_results["number_of_page_results"],
+            total_results=complete_results["number_of_total_results"],
+            status_code=complete_results["status_code"],
+            results=complete_results["results"],
+        )
 
     def download_img(self, url: str) -> BytesIO | None:
         """

@@ -11,7 +11,6 @@ import requests
 from dotenv import load_dotenv
 from PIL import Image
 
-from comic_match_logic import ResultsFilter
 from tagging.applier import TagApplication
 from tagging.lexer import Lexer, LexerFunc, run_lexer
 from tagging.parser import Parser
@@ -47,7 +46,6 @@ class TaggingPipeline:
         self.path = path
         self.size = size
         self.http = HttpRequest(data, api_key, session)
-        self.validator = None
         self.cover = self.cover_getter()
         self.coverhashes = self.cover_hasher()
         # dictionary of (phash, dhash, ahash)
@@ -61,8 +59,7 @@ class TaggingPipeline:
                 if f.lower().endswith((".jpg", ".jpeg", ".png"))
             ]
             if not image_files:
-                print("Empty archive.")
-                return
+                raise ValueError("Empty archive.")
             image_files.sort()
             cover = zip_ref.read(image_files[0])
             return BytesIO(cover)
@@ -75,13 +72,13 @@ class TaggingPipeline:
             "ahash": imagehash.average_hash(image),
         }
 
-    def run(self):
+    def run(self) -> MatchCode:
         queries = [
             f"{self.data.series} {self.data.title or ''}".strip(),
             self.data.series,
             self.data.title,
         ]
-        potential_results = []
+        self.potential_results: list = []
 
         skipped_vols = []
         for q in queries:
@@ -91,18 +88,18 @@ class TaggingPipeline:
             results = self.http.get_request("search")
             self.validator = ResponseValidator(results, self.data)
 
-            print(f"There are {len(results['results'])} results returned.")
-            results = self.validator.issue_count_filter()
-            self.validator.results = results
-            results = self.validator.pick_best_volumes(number=8)
-            self.validator.results = results
-            results = self.validator.pub_checker(results)
-            self.validator.results = results
+            print(f"There are {len(results.results)} results returned.")
+            filtered_results = self.validator.issue_count_filter()
+            self.validator.results = filtered_results
+            filtered_results = self.validator.pick_best_volumes(number=8)
+            self.validator.results = filtered_results
+            filtered_results = self.validator.pub_checker(results.results)
+            self.validator.results = filtered_results
             print(
                 "After filtering for title, publisher and issue "
-                + f"there are {len(results)} remaining results."
+                + f"there are {len(filtered_results)} remaining results."
             )
-            final_results = results
+            final_results = filtered_results
 
             if len(final_results) == 0:
                 continue
@@ -114,17 +111,17 @@ class TaggingPipeline:
                 vol_info.append((id, name))
             for index, (j, k) in enumerate(vol_info):
                 self.http.build_url_iss(j)
-                temp_results = self.http.get_request("iss")
+                issue_results = self.http.get_request("iss")
 
-                self.temp_validator = ResponseValidator(temp_results, self.data)
+                self.issue_validator = ResponseValidator(issue_results, self.data)
                 print(
-                    f"There are {len(self.temp_validator.results)}"
+                    f"There are {len(self.issue_validator.results)}"
                     + f" issues in the matching volume: '{k}'."
                 )
-                temp_results = self.temp_validator.year_checker()
-                self.temp_validator.results = temp_results
-                temp_results = self.temp_validator.title_checker()
-                self.temp_validator.results = temp_results
+                temp_results = self.issue_validator.year_checker()
+                self.issue_validator.results = temp_results
+                temp_results = self.issue_validator.title_checker()
+                self.issue_validator.results = temp_results
 
                 print(
                     "After filtering for title and year "
@@ -138,13 +135,13 @@ class TaggingPipeline:
                         )
                         skipped_vols.append((j, k, len(temp_results)))
                         continue
-                    potential_results.extend(temp_results)
-                    self.temp_validator.cover_img_url_getter(temp_results)
+                    self.potential_results.extend(temp_results)
+                    self.issue_validator.cover_img_url_getter(temp_results)
                     images = []
                     with ThreadPoolExecutor(max_workers=5) as executor:
                         images = list(
                             executor.map(
-                                self.http.download_img, self.temp_validator.urls
+                                self.http.download_img, self.issue_validator.urls
                             )
                         )
                     matches_indices = []
@@ -153,7 +150,7 @@ class TaggingPipeline:
                             continue
                         try:
                             img_pil = Image.open(i)
-                            score = self.temp_validator.cover_img_comp_w_weight(
+                            score = self.issue_validator.cover_img_comp_w_weight(
                                 self.coverhashes, img_pil
                             )
                             print(f"Index {index}: similarity score = {score:.2f}")
@@ -170,7 +167,7 @@ class TaggingPipeline:
                 print(good_matches[0]["volume"]["name"])
                 print("There is ONE match!!!")
                 print(good_matches)
-                self.results.append(good_matches)
+                self.results.append(good_matches[0])
                 return MatchCode.ONE_MATCH
             elif len(good_matches) == 0:
                 print("There are no matches.")
@@ -186,16 +183,12 @@ class TaggingPipeline:
                 # and ask the user for input.
         if len(self.results) == 0:
             print("There are no matches")
-            return MatchCode.NO_MATCH, potential_results
-            filterer = ResultsFilter(potential_results, self.data, self.path)
-            self.filtered_for_none = filterer.present_choices()
             return MatchCode.NO_MATCH
         elif len(self.results) > 1:
             print("There are multiple matches")
-            return MatchCode.MULTIPLE_MATCHES, self.results
-            filterer = ResultsFilter(self.results, self.data, self.path)
-            self.filtered_for_many = filterer.present_choices()
             return MatchCode.MULTIPLE_MATCHES
+        else:
+            return MatchCode.NO_MATCH
 
 
 def run_tagging_process(
@@ -207,7 +200,7 @@ def run_tagging_process(
     while state is not None:
         state = state(lexer_instance)
     parser_instance = Parser(lexer_instance.items)
-    comic_info = parser_instance.construct_metadata()
+    comic_info = parser_instance.parse()
     print(comic_info)
     series = comic_info["series"]
     num = comic_info.get("issue", 0) or comic_info.get("volume", 0)
@@ -225,14 +218,14 @@ def run_tagging_process(
         inserter.create_metadata_dict()
         inserter.insert_xml_into_cbz(filepath)
         return None
-    elif final_result[0] == MatchCode.NO_MATCH:
-        return (final_result[1], tagger.data)
+    elif final_result == MatchCode.NO_MATCH:
+        return (tagger.potential_results, tagger.data)
         print("Need another method to find matches")
         best_matches = tagger.filtered_for_none
         return (best_matches, tagger.data)
         # Add a method to rank and return the best 3-5 matches.
-    elif final_result[0] == MatchCode.MULTIPLE_MATCHES:
-        return (final_result[1], tagger.data)
+    elif final_result == MatchCode.MULTIPLE_MATCHES:
+        return (tagger.results, tagger.data)
         print("Multiple matches, require user input to disambiguate.")
         best_matches = tagger.filtered_for_many
         return (best_matches, tagger.data)
@@ -242,7 +235,7 @@ def run_tagging_process(
 
 
 def extract_and_insert(match, api_key, filename: str, filepath: Path):
-    inserter = TagApplication(match, api_key, filename)
+    inserter = TagApplication(match, api_key, filename, session)
     inserter.get_request()
     inserter.create_metadata_dict()
     inserter.insert_xml_into_cbz(filepath)

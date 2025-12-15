@@ -23,7 +23,7 @@ def get_and_flatten_data(comic_id: str) -> dict[str, str]:
 
     Returns:
         dict[str, str]: A dictionary containing title info and character/team info.
-    """    
+    """
     cursor.execute("SELECT title, series FROM comics WHERE id = ?", (comic_id,))
     title, series = cursor.fetchone()
 
@@ -90,7 +90,7 @@ def insert_into_fts5(cleaned_data: dict[str, str]) -> None:
     Args:
         cleaned_data (dict[str, str]): A dictionary containing the information required
             for the fast search database. Includes: id, series, title, creators, characters and teams.
-    """    
+    """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
@@ -115,7 +115,7 @@ def text_search(text: str) -> list[GUIComicInfo] | None:
 
     Returns:
         list[GUIComicInfo] | None: A list of the comics matching the search criteria, or None if none match.
-    """    
+    """
     cursor.execute(
         """
         SELECT comic_id, title, series FROM comics_fts5
@@ -154,7 +154,7 @@ def get_filepath(primary_key: str) -> Path | None:
 
     Returns:
         Path | None: The filepath of the comic or None if it cannot be found.
-    """    
+    """
     cursor.execute("SELECT file_path FROM comics WHERE id = ?", (primary_key,))
     results = cursor.fetchone()
     absolute_path = ROOT_DIR / Path(results[0])

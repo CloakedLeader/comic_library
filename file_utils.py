@@ -34,9 +34,9 @@ def convert_cbz(cbr_path: Path, *, delete_original: bool = True) -> Path:
     cbz_path = cbr_path.with_suffix(".cbz")
 
     with tempfile.TemporaryDirectory() as tempdir:
-        tempdir = Path(tempdir)
+        tempdir_ = Path(tempdir)
         result = subprocess.run(
-            ["7z", "x", str(cbr_path), f"-o{tempdir}", "-y"],
+            ["7z", "x", str(cbr_path), f"-o{tempdir_}", "-y"],
             capture_output=True,
             text=True,
         )
@@ -47,7 +47,7 @@ def convert_cbz(cbr_path: Path, *, delete_original: bool = True) -> Path:
             )
 
         with zipfile.ZipFile(cbz_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            for file in tempdir.rglob("*"):
+            for file in tempdir_.rglob("*"):
                 if file.is_file():
                     zf.write(file, file.relative_to(tempdir))
 
