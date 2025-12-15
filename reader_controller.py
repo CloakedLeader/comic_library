@@ -33,7 +33,7 @@ class ReadingController:
 
         with RepoWorker() as pager:
             val = pager.get_recent_page(comic_data.primary_id)
-        comic = Comic(comic_data, val)
+        comic = Comic(comic_data, val if val else 0)
         comic_reader = SimpleReader(comic)
         comic_reader.closed.connect(self.save_current_page)
         comic_reader.showMaximized()
@@ -74,6 +74,6 @@ class ReadingController:
         This method iterates through all currently open comic reader
         windows, closes them and clears the internal list of open windows.
         """
-        for reader in self.open_windows.values():
+        for reader in list(self.open_windows.values()):
             reader.close()
         self.open_windows.clear()
