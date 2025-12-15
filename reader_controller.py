@@ -13,19 +13,16 @@ class ReadingController:
     functionality to close them all at once.
     """
 
-    def __init__(self, comic: GUIComicInfo) -> None:
+    def __init__(self) -> None:
         """
         Intialise the reading controller.
 
         Args:
             comic: Dictionary containing comic information including 'filepath' key.
         """
-        self.comic_info = comic
-        self.comic = Comic(comic)
-        self.filepath = comic.filepath
         self.open_windows: list[tuple[str, SimpleReader]] = []
 
-    def read_comic(self) -> None:
+    def read_comic(self, comic_data: GUIComicInfo) -> None:
         """
         Open a new comic reader window.
 
@@ -34,12 +31,12 @@ class ReadingController:
         management.
         """
         with RepoWorker() as pager:
-            val = pager.get_recent_page(self.comic.id)
-        self.comic.set_page_index(val if val else 0)
-        comic_reader = SimpleReader(self.comic)
+            val = pager.get_recent_page(comic_data.primary_id)
+        comic = Comic(comic_data, val if val else 0)
+        comic_reader = SimpleReader(comic)
         comic_reader.closed.connect(self.save_current_page)
         comic_reader.showMaximized()
-        self.open_windows.append((self.comic.id, comic_reader))
+        self.open_windows.append((comic_data.primary_id, comic_reader))
 
     def save_current_page(self, primary_id: str, page: int) -> None:
         """
@@ -48,15 +45,28 @@ class ReadingController:
         Args:
             primary_id (str): The unique ID of the comic.
             page (int): The page to save to the database.
-        """        
+        """
+        for entry in self.open_windows:
+            if entry[0] == primary_id:
+                window = entry
+
         with RepoWorker() as saver:
             if page == 0:
                 return None
-            elif page >= self.comic.total_pages - 1:
+            elif page >= window[1].comic.total_pages - 1:
                 saver.mark_as_finished(primary_id, page)
                 return None
-            saver.save_last_page(primary_id, page)
+            else:
+                saver.save_last_page(primary_id, page)
             return None
+        self.window_shutdown(primary_id)
+    
+    def window_shutdown(self, primay_id: str):
+        for entry in self.open_windows:
+            if entry[0] == primay_id:
+                window = entry
+                window[1].close()
+                self.open_windows.remove(window)
 
     def close_all_windows(self) -> None:
         """
