@@ -39,7 +39,7 @@ from comic_match_logic import ComicMatch
 from comic_match_ui import ComicMatcherUI
 from database.gui_repo_worker import RepoWorker
 from download_controller import DownloadControllerAsync, DownloadServiceAsync
-from general_comic_widget import GeneralComicWidget
+from general_comic_widget import GeneralComicWidget, ImageResult, ImageWorker
 from left_widget_assets import ButtonDisplay
 from metadata_controller import run_tagger
 from metadata_gui_panel import MetadataDialog, MetadataPanel
@@ -244,21 +244,9 @@ class HomePage(QMainWindow):
         layout.setSpacing(16)
         container.setLayout(layout)
 
-        title = QLabel(f"{header}")
+        title = QLabel(header)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet(
-            """font-size: 18px;
-                             font-weight: bold; padding: 10px;"""
-        )
-
-        # def make_click_handler(func, comic):
-        #     def handler():
-        #         if inspect.iscoroutinefunction(func):
-        #             asyncio.create_task(func(comic))
-        #         else:
-        #             func(comic)
-
-        #     return handler
+        title.setStyleSheet("font-size: 18px; font-weight: bold; padding: 10px;")
 
         for pos, comic in enumerate(list_of_info):
             progress = progresses[pos] if progresses else None
@@ -638,16 +626,6 @@ def count_files_and_storage(directory: str) -> tuple[int, float]:
 
 def start_api():
     uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
-
-
-# async def main():
-#     app = QApplication(sys.argv)
-#     loop = QEventLoop(app)
-#     asyncio.set_event_loop(loop)
-#     window = HomePage()
-#     window.show()
-#     with loop:
-#         await loop.run_forever()
 
 
 if __name__ == "__main__":
