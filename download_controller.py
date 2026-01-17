@@ -79,7 +79,6 @@ class DownloadControllerAsync:
         """ 
         if self.download_service is None:
             self.download_service = DownloadServiceAsync(self.download_folder)
-            await self.download_service.__aenter__()
         self.comic_info = comic_info
         self.view.update_status(f"Starting download of: {comic_info.title}")
         logging.debug(f"comic_info.url: {comic_info.url}")
