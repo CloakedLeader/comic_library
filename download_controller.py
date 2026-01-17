@@ -44,14 +44,14 @@ class DownloadControllerAsync:
             service: The download servie for handling actual file downloads.
         """
         self.view = view
-        self.download_service: DownloadServiceAsync | None = None
+        self.download_service: DownloadServiceAsync = DownloadServiceAsync(download_folder)
         self.download_folder = download_folder
         self.comic_dict: dict[str, str] = {}
 
-    async def ensure_service(self):
-        if self.download_service is None:
-            self.download_service = DownloadServiceAsync(self.download_folder)
-            await self.download_service.__aenter__()
+    # async def ensure_service(self):
+    #     if self.download_service is None:
+    #         self.download_service = DownloadServiceAsync(self.download_folder)
+    #         await self.download_service.__aenter__()
             
     async def handle_rss_comic_clicked(self, comic_info: RSSComicInfo) -> None:
         """
@@ -77,20 +77,23 @@ class DownloadControllerAsync:
             IOError: If there are file system issues during download.
 
         """ 
-        await self.ensure_service()
+        if self.download_service is None:
+            self.download_service = DownloadServiceAsync(self.download_folder)
+            await self.download_service.__aenter__()
         self.comic_info = comic_info
         self.view.update_status(f"Starting download of: {comic_info.title}")
         logging.debug(f"comic_info.url: {comic_info.url}")
-        download_links = await self.download_service.get_download_links(comic_info.url)
-        download_links = self.download_service.sort(download_links)
-        download_now_link = download_links[0][1]
-        try:
-            filepath = await self.download_service.download_comic(
-                download_now_link, self.progress_update
-            )
-        except (requests.RequestException, aiohttp.ClientError, IOError) as e:
-            logging.error(e)
-            return
+        async with self.download_service as downloader:
+            download_links = await self.download_service.get_download_links(comic_info.url)
+            download_links = self.download_service.sort(download_links)
+            download_now_link = download_links[0][1]
+            try:
+                filepath = await self.download_service.download_comic(
+                    download_now_link, self.progress_update
+                )
+            except (requests.RequestException, aiohttp.ClientError, IOError) as e:
+                logging.error(e)
+                return
         # for service, link in download_links:
         #     if service != "Read Online":
         #         try:
@@ -112,10 +115,10 @@ class DownloadControllerAsync:
     def progress_update(self, percent: int):
         self.view.update_progress_bar(percent)
 
-    async def cleanup(self):
-        if self.download_service:
-            await self.download_service.__aexit__(None, None, None)
-            self.download_service = None
+    # async def cleanup(self):
+    #     if self.download_service:
+    #         await self.download_service.__aexit__(None, None, None)
+    #         self.download_service = None
 
 
 class DownloadServiceAsync:
@@ -151,9 +154,10 @@ class DownloadServiceAsync:
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
-        await self.browser.close()
-        await self.playwright.stop()
-
+        if hasattr(self, "browser") and self.browser:
+            await self.browser.close()
+        if hasattr(self, "playwright") and self.playwright:
+            await self.playwright.stop()
 
     def get_filename(self, content_disposition: str) -> Optional[str]:
         """

@@ -90,7 +90,7 @@ class MetadataController:
     def get_pagecount(self) -> int:
         if self.filepath is None:
             logging.error("Filename must not be None")
-            return False
+            raise ValueError("Filename must not be None")
         with zipfile.ZipFile(self.filepath, "r") as archive:
             image_exts = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
             image_files = [
@@ -245,7 +245,7 @@ class MetadataController:
                 except ValueError as e:
                     logging.error(f"Failed to compute relative path: {e}")
                 # TODO: Implement code to recover correct path, not urgent.
-                logging.info("[INFO] Inserted filepath to database")
+                logging.info("Inserted filepath to database")
                 self.inputter.conn.close()
                 return
 

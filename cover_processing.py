@@ -154,4 +154,4 @@ class ImageExtraction:
             self.save_cover()
             logging.info("Cover saved!")
         except Exception as e:
-            logging.error({e})
+            logging.error(e)

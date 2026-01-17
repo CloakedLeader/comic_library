@@ -22,7 +22,7 @@ from tagging.validator import ResponseValidator
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
 logging.basicConfig(
-    filename="app.log",
+    filename="debug.log",
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
