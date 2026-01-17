@@ -4,6 +4,7 @@ import zipfile
 from pathlib import Path
 
 from defusedxml import ElementTree as ET
+from defusedxml.ElementTree import Element  # type: ignore
 
 from classes.helper_classes import ComicInfo
 
@@ -14,7 +15,7 @@ class MetadataExtraction:
         self.filepath: Path = comic_info.filepath
         self.temp_dir: Path = Path(tempfile.mkdtemp())
         self.extracted: bool = False
-        self.metadata_root = None
+        self.metadata_root: Element | None = None
 
     def __enter__(self):
         self.extract()

@@ -15,6 +15,15 @@ cursor = conn.cursor()
 
 
 def get_and_flatten_data(comic_id: str) -> dict[str, str]:
+    """
+    Gets important metadata for a given comic and collates it into a dictionary.
+
+    Args:
+        comic_id (str): The unique ID of the comic in the database.
+
+    Returns:
+        dict[str, str]: A dictionary containing title info and character/team info.
+    """
     cursor.execute("SELECT title, series FROM comics WHERE id = ?", (comic_id,))
     title, series = cursor.fetchone()
 
@@ -75,6 +84,13 @@ def get_and_flatten_data(comic_id: str) -> dict[str, str]:
 
 
 def insert_into_fts5(cleaned_data: dict[str, str]) -> None:
+    """
+    Takes comic metadata and inserts it into a fast search database.
+
+    Args:
+        cleaned_data (dict[str, str]): A dictionary containing the information required
+            for the fast search database. Includes: id, series, title, creators, characters and teams.
+    """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
@@ -89,7 +105,17 @@ def insert_into_fts5(cleaned_data: dict[str, str]) -> None:
     conn.close()
 
 
-def text_search(text) -> list[GUIComicInfo] | None:
+def text_search(text: str) -> list[GUIComicInfo] | None:
+    """
+    Uses a text string to search the FTS5 database. Finds any maches and collates their
+    info into a GUIComicInfo and returns a list of these.
+
+    Args:
+        text (str): The user inputted search parameter.
+
+    Returns:
+        list[GUIComicInfo] | None: A list of the comics matching the search criteria, or None if none match.
+    """
     cursor.execute(
         """
         SELECT comic_id, title, series FROM comics_fts5
@@ -119,7 +145,16 @@ def text_search(text) -> list[GUIComicInfo] | None:
     return hits
 
 
-def get_filepath(primary_key) -> Path | None:
+def get_filepath(primary_key: str) -> Path | None:
+    """
+    Uses the unique ID of the comic to query the database and get the filepath.
+
+    Args:
+        primary_key (str): The unique ID of the comic.
+
+    Returns:
+        Path | None: The filepath of the comic or None if it cannot be found.
+    """
     cursor.execute("SELECT file_path FROM comics WHERE id = ?", (primary_key,))
     results = cursor.fetchone()
     absolute_path = ROOT_DIR / Path(results[0])

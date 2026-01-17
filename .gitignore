@@ -14,3 +14,4 @@ ipad_app/
 log.txt
 *.toml
 *.log
+.bandit

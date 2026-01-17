@@ -37,7 +37,7 @@ def get_comicid_from_path(path: Path) -> int:
     Finds the ID of the comic in the database from its filepath.
 
     Args:
-        path: the filepath of the comic archive to be searched against.
+        path: The filepath of the comic archive to be searched against.
 
     Raises:
         LookupError: if the comic is not found in the database.
@@ -61,8 +61,6 @@ def get_comicid_from_path(path: Path) -> int:
 # User Visible Title: [Series] [star_year] -
 # [collection type] Volume [volume_number]: [Title] [month] [year]
 
-path_to_obs = os.getenv("PATH_TO_WATCH")
-
 
 class MetadataController:
     def __init__(self, primary_key: str, filepath: Path, display: QMainWindow):
@@ -80,6 +78,12 @@ class MetadataController:
         self.page_count: Optional[int] = None
 
     def reformat(self) -> None:
+        """
+        Converts .cbr files into .cbz files.
+
+        Raises:
+            ValueError: If anything other than a .cbr or .cbz this error is raised.
+        """
         temp_filepath = self.original_filepath
         if temp_filepath.suffix == ".cbr":
             temp_filepath = convert_cbz(temp_filepath)
@@ -88,6 +92,12 @@ class MetadataController:
             raise ValueError("Wrong filetype.")
 
     def get_pagecount(self) -> int:
+        """
+        Gets the number of pages in the comic archive.
+
+        Returns:
+            int: The number of pages in the comic.
+        """
         if self.filepath is None:
             logging.error("Filename must not be None")
             raise ValueError("Filename must not be None")
@@ -107,11 +117,8 @@ class MetadataController:
         Checks that the required metadata fields are complete with some info
         e.g. that they are not blank.
 
-        Args:
-        required: A list of the fields that must be present.
-
         Returns:
-        True if all required info is present, else False.
+            bool: True if all required info is present, else False.
         """
         required_fields = [
             "Title",
@@ -162,7 +169,12 @@ class MetadataController:
                 logging.warning("ComicInfo.xml is missing.")
                 return False
 
-    def process(self):
+    def process(self) -> None:
+        """
+        This is the main control sequence for the tagging process. First it puts the comic
+        into the correct format then it decides if its metadata is sufficient and then decides
+        what to do from there.
+        """
         self.reformat()
 
         if self.has_metadata():
@@ -172,7 +184,12 @@ class MetadataController:
             if self.has_metadata():
                 self.process_with_metadata()
 
-    def process_with_metadata(self):
+    def process_with_metadata(self) -> None:
+        """
+        This extracts all metadata from the embedded xml, cleans it so that the format is consistent
+        across the app. Then it provides the comic with a new filename and filepath, finally it gets
+        added to the database, its cover extracted and it is then moved to the correct folder.
+        """
         with MetadataExtraction(self.comic_info) as extractor:
             raw_comic_info = extractor.run()
         with MetadataProcessing(raw_comic_info) as cleaner:
@@ -195,13 +212,20 @@ class MetadataController:
         self.extract_cover()
         self.move_to_publisher_folder(new_name, publisher_int)
 
-    def process_without_metadata(self):
+    def process_without_metadata(self) -> None:
+        """
+        This runs the full tagging process; queries the ComicVine database to get the correct metadata,
+        compiles this, renames the file and then extracts its cover, adds the comic to the database
+        and finally moves the file to the correct folder.
+        """
         result = run_tagging_process(self.filepath, API_KEY)
         if not result:
             return None
         results, actual = result
         ranked = self.rank_results(results, actual)
-        selected = self.request_disambiguation(ranked, actual, results)
+        selected = self.request_disambiguation(
+            ranked, actual, results
+        )  # TODO: Test this and then remove as wrong logic if there is only 1 good match.
         if not selected:
             logging.info("User cancelled disambiguation process.")
             return None
@@ -209,13 +233,23 @@ class MetadataController:
         self.continue_tagging_from_user_match(result)
         return None
 
-    def insert_into_db(self, cleaned_comic_info):
-        logging.info("Starting inputting data to the database")
-        if self.page_count is None:
-            pagecount = self.get_pagecount()
-            inputter = MetadataInputting(cleaned_comic_info, pagecount)
-        else:
-            inputter = MetadataInputting(cleaned_comic_info, self.page_count)
+    def insert_into_db(self, cleaned_comic_info: ComicInfo) -> None:
+        """
+        Adds all the relevant metadata for a comic into the database, this includes real-world
+        metadata and in-world metadata.
+
+        Args:
+            cleaned_comic_info (ComicInfo): A pydantic model that contains all the relevant
+                metadata for the comic.
+
+        Raises:
+            ValueError: If in the process of inputting there is an error, this is raised.
+        """
+        print("[INFO] Starting inputting data to the database")
+        self.page_count = (
+            self.get_pagecount() if self.page_count is None else self.page_count
+        )
+        inputter = MetadataInputting(cleaned_comic_info, self.page_count)
         try:
             inputter.run()
             flat_data = inputter.flatten_data()
@@ -227,12 +261,25 @@ class MetadataController:
 
     def extract_cover(self):
         logging.info("Starting cover extraction")
+        """
+        This extracts the cover image from the archive and adds it to the .covers folder in the
+        root directory.
+        """
+        logging.info("Starting cover extraction")
+       
         image_proc = ImageExtraction(
             self.filepath, ROOT_DIR / ".covers", self.primary_key
         )
         image_proc.run()
 
     def move_to_publisher_folder(self, new_name: str, publisher_int: int) -> None:
+        """
+        Moves the comic archive to the correct folder, depending on the publisher.
+
+        Args:
+            new_name (str): The name of the comic archive that was decided from metadata.
+            publisher_int (int): The unique ID of the publisher, these align with the database ID's.
+        """
         for subdir in ROOT_DIR.iterdir():
             if subdir.is_dir() and subdir.name.startswith(str(publisher_int)):
                 new_path = subdir / new_name
@@ -247,7 +294,6 @@ class MetadataController:
                 # TODO: Implement code to recover correct path, not urgent.
                 logging.info("Inserted filepath to database")
                 self.inputter.conn.close()
-                return
 
     def rank_results(self, all_results, comic_info):
         with ResultsFilter(all_results, comic_info, self.filepath) as filterer:

@@ -30,7 +30,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from qasync import QEventLoop
+from qasync import QEventLoop  # type: ignore[import-untyped]
 
 from api.api_main import app
 from classes.helper_classes import GUIComicInfo, RSSComicInfo
@@ -46,7 +46,11 @@ from left_widget_assets import ButtonDisplay
 from metadata_controller import run_tagger
 from metadata_gui_panel import MetadataDialog, MetadataPanel
 from reader_controller import ReadingController
-from reading_order_widget import ReadingOrderCreation
+from reading_order_widget import (
+    ReadingOrderCreation,
+    ReadingOrderEditor,
+    ReadingOrderListEditor,
+)
 from rss.rss_controller import RSSController
 from rss.rss_repository import RSSRepository
 from search import text_search
@@ -93,9 +97,11 @@ class HomePage(QMainWindow):
         self.metadata_panel: Optional[MetadataPanel] = None
         self.setWindowTitle("Comic Library Homepage")
 
+        self.reader_controller = ReadingController()
         with RepoWorker() as repo_worker:
             continue_list, progress_list, review_list = repo_worker.run()
             collection_names, collection_ids = repo_worker.get_collections()
+            order_names, order_ids, order_descriptions = repo_worker.get_orders()
 
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu("File")
@@ -167,16 +173,19 @@ class HomePage(QMainWindow):
         left_widget.setLayout(left_layout)
         left_layout.addWidget(self.file_tree, stretch=1)
         self.collection_display = ButtonDisplay(
-            "Collections", collection_names, collection_ids, self.clicked_collection
+            "Collections",
+            collection_names,
+            collection_ids,
+            self.clicked_collection,
         )
         left_layout.addWidget(self.collection_display, stretch=1)
-        orders = ["Krakoa Era", "Black Panther", "Hal Jordan"]
-        order_ids = [22, 12, 56]
+
         self.order_display = ButtonDisplay(
             "Reading Orders",
-            orders,
+            order_names,
             order_ids,
-            self.print_num,
+            self.clicked_reading_order,
+            order_edit=self.open_order_editor,
         )
         left_layout.addWidget(self.order_display, stretch=1)
         self.splitter = QSplitter()
@@ -193,7 +202,7 @@ class HomePage(QMainWindow):
             continue_list, progress_list
         )
         # need_review = self.create_review_area(review_list)
-        rss = self.create_rss_area(20)
+        rss = self.create_rss_area(25)
 
         # content_layout.addWidget(stats_bar, stretch=1)
         content_layout.addWidget(continue_reading, stretch=3)
@@ -220,6 +229,10 @@ class HomePage(QMainWindow):
         self.collections_widget = QWidget()
         self.coll_display = QVBoxLayout(self.collections_widget)
         self.stack.addWidget(self.collections_widget)
+
+        self.order_widget = QWidget()
+        self.order_display_ = QVBoxLayout(self.order_widget)
+        self.stack.addWidget(self.order_widget)
 
         self.setCentralWidget(container)
 
@@ -257,7 +270,7 @@ class HomePage(QMainWindow):
         layout.setSpacing(16)
         container.setLayout(layout)
 
-        title = QLabel(f"{header}")
+        title = QLabel(header)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet(
             """font-size: 18px;
@@ -303,8 +316,7 @@ class HomePage(QMainWindow):
             Dictionary containing information about the comic
             including filepath and database id.
         """
-        cont = ReadingController(comic)
-        cont.read_comic()
+        self.reader_controller.read_comic(comic)
 
     def print_hi(self, comic_info: GUIComicInfo) -> None:
         print("Hi " + comic_info.title + "!")
@@ -486,7 +498,9 @@ class HomePage(QMainWindow):
                             widget.setParent(None)
                             widget.deleteLater()
 
-                    self.grid_view = ComicGridView(grid_view_data)
+                    self.grid_view = ComicGridView(
+                        grid_view_data, self.reader_controller
+                    )
                     self.grid_view.metadata_requested.connect(self.show_metadata_panel)
 
                     if self.browse_splitter.count() == 0:
@@ -538,7 +552,7 @@ class HomePage(QMainWindow):
         if display_info is None:
             # TODO: Need to add logic here.
             raise ValueError("Incorrect type passed!")
-        search_view = ComicGridView(display_info)
+        search_view = ComicGridView(display_info, self.reader_controller)
         for i in reversed(range(self.search_layout.count())):
             widget_to_remove = self.search_layout.itemAt(i).widget()
             if widget_to_remove:
@@ -575,22 +589,17 @@ class HomePage(QMainWindow):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             logging.info(dialog.textbox.text())
 
-    def clicked_collection(self, id: int):
-        def clear_widgets():
-            while self.coll_display.count():
-                item = self.coll_display.takeAt(0)
-                widget = item.widget()
-                if widget:
-                    widget.deleteLater()
-
-        clear_widgets()
+    def clicked_collection(self, id: int, name: str):
+        self.clear_widget_stack()
         with RepoWorker() as worker:
-            comic_ids = worker.get_collection_contents(id)
-            if comic_ids is None:
-                raise ValueError("No collection found.")
+            try:
+                comic_ids = worker.get_collection_contents(id)
+            except ValueError as e:
+                print(str(e))
+                return
             # TODO: Add method to communicate errors to user.
             comic_infos = worker.create_basemodel(comic_ids)
-        collection_grid = ComicGridView(comic_infos)
+        collection_grid = ComicGridView(comic_infos, self.reader_controller)
         self.coll_display.addWidget(collection_grid)
         self.stack.setCurrentWidget(self.collections_widget)
 
@@ -598,6 +607,30 @@ class HomePage(QMainWindow):
         dialog = ReadingOrderCreation()
         if dialog.exec() == QDialog.DialogCode.Accepted:
             logging.info(dialog.textbox.text())
+
+    def clicked_reading_order(self, id: int, name: str):
+        self.clear_widget_stack()
+        # with RepoWorker() as worker:
+        #     try:
+        #         comics = worker.get_order_contents(id)
+        #     except ValueError as e:
+        #         print(str(e))
+        #         return
+        #     comic_ids: list[str] = []
+        #     positions: list[int] = []
+        #     for key, pos in comics:
+        #         comic_ids.append(key)
+        #         positions.append(pos)
+        #     comic_infos = worker.create_basemodel(comic_ids)
+        order_list = ReadingOrderListEditor(id, name)
+        self.order_display_.addWidget(order_list)
+        self.stack.setCurrentWidget(self.order_widget)
+
+    def open_order_editor(self, id: int, name: str):
+        self.order_editor = ReadingOrderEditor(id, name)
+        self.order_editor.setWindowFlag(Qt.WindowType.Window)
+        # order_editor.show()
+        self.order_editor.showFullScreen()
 
     def open_settings(self):
         dialog = Settings()
@@ -626,6 +659,12 @@ class HomePage(QMainWindow):
             task.result()
         except Exception as e:
             logging.error(f"[Async callback exception] {e}")
+    def clear_widget_stack(self):
+        while self.coll_display.count():
+            item = self.coll_display.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
 
 
 def count_files_and_storage(directory: str) -> tuple[int, float]:

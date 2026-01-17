@@ -1,5 +1,13 @@
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QGridLayout, QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtCore import QMimeData, QSize, Qt, Signal
+from PySide6.QtGui import QDrag, QIcon
+from PySide6.QtWidgets import (
+    QGridLayout,
+    QListWidget,
+    QListWidgetItem,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
+)
 
 from classes.helper_classes import GUIComicInfo
 from database.gui_repo_worker import RepoWorker
@@ -11,8 +19,15 @@ from right_click_menus import GridViewContextMenuManager
 class ComicGridView(QWidget):
     metadata_requested = Signal(GUIComicInfo)
 
-    def __init__(self, comics: list[GUIComicInfo], colums: int = 5):
+    def __init__(
+        self,
+        comics: list[GUIComicInfo],
+        reading_controller: ReadingController,
+        colums: int = 5,
+    ):
         super().__init__()
+
+        self.cont = reading_controller
         with RepoWorker() as repo_worker:
             collection_names, collection_ids = repo_worker.get_collections()
         self.context_menu = GridViewContextMenuManager(collection_ids, collection_names)
@@ -55,8 +70,49 @@ class ComicGridView(QWidget):
         self.setLayout(layout)
 
     def open_reader(self, comic_info: GUIComicInfo):
-        cont = ReadingController(comic_info)
-        cont.read_comic()
+        self.cont.read_comic(comic_info)
 
     def metadata_panel(self, comic_info: GUIComicInfo):
         self.metadata_requested.emit(comic_info)
+
+
+class DraggableComicGridView(QListWidget):
+    MIME_TYPE = "application/x-comic-id"
+
+    def __init__(self, comics: list[GUIComicInfo]):
+        super().__init__()
+
+        self.setViewMode(QListWidget.ViewMode.IconMode)
+        self.setResizeMode(QListWidget.ResizeMode.Adjust)
+        self.setMovement(QListWidget.Movement.Static)
+
+        self.setIconSize(QSize(160, 240))
+        self.setGridSize(QSize(180, 270))
+
+        self.setSpacing(10)
+        self.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+
+        self.setDragEnabled(True)
+
+        for comic in comics:
+            item = QListWidgetItem()
+            item.setData(Qt.ItemDataRole.UserRole, comic.primary_id)
+            item.setText(comic.title)
+            item.setIcon(QIcon(str(comic.cover_path)))
+            item.setToolTip(comic.title)
+
+            self.addItem(item)
+
+    def startDrag(self, supportedActions):
+        items = self.selectedItems()
+        if not items:
+            return
+
+        ids = [item.data(Qt.ItemDataRole.UserRole) for item in items]
+
+        mime = QMimeData()
+        mime.setData(self.MIME_TYPE, ",".join(map(str, ids)).encode())
+
+        drag = QDrag(self)
+        drag.setMimeData(mime)
+        drag.exec(Qt.DropAction.CopyAction)

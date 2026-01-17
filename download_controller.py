@@ -226,7 +226,7 @@ class DownloadServiceAsync:
             link = button_div.find("a", href=True)
             if link:
                 href = str(link["href"])
-                title = str(link["title"]).strip()
+                title = str(link.get("title", "")).strip()
                 download_links.append((title, href))
 
         if not download_links:

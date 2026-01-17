@@ -1,12 +1,13 @@
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 
-import feedparser
+import feedparser  # type: ignore[import-untyped]
 import requests
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 
 
-def rss_scrape() -> list[dict]:
+def rss_scrape(latest_link: str | None) -> list[dict]:
     """
     Scrapes and processes RSS feed data from GetComics website.
 
@@ -26,21 +27,32 @@ def rss_scrape() -> list[dict]:
                 - cover_link
 
     """
-
     base_url = "https://getcomics.org/feed/"
     feed = feedparser.parse(base_url)
-    entries = []
-    entries = [
-        {
+    new_entries = []
+    for e in feed.entries:
+        link = e.get("link")
+        if link is None:
+            continue
+        if latest_link is not None and link == latest_link:
+            break
+        entry = {
             "title": e.title,
-            "link": e.link,
+            "link": link,
             "pub_date": e.get("published", None),
             "summary": e.summary,
         }
-        for e in feed.entries
-    ]
-    entries = [e for e in entries if is_comic_entry(e)]
-    for entry in entries:
+        if not is_comic_entry(entry):
+            continue
+        new_entries.append(entry)
+
+    new_entries.reverse()
+
+    return format_rss(new_entries)
+
+
+def format_rss(list_of_entries: list[dict]) -> list[dict]:
+    for entry in list_of_entries:
         total_summary = entry.get("summary", "")
         comic_description = summary_scrape(total_summary)
         entry["summary"] = comic_description
@@ -54,10 +66,10 @@ def rss_scrape() -> list[dict]:
         meta_tag = soup.find("meta", property="og:image")
         image_url = meta_tag.get("content") if meta_tag else None
         entry["cover_link"] = image_url if image_url else None
-    return entries
+    return list_of_entries
 
 
-def is_metadata_paragraph(paragraph: BeautifulSoup) -> bool:
+def is_metadata_paragraph(paragraph: Tag) -> bool:
     """
     Checks if a paragraph in a html style string contains metadata keywords.
 

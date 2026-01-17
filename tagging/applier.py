@@ -145,7 +145,7 @@ class TagApplication:
         month = date_obj.month
         simple_info = ComicInfo(
             primary_key="temp",
-            filepath="temp",
+            filepath=Path("temp"),
             original_filename=self.filename,
             title=self.issue_data["name"],
             series=self.issue_data["volume"]["name"],
@@ -253,13 +253,15 @@ class TagApplication:
             "Series",
             "Title",
         }
-
+        if self.final_info is None:
+            # Need to add logic here.
+            return
         for field in MANDATORY_FIELDS:
-            if field not in self.final_info or not self.final_info[field]:
+            if field not in self.final_info.keys() or not self.final_info[field]:
                 self.final_info[field] = "PENDING"
-        for key in self.final_info:
+        for key in self.final_info.keys():
             if key not in MANDATORY_FIELDS:
-                if self.final_info[key] is None or self.final_info[key] == "":
+                if self.final_info[key] is (None or ""):
                     self.final_info[key] = "MISSING"
 
     def create_xml(self) -> bytes:

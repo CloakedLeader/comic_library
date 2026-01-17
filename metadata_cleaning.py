@@ -3,8 +3,8 @@ import re
 import traceback
 import logging
 
-from fuzzywuzzy import fuzz
-from word2number import w2n
+from fuzzywuzzy import fuzz  # type: ignore[import-untyped]
+from word2number import w2n  # type: ignore[import-untyped]
 
 from classes.helper_classes import ComicInfo
 from database.db_utils import get_publisher_info
@@ -82,7 +82,19 @@ class MetadataProcessing:
         }
 
         def smart_cap(word: str) -> str:
-            return "-".join(part.capitalize() for part in word.split("-"))
+            parts = word.split("-")
+            new_parts = []
+            for i, part in enumerate(parts):
+                if part in minor_words and i != 0:
+                    new_parts.append(part)
+                else:
+                    new_parts.append(cap_apostrophe(part))
+            return "-".join(new_parts)
+
+        def cap_apostrophe(word: str) -> str:
+            if not word:
+                return word
+            return word[0].upper() + word[1:]
 
         words = title.lower().split()
         if not words:
@@ -90,12 +102,10 @@ class MetadataProcessing:
 
         result = []
         for i, word in enumerate(words):
-            lower = word.lower()
-
-            if i == 0 or i == len(words) - 1 or lower not in minor_words:
-                result.append(smart_cap(lower))
+            if i == 0 or i == len(words) - 1 or word not in minor_words:
+                result.append(smart_cap(word))
             else:
-                result.append(lower)
+                result.append(word)
 
         return " ".join(result)
 

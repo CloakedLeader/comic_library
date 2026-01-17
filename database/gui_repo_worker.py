@@ -1,16 +1,15 @@
 import os
 import sqlite3
-from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
 
 from dotenv import load_dotenv
 
 from classes.helper_classes import GUIComicInfo, MetadataInfo
 
 load_dotenv()
-ROOT_DIR = Path(os.getenv("ROOT_DIR"))
+ROOT_DIR = Path(os.getenv("ROOT_DIR") or "")
 
 
 class RepoWorker:
@@ -27,7 +26,7 @@ class RepoWorker:
         self.conn.close()
         return
 
-    def create_basemodel(self, ids: list[str]) -> list[GUIComicInfo]:
+    def create_basemodel(self, ids: list[str], **thumb: bool) -> list[GUIComicInfo]:
         """
         Creates a GUIComicInfo class instance for a comic, given its id.
 
@@ -57,8 +56,10 @@ class RepoWorker:
 
             series, title, relative_filepath = row
             relative_filepath = Path(relative_filepath)
-
-            cover_path = self.cover_folder / f"{id}_b.jpg"
+            if thumb:
+                cover_path = self.cover_folder / f"{id}_t.jpg"
+            else:
+                cover_path = self.cover_folder / f"{id}_b.jpg"
 
             basemodel = GUIComicInfo(
                 primary_id=id,
@@ -69,6 +70,15 @@ class RepoWorker:
             comic_info.append(basemodel)
 
         return comic_info
+
+    def get_all_comics(self, **thumb: bool) -> list[GUIComicInfo]:
+        self.cursor.execute("SELECT id FROM comics")
+        rows = self.cursor.fetchall()
+        ids = [row[0] for row in rows]
+        if thumb:
+            return self.create_basemodel(ids, thumb=True)
+        else:
+            return self.create_basemodel(ids)
 
     def run(self) -> tuple[list[GUIComicInfo], list[float], list[GUIComicInfo]]:
         """
@@ -136,7 +146,7 @@ class RepoWorker:
 
         return continue_info, progresses, review_info
 
-    def get_recent_page(self, primary_key: str) -> None | int:
+    def get_recent_page(self, primary_key: str) -> int | None:
         """
         Gets the last read page from the database, might not be the actual last read page.
 
@@ -306,52 +316,75 @@ class RepoWorker:
         }
 
         self.cursor.execute("SELECT * FROM comics WHERE id = ?", (primary_id,))
-        comic_info = self.cursor.fetchone()
+        comic_info: tuple = self.cursor.fetchone()
+
         self.cursor.execute(
             "SELECT character_id FROM comic_characters WHERE comic_id = ? ",
             (primary_id,),
         )
-        character_ids = [row[0] for row in self.cursor.fetchall()]
+        character_ids: list[int] = [row[0] for row in self.cursor.fetchall()]
+
         self.cursor.execute(
             "SELECT creator_id, role_id FROM comic_creators where comic_id = ?",
             (primary_id,),
         )
-        creator_id_info = [(row[0], row[1]) for row in self.cursor.fetchall()]
+        creator_id_info: list[tuple[int, int]] = [
+            (row[0], row[1]) for row in self.cursor.fetchall()
+        ]
+
         self.cursor.execute(
             "SELECT team_id FROM comic_teams WHERE comic_id = ?", (primary_id,)
         )
-        team_id_info = [row[0] for row in self.cursor.fetchall()]
+        team_id_info: list[int] = [row[0] for row in self.cursor.fetchall()]
+
         self.cursor.execute("SELECT * FROM reviews WHERE comic_id = ?", (primary_id,))
-        review_info = [
+        review_info: list[tuple[int, int, str, str]] = [
             (row[1], row[2], row[3], row[4]) for row in self.cursor.fetchall()
         ]
         # iteration, rating, review_text, date
 
-        title = comic_info[1]
-        series = comic_info[2]
+        title: str = comic_info[1]
+        series: str = comic_info[2]
         volume_num = comic_info[3]
         publisher_num = comic_info[4]
         release_date = comic_info[5]
         desc = comic_info[7]
-        characters = []
+
+        characters: list[str] = []
         for i in character_ids:
             self.cursor.execute("SELECT name FROM characters WHERE id = ?", (i,))
             characters.append(self.cursor.fetchone()[0])
-        role_to_creators = defaultdict(list)
-        for j in creator_id_info:
-            self.cursor.execute("SELECT real_name FROM creators where id = ?", (j[0],))
+
+        role_to_creators: dict[str, list[str]] = {
+            "Writer": [],
+            "Penciller": [],
+            "Cover Artist": [],
+            "Inker": [],
+            "Editor": [],
+            "Colourist": [],
+            "Letterer": [],
+        }
+        creators_by_role = []
+        for creator_id, role_id in creator_id_info:
+            self.cursor.execute(
+                "SELECT real_name FROM creators where id = ?", (creator_id,)
+            )
             name = self.cursor.fetchone()[0]
-            role_name = role_info.get(j[1])
+            role_name = role_info.get(role_id, "Writer")
             role_to_creators[role_name].append(name)
             creators_by_role = list(role_to_creators.items())
-        teams = []
+
+        teams: list[str] = []
         for k in team_id_info:
             self.cursor.execute("SELECT name FROM teams WHERE id = ?", (k,))
             team = self.cursor.fetchone()[0]
             teams.append(team)
+
         if review_info:
             rating = review_info[0][1]
-            reviews = [(r[2] or "", r[3], r[0]) for r in review_info]
+            reviews: list[tuple[str, str, int]] = [
+                (r[2] or "", r[3], r[0]) for r in review_info
+            ]
         else:
             rating = 0
             reviews = []
@@ -385,7 +418,7 @@ class RepoWorker:
         This returns the id of the newly created collection.
         """
         self.cursor.execute("INSERT INTO collections (name) VALUES (?)", (title,))
-        return self.cursor.lastrowid
+        return self.cursor.lastrowid or 0
 
     def get_collections(self) -> tuple[list[str], list[int]]:
         """
@@ -423,7 +456,7 @@ class RepoWorker:
             (collection_id, comic_id),
         )
 
-    def get_collection_contents(self, collection_id: int) -> list[str] | None:
+    def get_collection_contents(self, collection_id: int) -> list[str]:
         """
         This gets the id of all comics in a certain collection.
 
@@ -445,7 +478,7 @@ class RepoWorker:
         if result:
             return [r[0] for r in result]
         else:
-            return None
+            raise ValueError(f"Collection with id={collection_id} does not exist.")
 
     def create_reading_order(self, title: str, desc: Optional[str]) -> int:
         """
@@ -476,4 +509,62 @@ class RepoWorker:
                     now,
                 ),
             )
-        return self.cursor.lastrowid
+        return self.cursor.lastrowid or 0
+
+    def get_orders(self) -> tuple[list[str], list[int], list[str]]:
+        self.cursor.execute("SELECT name, id, description from reading_orders")
+        results = self.cursor.fetchall()
+        names = []
+        ids = []
+        desc = []
+        for result in results:
+            names.append(result[0])
+            ids.append(result[1])
+            desc.append(result[2])
+
+        return (names, ids, desc)
+
+    def add_to_orders(self, order_id: int, comic_id: str, position: int):
+        current_order = self.get_order_contents(order_id)
+        if not current_order:
+            self.cursor.execute(
+                """
+                INSERT INTO reading_order_items (comic_id, reading_order_id, position)
+                VALUES (?, ?, ?)
+                """,
+                (comic_id, order_id, 1),
+            )
+            return
+        self.cursor.execute(
+            """
+            INSERT INTO reading_order_items (comic_id, reading_order_id, position)
+            VALUES (?, ?, ?)
+            """,
+            (comic_id, order_id, position),
+        )
+        for primary_key, pos in current_order[: position - 1]:
+            self.cursor.execute(
+                """
+                UPDATE reading_order_items
+                SET position = ?
+                WHERE comic_d = ? and reading_order_id = ?
+                """,
+                ((pos + 1, primary_key, order_id)),
+            )
+        return
+
+    def get_order_contents(self, order_id: int) -> list[tuple[str, int]]:
+        self.cursor.execute(
+            """
+            SELECT comic_id, position
+            FROM reading_order_items
+            WHERE reading_order_id = ?
+            ORDER BY position ASC
+            """,
+            (order_id,),
+        )
+        result = self.cursor.fetchall()
+        if result:
+            return [(r[0], r[1]) for r in result]
+        else:
+            raise ValueError(f"Order {order_id} does not exist.")
