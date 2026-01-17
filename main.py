@@ -375,11 +375,11 @@ class HomePage(QMainWindow):
         repository = RSSRepository("comics.db")
         rss_cont = RSSController(repository)
         recent_comics_list = rss_cont.run(num)
-        self.rss_controller = DownloadControllerAsync(view=self)
+        self.download_controller = DownloadControllerAsync(view=self)
         return self.create_scroll_area(
             recent_comics_list,
             header="GetComics RSS Feed",
-            left_clicked=self.rss_controller.handle_rss_comic_clicked,
+            left_clicked=self.download_controller.handle_rss_comic_clicked,
             right_clicked=None,
             double_left_clicked=None,
         )

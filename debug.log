@@ -1,27 +1,6 @@
-INFO:     Started server process [8688]
+INFO:     Started server process [16128]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-Traceback (most recent call last):
-  File "g:\comic_library\main.py", line 676, in <module>
-    with loop:
-         ^^^^
-  File "F:\Python313\Lib\site-packages\qasync\__init__.py", line 760, in __exit__
-    self.close()
-    ~~~~~~~~~~^^
-  File "F:\Python313\Lib\site-packages\qasync\__init__.py", line 473, in close
-    super().close()
-    ~~~~~~~~~~~~~^^
-  File "F:\Python313\Lib\asyncio\proactor_events.py", line 695, in close
-    self._proactor.close()
-    ~~~~~~~~~~~~~~~~~~~~^^
-  File "F:\Python313\Lib\site-packages\qasync\_windows.py", line 79, in close
-    super(_IocpProactor, self).close()
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
-  File "F:\Python313\Lib\asyncio\windows_events.py", line 865, in close
-    self._poll(msg_update)
-    ~~~~~~~~~~^^^^^^^^^^^^
-  File "F:\Python313\Lib\site-packages\qasync\_windows.py", line 147, in _poll
-    status = _overlapped.GetQueuedCompletionStatus(self._iocp, ms)
-KeyboardInterrupt
--Length': '46708754', 'Connection': 'keep-alive', 'Server': 'cloudflare', 'Last-Modified': 'Wed, 10 Dec 2025 10:04:24 GMT', 'Nel': '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}', 'Etag': '"693945a8-2c8b812"', 'Accept-Ranges': 'bytes', 'cf-cache-status': 'DYNAMIC', 'Strict-Transport-Security': 'max-age=0; includeSubDomains; preload', 'X-Content-Type-Options': 'nosniff', 'Report-To': '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=pMQ%2Bi5G%2BAWgbqRqjHcfehBjti0q0f7gIbjQYYX11kc1GrRellLnpSueytuPqOPrvOCRnKdoja6QaYu448n7ENiiJ9AdQk0RqdI%2B4TjExhA%3D%3D"}]}', 'CF-RAY': '9addf4aaece5eef9-LHR', 'alt-svc': 'h3=":443"; ma=86400'}
+2026-01-17 15:26:51,472 - ERROR - Failed to load image from : Invalid URL '': No scheme supplied. Perhaps you meant https://?
+2026-01-17 15:26:54,749 - ERROR - Failed to load image from : Invalid URL '': No scheme supplied. Perhaps you meant https://?
