@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
 
 from pydantic import BaseModel
 
@@ -48,7 +48,7 @@ class MetadataInfo(BaseModel):
     characters: list[str]
     teams: list[str]
     rating: Optional[int]
-    reviews: list[tuple[Optional[str], Optional[str], Optional[int]]]
+    reviews: Sequence[tuple[Optional[str], Optional[str], Optional[int]]]
 
 
 class APIResults(BaseModel):

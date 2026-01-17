@@ -8,7 +8,7 @@ class GridViewContextMenuManager:
         self.collections = list(zip(collection_ids, collection_names))
 
     def show_menu(self, comic_info, global_pos):
-        print("Context menu requested for", comic_info.title, global_pos)
+        # print("Context menu requested for", comic_info.title, global_pos)
         menu = QMenu()
 
         open_action = menu.addAction("Read")

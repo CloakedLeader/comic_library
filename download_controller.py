@@ -188,8 +188,8 @@ class DownloadServiceAsync:
         for button_div in soup.find_all("div", class_="aio-button-center"):
             link = button_div.find("a", href=True)
             if link:
-                href = link["href"]
-                title = link.get("title", "").strip()
+                href = str(link["href"])
+                title = str(link.get("title", "")).strip()
                 download_links.append((title, href))
 
         if not download_links:

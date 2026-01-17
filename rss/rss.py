@@ -4,6 +4,7 @@ from email.utils import parsedate_to_datetime
 import feedparser  # type: ignore[import-untyped]
 import requests
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 
 
 def rss_scrape(latest_link: str | None) -> list[dict]:
@@ -68,7 +69,7 @@ def format_rss(list_of_entries: list[dict]) -> list[dict]:
     return list_of_entries
 
 
-def is_metadata_paragraph(paragraph: BeautifulSoup) -> bool:
+def is_metadata_paragraph(paragraph: Tag) -> bool:
     """
     Checks if a paragraph in a html style string contains metadata keywords.
 

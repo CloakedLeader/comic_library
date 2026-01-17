@@ -45,7 +45,7 @@ class RSSController:
         entries = self.repo.get_recent_entries(limit=number_of_entries)
         output = []
         for url, title, cover_url in entries:
-            output.append(RSSComicInfo(url=url, title=title, cover_url=cover_url))
+            output.append(RSSComicInfo(url=url, title=title, cover_url=cover_url or ""))
         return output
 
     def run(self, num: int) -> list[RSSComicInfo]:
