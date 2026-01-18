@@ -187,5 +187,4 @@ class MetadataExtraction:
         }
         final_info = self.comic_info.model_copy(update=updates)
         self.cleanup()
-        print(final_info)
         return final_info

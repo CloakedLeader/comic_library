@@ -2,6 +2,7 @@ import zipfile
 from collections import OrderedDict
 from functools import partial
 from io import BytesIO
+import logging
 
 from PIL import Image
 from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, QTimer, Signal
@@ -18,6 +19,12 @@ from PySide6.QtWidgets import (
 from classes.helper_classes import GUIComicInfo
 from metadata_gui_panel import MetadataDialog
 
+
+logging.basicConfig(
+    filename="debug.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 class ComicError(Exception):
     """Base exception for Comic-related issues."""
@@ -261,7 +268,7 @@ class SimpleReader(QMainWindow):
 
     def display_current_page(self) -> None:
         index = self.current_index
-
+        logging.info(f"Changed page index to {index}")
         if index in self.preloader.image_cache:
             self.render_pixmap(index, self.preloader.image_cache[index])
         else:

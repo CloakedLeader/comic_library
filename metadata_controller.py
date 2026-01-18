@@ -21,9 +21,9 @@ from search import insert_into_fts5
 from tagging_controller import RequestData, extract_and_insert, run_tagging_process
 
 logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()],
+    filename="debug.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 load_dotenv()
@@ -99,8 +99,8 @@ class MetadataController:
             int: The number of pages in the comic.
         """
         if self.filepath is None:
-            print("Filename must not be None")
-            return False
+            logging.error("Filename must not be None")
+            raise ValueError("Filename must not be None")
         with zipfile.ZipFile(self.filepath, "r") as archive:
             image_exts = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
             image_files = [
@@ -130,7 +130,7 @@ class MetadataController:
             "Summary",
         ]
         if self.filepath is None:
-            print("Filename must not be None")
+            logging.error("Filename must not be None")
             return False
         with zipfile.ZipFile(self.filepath, "r") as archive:
             image_exts = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
@@ -153,20 +153,20 @@ class MetadataController:
                             ]
 
                             if missing:
-                                print(f"ComicInfo.xml is missing tags: {missing}")
+                                logging.error(f"ComicInfo.xml is missing tags: {missing}")
                                 return False
                             else:
-                                print("ComicInfo.xml is valid and complete")
+                                logging.debug("ComicInfo.xml is valid and complete")
                                 return True
                         else:
-                            print("No content in XML")
+                            logging.warning("No content in XML")
                             return False
 
                     except ET.ParseError:
-                        print("ComicInfo.xml is present but not valid xml")
+                        logging.warning("ComicInfo.xml is present but not valid xml")
                         return False
             else:
-                print("ComicInfo.xml is missing.")
+                logging.warning("ComicInfo.xml is missing.")
                 return False
 
     def process(self) -> None:
@@ -197,13 +197,13 @@ class MetadataController:
                 cleaned_comic_info = cleaner.run()
                 new_name, publisher_int = cleaner.new_filename_and_folder()
             except PublisherNotKnown as e:
-                print(f"[WARN] Publisher unknown: {e.publisher_name}")
+                logging.warning(f"Publisher unknown: {e.publisher_name}")
                 insert_new_publisher(e.publisher_name)
                 return
 
         for key, value in cleaned_comic_info.model_dump().items():
             if value == "PENDING":
-                print(f"[ERROR] Missing required {key} field.")
+                logging.error(f"Missing required {key} field.")
                 # Need to remove ComicInfo.xml and
                 # wait until sufficient data is supplied.
                 return
@@ -227,7 +227,7 @@ class MetadataController:
             ranked, actual, results
         )  # TODO: Test this and then remove as wrong logic if there is only 1 good match.
         if not selected:
-            print("[INFO] User cancelled disambiguation")
+            logging.info("User cancelled disambiguation process.")
             return None
         result = selected
         self.continue_tagging_from_user_match(result)
@@ -256,15 +256,16 @@ class MetadataController:
         except Exception as e:
             raise ValueError(f"[Error] {e}")
         insert_into_fts5(flat_data)
-        print("[SUCCESS] Added all data to the database")
+        logging.info("Success! Added all data to the database")
         self.inputter = inputter
 
-    def extract_cover(self) -> None:
+    def extract_cover(self):
         """
         This extracts the cover image from the archive and adds it to the .covers folder in the
         root directory.
         """
-        print("[INFO] Starting cover extraction")
+        logging.info("Starting cover extraction")
+       
         image_proc = ImageExtraction(
             self.filepath, ROOT_DIR / ".covers", self.primary_key
         )
@@ -282,15 +283,15 @@ class MetadataController:
             if subdir.is_dir() and subdir.name.startswith(str(publisher_int)):
                 new_path = subdir / new_name
                 shutil.move(self.original_filepath, new_path)
-                print(f"[INFO] Moved file to {subdir.name}")
+                logging.info(f"Moved file to {subdir.name}")
 
                 try:
                     relative_path = new_path.relative_to(ROOT_DIR)
                     self.inputter.insert_filepath(relative_path)
                 except ValueError as e:
-                    print(f"[ERROR] Failed to compute relative path: {e}")
+                    logging.error(f"Failed to compute relative path: {e}")
                 # TODO: Implement code to recover correct path, not urgent.
-                print("[INFO] Inserted filepath to database")
+                logging.info("Inserted filepath to database")
                 self.inputter.conn.close()
 
     def rank_results(self, all_results, comic_info):
@@ -337,7 +338,7 @@ def run_tagger(display: QMainWindow):
         if path.is_file() and any(
             path.name.lower().endswith(ext) for ext in VALID_EXTENSIONS
         ):
-            print(f"Starting to process {path.name}")
+            logging.info(f"Starting to process {path.name}")
             new_id = generate_uuid()
             cont = MetadataController(new_id, path, display)
             cont.process()

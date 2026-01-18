@@ -1,6 +1,7 @@
 import re
 from difflib import SequenceMatcher
 from typing import Callable
+import logging
 
 import imagehash
 from PIL import Image
@@ -9,6 +10,13 @@ from rapidfuzz import fuzz
 from classes.helper_classes import APIResults
 
 from .requester import RequestData
+
+
+logging.basicConfig(
+    filename="debug.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class ResponseValidator:
@@ -195,10 +203,10 @@ class ResponseValidator:
             if pub_id in english_publishers.values():
                 filtered.append(result)
             elif any(word.lower() in foriegn_keywords for word in pub_name.split()):
-                print(f"Filtered out {pub_name} due to foreign publisher.")
+                logging.info(f"Filtered out {pub_name} due to foreign publisher.")
             else:
                 filtered.append(result)
-                print(f"Accepted '{pub_name}' but please check.")
+                logging.info(f"Accepted '{pub_name}' but please check.")
         return filtered
 
     def issue_count_filter(self, limit: int = 12) -> list:
@@ -258,8 +266,8 @@ class ResponseValidator:
         hash1 = known_image_hash
         hash2 = imagehash.phash(unsure_image)
         hash_diff = hash1 - hash2
-        print(
-            f"[DEBUG] Hashing distance = \
+        logging.debug(
+            f"Hashing distance = \
               {hash_diff}, threshold = {threshold}"
         )
         return hash_diff <= threshold

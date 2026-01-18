@@ -1,6 +1,7 @@
 import calendar
 import re
 import traceback
+import logging
 
 from fuzzywuzzy import fuzz  # type: ignore[import-untyped]
 from word2number import w2n  # type: ignore[import-untyped]
@@ -8,6 +9,13 @@ from word2number import w2n  # type: ignore[import-untyped]
 from classes.helper_classes import ComicInfo
 from database.db_utils import get_publisher_info
 from file_utils import normalise_publisher_name
+
+
+logging.basicConfig(
+    filename="debug.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 SERIES_OVERRIDES = [
     ("tpb", 1, "TPB"),
@@ -30,15 +38,15 @@ class MetadataProcessing:
         self.title_info: dict[str, str | int] = {}
 
     def __enter__(self):
-        print(f"[INFO] Starting metadata processing for {self.filepath.name}")
+        logging.info(f"Starting metadata processing for {self.filepath.name}")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type:
-            print(f"[ERROR] Exception while processing {self.filepath.name}: {exc_val}")
+            logging.error(f"Exception while processing {self.filepath.name}: {exc_val}")
             traceback.print_tb(exc_tb)
         else:
-            print(f"[INFO] Sucessfully finished processing {self.filepath.name}")
+            logging.info(f"Sucessfully finished processing {self.filepath.name}")
         return False
 
     PATTERNS: list[re.Pattern] = [
@@ -255,7 +263,7 @@ class MetadataProcessing:
                 pass
 
         if volume_num is None:
-            print("Could not find a good volume number!")
+            logging.warning("Could not find a good volume number!")
             # self.title_info["title"] = str(self.raw_info.title)
             # self.title_info["series"] = str(self.raw_info.series)
             self.title_info["title"] = self.title_case(collection_title)

@@ -1,0 +1,3 @@
+[bandit]
+ignore = B101
+exclude_dirs = tests

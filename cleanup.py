@@ -1,12 +1,19 @@
 import os
 import sqlite3
 from pathlib import Path
+import logging
 
 from dotenv import load_dotenv
 
 load_dotenv()
 root_folder = os.getenv("ROOT_DIR") or ""
 ROOT_DIR = Path(root_folder)
+
+logging.basicConfig(
+    filename="debug.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 def delete_comic(filepath: str) -> None:
@@ -57,13 +64,13 @@ def scan_and_clean() -> None:
         if not os.path.exists(file_path):
             missing.append((comic_id, file_path))
     if len(missing) == 0:
-        print("Comic database is up to date.")
+        logging.info("Comic database is up to date.")
         return None
     for _, file_path in missing:
-        print(f"Removing missing comic: {file_path}")
+        logging.debug(f"Removing missing comic: {file_path}")
         delete_comic(file_path)
 
-    print(f"Scan complete. Removed {len(missing)} missing comics.")
+    logging.info(f"Scan complete. Removed {len(missing)} missing comics.")
     return None
 
 
@@ -94,8 +101,8 @@ def clean_orphans() -> None:
                     [(oid,) for oid in orphan_ids],
                 )
                 total_removed += len(orphan_ids)
-                print(f"Removed {len(orphan_ids)} orphan references from {table}")
+                logging.info(f"Removed {len(orphan_ids)} orphan references from {table}")
 
     conn.commit()
     conn.close()
-    print(f"Cleanup complete. Total orphan references removed: {total_removed}")
+    logging.info(f"Cleanup complete. Total orphan references removed: {total_removed}")

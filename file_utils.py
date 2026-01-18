@@ -3,6 +3,14 @@ import tempfile
 import uuid
 import zipfile
 from pathlib import Path
+import logging
+
+
+logging.basicConfig(
+    filename="debug.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 def convert_cbz(cbr_path: Path, *, delete_original: bool = True) -> Path:
@@ -49,12 +57,12 @@ def convert_cbz(cbr_path: Path, *, delete_original: bool = True) -> Path:
         with zipfile.ZipFile(cbz_path, "w", zipfile.ZIP_DEFLATED) as zf:
             for file in tempdir_.rglob("*"):
                 if file.is_file():
-                    zf.write(file, file.relative_to(tempdir))
+                    zf.write(file, file.relative_to(tempdir_))
 
     if delete_original:
         cbr_path.unlink()
 
-    print(f"Converted: {cbr_path.name} --> {cbz_path.name}")
+    logging.info(f"Converted: {cbr_path.name} --> {cbz_path.name}")
     return cbz_path
 
 

@@ -5,6 +5,8 @@ import sys
 import threading
 from pathlib import Path
 from typing import Callable, Optional, Sequence
+import inspect
+import logging
 
 import uvicorn
 from dotenv import load_dotenv
@@ -38,7 +40,7 @@ from comic_grid_view import ComicGridView
 from comic_match_logic import ComicMatch
 from comic_match_ui import ComicMatcherUI
 from database.gui_repo_worker import RepoWorker
-from download_controller import DownloadControllerAsync, DownloadServiceAsync
+from download_controller import DownloadControllerAsync
 from general_comic_widget import GeneralComicWidget
 from left_widget_assets import ButtonDisplay
 from metadata_controller import run_tagger
@@ -57,6 +59,18 @@ from settings import Settings
 load_dotenv()
 root_string = os.getenv("ROOT_DIR")
 ROOT_DIR = Path(root_string if root_string is not None else "")
+
+log_file = open("debug.log", "w", encoding="utf-8")
+sys.stdout = log_file
+sys.stderr = log_file
+
+logging.getLogger("asyncio").setLevel(logging.WARNING)
+logging.getLogger("qasync").setLevel(logging.WARNING)
+logging.basicConfig(
+    filename="debug.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class HomePage(QMainWindow):
@@ -258,13 +272,27 @@ class HomePage(QMainWindow):
 
         title = QLabel(header)
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet("font-size: 18px; font-weight: bold; padding: 10px;")
+        title.setStyleSheet(
+            """font-size: 18px;
+                             font-weight: bold; padding: 10px;"""
+        )
 
+        def wrap_handler(func) -> Optional[Callable]:
+            if func is None:
+                return None
+            if inspect.iscoroutinefunction(func):
+                    def wrapper(*args, **kwargs):
+                        task = asyncio.create_task(func(*args,**kwargs))
+                        task.add_done_callback(self.handle_async_exceptions)
+                    return wrapper
+            return func
+
+            
         for pos, comic in enumerate(list_of_info):
             progress = progresses[pos] if progresses else None
             comic_widget = GeneralComicWidget(
                 comic,
-                left_clicked,
+                wrap_handler(left_clicked),
                 right_clicked,
                 double_left_clicked,
                 progress=progress,
@@ -359,13 +387,11 @@ class HomePage(QMainWindow):
         repository = RSSRepository("comics.db")
         rss_cont = RSSController(repository)
         recent_comics_list = rss_cont.run(num)
-        self.rss_controller = DownloadControllerAsync(
-            view=self, service=DownloadServiceAsync()
-        )
+        self.download_controller = DownloadControllerAsync(view=self)
         return self.create_scroll_area(
             recent_comics_list,
             header="GetComics RSS Feed",
-            left_clicked=self.rss_controller.handle_rss_comic_clicked,
+            left_clicked=self.download_controller.handle_rss_comic_clicked,
             right_clicked=None,
             double_left_clicked=None,
         )
@@ -555,13 +581,13 @@ class HomePage(QMainWindow):
             if selected:
                 return selected
 
-        print("User cancelled or no selection made.")
+        logging.info("User cancelled or no selection made.")
         return None
 
     def create_collection(self):
         dialog = CollectionCreation()
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            print(dialog.textbox.text())
+            logging.info(dialog.textbox.text())
 
     def clicked_collection(self, id: int, name: str):
         self.clear_widget_stack()
@@ -580,7 +606,7 @@ class HomePage(QMainWindow):
     def create_reading_order(self):
         dialog = ReadingOrderCreation()
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            print(dialog.textbox.text())
+            logging.info(dialog.textbox.text())
 
     def clicked_reading_order(self, id: int, name: str):
         self.clear_widget_stack()
@@ -628,6 +654,11 @@ class HomePage(QMainWindow):
             QTimer.singleShot(1500, self.progress_bar.hide)
             self.progress_bar.setValue(0)
 
+    def handle_async_exceptions(self, task: asyncio.Task):
+        try:
+            task.result()
+        except Exception as e:
+            logging.error(f"[Async callback exception] {e}")
     def clear_widget_stack(self):
         while self.coll_display.count():
             item = self.coll_display.takeAt(0)
