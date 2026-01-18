@@ -260,7 +260,6 @@ class MetadataController:
         self.inputter = inputter
 
     def extract_cover(self):
-        logging.info("Starting cover extraction")
         """
         This extracts the cover image from the archive and adds it to the .covers folder in the
         root directory.

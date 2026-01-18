@@ -153,7 +153,7 @@ class HttpRequest:
                     f"Search request failed with status code: \
                       {response.status_code}"
                 )
-                logging.warning("/n" + response.text)
+                logging.warning("\n" + response.text)
             data = response.json()
 
         elif request_type == "iss":
@@ -167,7 +167,7 @@ class HttpRequest:
                     f"Issue request failed with status code: \
                       {response.status_code}"
                 )
-                logging.warning("/n" + response.text)
+                logging.warning("\n" + response.text)
             data = response.json()
 
         else:
