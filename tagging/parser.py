@@ -1,17 +1,38 @@
 import re
-from typing import Optional, TypedDict
+from typing import Optional
+from dataclasses import dataclass
 
 from .itemtypes import Item, LexerType
 
-
-class FilenameMetadata(TypedDict):
+@dataclass
+class FilenameMetadata:
     title: str
     volume_number: int
-    series: Optional[str]
+    series: str
     issue_number: Optional[int]
-    collection_type: Optional[int]
-    year: Optional[int]
-    month: Optional[int]
+    collection_type: Optional[str]
+    year: int
+    # month: Optional[int]
+
+    def __str__(self) -> str:
+        return f"""
+            Series: {self.series}
+            Title: {self.title}
+            Volume: {self.volume_number}
+            Issue: {self.issue_number}
+            Year: {self.year}
+            Collection Type: {self.collection_type or "None"}
+        """ 
+    
+    def __repr__(self) -> str:
+        return f"""
+            Series: {self.series}
+            Title: {self.title}
+            Volume: {self.volume_number}
+            Issue: {self.issue_number}
+            Year: {self.year}
+            Collection Type: {self.collection_type or "None"}
+        """ 
 
 
 known_collections = {
@@ -165,26 +186,15 @@ class Parser:
 
         return count
 
-    def collate_metadata(self, misc: dict, title: list, series: list) -> dict:
-        collected_metadata = {
-            "year": misc["year"],
-            "title": " ".join(title),
-            "series": " ".join(series),
-            "volume": misc["volume"],
-            "issue": misc["issue"],
-            "collection": misc["collection"],
-        }
-        return collected_metadata
-
-    def parse(self) -> dict:
+    def parse(self) -> FilenameMetadata:
         title_parts = []
         series_parts = []
-        possible_metadata: dict[str, str | int | None] = {
+        possible_metadata: dict[str, str | int] = {
             "year": 0,
             "issue": 0,
             "volume": 0,
-            "collection": None,
-            "author": None,
+            "collection": "",
+            "author": "",
         }
 
         dashes = self.count_dashes()
@@ -276,10 +286,16 @@ class Parser:
 
             else:
                 self.next()
+        
+        for i in ["issue", "volume"]:
+            if possible_metadata[i] == 0:
+                possible_metadata[i] = 1
 
-        if possible_metadata["issue"] == 0:
-            possible_metadata["issue"] = 1
-        if possible_metadata["volume"] == 0:
-            possible_metadata["volume"] = 1
-
-        return self.collate_metadata(possible_metadata, title_parts, series_parts)
+        return FilenameMetadata(
+            title=" ".join(title_parts),
+            series=" ".join(series_parts),
+            volume_number=int(possible_metadata["volume"] or 1),
+            issue_number=int(possible_metadata["issue"] or 1),
+            collection_type=str(possible_metadata["collection"]),
+            year=int(possible_metadata["year"]),
+        )

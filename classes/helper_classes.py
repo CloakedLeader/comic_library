@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Optional, Sequence
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ComicInfo(BaseModel):
@@ -51,11 +51,103 @@ class MetadataInfo(BaseModel):
     reviews: Sequence[tuple[Optional[str], Optional[str], Optional[int]]]
 
 
-class APIResults(BaseModel):
+class ImageInfo(BaseModel):
+    icon_url: Optional[str] = None
+    medium_url: str
+    screen_url: str
+    screen_large_url: Optional[str] = None
+    small_url: Optional[str] = None
+    super_url: Optional[str] = None
+    thumb_url: str
+    tiny_url: str
+    original_url: Optional[str] = None
+    image_tags: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class Publisher(BaseModel):
+    api_detail_url: Optional[str] = None
+    id: Optional[int] = None
+    name: str
+
+    model_config = ConfigDict(extra="allow")
+
+
+class ComicVineSearchStruct(BaseModel):
+    api_detail_url: Optional[str] = None
+    count_of_issues: Optional[int] = None
+    date_added: str
+    image: Optional[ImageInfo] = None
+    publisher: Publisher
+    id: int
+    name: str
+    site_detail_url: Optional[str] = None
+    resource_type: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+    
+
+class APISearchResults(BaseModel):
     error: str
     limit: int
     offset: int
     result_per_page: int
     total_results: int
     status_code: int
-    results: list[dict[str, None | int | str]]
+    results: list[ComicVineSearchStruct]
+
+
+class CharacterInfo(BaseModel):
+    api_detail_url: Optional[str] = None
+    id: Optional[int] = None
+    name: str
+    site_detail_url: Optional[str] = None
+
+
+class PersonInfo(BaseModel):
+    api_detail_url: Optional[str] = None
+    id: Optional[int] = None
+    name: str
+    site_detail_url: Optional[str] = None
+    role: Optional[str] = None
+
+
+class VolumeInfo(BaseModel):
+    api_detail_url: Optional[str] = None
+    id: int
+    name: str
+    site_detail_url: Optional[str] = None
+
+
+class TeamInfo(BaseModel):
+    api_detail_url: Optional[str] = None
+    id: int
+    name: str
+    site_detail_url: Optional[str] = None
+
+
+class ComicVineIssueStruct(BaseModel):
+    api_detail_url: Optional[str] = None
+    character_credits: list[CharacterInfo]
+    cover_date: str
+    date_added: str
+    description: str
+    id: int
+    image: ImageInfo
+    issue_number: int
+    name: str
+    person_credits: list[PersonInfo]
+    site_detail_url: Optional[str] = None
+    team_credits: Optional[list[TeamInfo]] = None
+    volume: VolumeInfo
+
+
+class APIIssueResults(BaseModel):
+    error: str
+    limit: int
+    offset: int
+    result_per_page: int
+    total_results: int
+    status_code: int
+    results: list[ComicVineIssueStruct]

@@ -2,7 +2,7 @@ from io import BytesIO
 import logging
 import requests
 
-from classes.helper_classes import APIResults
+from classes.helper_classes import APIIssueResults, APISearchResults
 
 
 logging.basicConfig(
@@ -124,75 +124,69 @@ class HttpRequest:
         self.url_iss = prepared.url
         logging.info(f"The issue URL is: {self.url_iss}")
 
-    def get_request(self, request_type: str) -> APIResults:
+    def search_get_request(self) -> APISearchResults:
         """
         Execute  a prepared GET request against the ComicVine API and return
         the parsed JSON.
 
-        Args:
-            request_type (str): Either "search" or "iss" to use one of the two
-                previously built URL's.
-
         Raises:
-            RuntimeError: If the required URL has not been build for the instance.
+            RuntimeError: If the required URL has not been build for the instance
+                or there is an error on the server side.
             ValueError: If the required URL attribute exists but its value is None.
 
         Returns:
-            dict | None: Parsed JSON response dictionary when the API 'error' field is
+            APISearchResults: Parsed BaseModel Class when the API 'error' field is
                 "OK". None if the API reports an error or invalid request syntax.
         """
-
-        if request_type == "search":
-            if not hasattr(self, "url_search"):
-                raise RuntimeError("You must build url before sending request.")
-            if self.url_search is None:
-                raise ValueError("search url cannot be None")
-            response = self.session.get(self.url_search)
-            if response.status_code != 200:
-                logging.warning(
-                    f"Search request failed with status code: \
-                      {response.status_code}"
-                )
-                logging.warning("\n" + response.text)
-            data = response.json()
-
-        elif request_type == "iss":
-            if not hasattr(self, "url_iss"):
-                raise RuntimeError("You must build url before sending request.")
-            if self.url_iss is None:
-                raise ValueError("issue url cannot be None")
-            response = self.session.get(self.url_iss)
-            if response.status_code != 200:
-                logging.warning(
-                    f"Issue request failed with status code: \
-                      {response.status_code}"
-                )
-                logging.warning("\n" + response.text)
-            data = response.json()
-
-        else:
-            raise ValueError(f"Unknown request type: {request_type!r}")
+        if not hasattr(self, "url_search"):
+            raise RuntimeError("You must build url before sending request.")
+        if self.url_search is None:
+            raise ValueError("Search url cannot be None")
+        response = self.session.get(self.url_search)
+        if response.status_code != 200:
+            logging.warning(
+                f"Search request failed with status code: \
+                    {response.status_code}"
+            )
+            logging.warning("\n" + response.text)
+        data = response.json()
         if data["error"] != "OK":
             logging.warning("Error, please investigate")
-            return None
-        # Want to tell the user to manually tag the comic.
-        return data
             raise RuntimeError("Error, please investigate")
-        return self.format_api_results(data)
+        return APISearchResults.model_validate(data)
 
-    @staticmethod
-    def format_api_results(complete_results: dict) -> APIResults:
-        return APIResults(
-            error=complete_results["error"],
-            limit=complete_results["limit"],
-            offset=complete_results["offset"],
-            result_per_page=complete_results["number_of_page_results"],
-            total_results=complete_results["number_of_total_results"],
-            status_code=complete_results["status_code"],
-            results=complete_results["results"],
-        )
+    def issue_get_request(self) -> APIIssueResults:
+        """
+        Execute  a prepared GET request against the ComicVine API and return
+        the parsed JSON.
 
-    def download_img(self, url: str) -> BytesIO | None:
+        Raises:
+            RuntimeError: If the required URL has not been build for the instance
+                or there is an error on the server side.
+            ValueError: If the required URL attribute exists but its value is None.
+
+        Returns:
+            APISearchResults: Parsed BaseModel Class when the API 'error' field is
+                "OK". None if the API reports an error or invalid request syntax.
+        """
+        if not hasattr(self, "url_iss"):
+            raise RuntimeError("You must build url before sending request.")
+        if self.url_iss is None:
+            raise ValueError("issue url cannot be None")
+        response = self.session.get(self.url_iss)
+        if response.status_code != 200:
+            logging.warning(
+                f"Issue request failed with status code: \
+                    {response.status_code}"
+            )
+            logging.warning("\n" + response.text)
+        data = response.json()
+        if data["error"] != "OK":
+            logging.warning("Error, please investigate")
+            raise RuntimeError("Error, please investigate")
+        return APIIssueResults.model_validate(data)
+
+    def download_img(self, url: str) -> BytesIO:
         """
         Download an image from the given URL and return it as an in-memory binary stream.
 
@@ -210,4 +204,5 @@ class HttpRequest:
             return image
         except Exception as e:
             logging.warning(f"Failed to process {url}: {e}")
-            return None
+            raise Exception(e)
+

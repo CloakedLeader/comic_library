@@ -3,12 +3,10 @@ import zipfile
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import Optional
 import logging
 
-import requests
 
-from classes.helper_classes import ComicInfo
+from classes.helper_classes import ComicInfo, ComicVineIssueStruct, Publisher, CharacterInfo, PersonInfo, TeamInfo
 from metadata_cleaning import MetadataProcessing
 
 
@@ -21,7 +19,7 @@ logging.basicConfig(
 
 class TagApplication:
     def __init__(
-        self, comicvine_dict: dict | list, api_key: str, filename: str, session
+        self, comicvine_info: ComicVineIssueStruct, publisher_info: Publisher, api_key: str, filename: str, session
     ):
         """
         Intialise a TagApplication from a ComicVine-style entry that had been cleaned
@@ -34,97 +32,96 @@ class TagApplication:
             session (_type_): HTTP session or client used for network requests; kept
             for use by instance methods.
         """
-        if isinstance(comicvine_dict, list):
-            entry = comicvine_dict[0]
-        else:
-            entry = comicvine_dict
-        self.link = entry["api_detail_url"]
-        self.issue_id = entry["id"]
-        self.volume_id = entry["volume"]["id"]
-        self.pub_link = entry["volume"]["api_detail_url"]
+        
+        # self.link = comicvine_info.api_detail_url
+        # self.issue_id = comicvine_info.id
+        # self.volume_id = comicvine_info.volume.id
+        self.publisher_info = publisher_info
+        # self.pub_link = comicvine_info.volume.api_detail_url
+        self.info = comicvine_info
         self.api_key = api_key
         self.filename = filename
         self.session = session
-        self.url: Optional[str] = None
-        self.issue_data = None
-        self.final_info: Optional[dict] = None
+        # self.url: Optional[str] = None
+        # self.issue_data = None
+        # self.final_info: Optional[dict] = None
 
-    def build_url(self) -> None:
-        """
-        Construct the fully qualified issue-detail URL with required query
-        parameters and store it on the instance.
-        Sets self.url to the prepared GET URL for self.link including standard
-        parameters: API key and format.
-        """
-        req = requests.Request(
-            method="GET",
-            url=self.link,
-            params={
-                "api_key": self.api_key,
-                "format": "json",
-            },
-        )
-        prepared = req.prepare()
-        self.url = prepared.url
+    # def build_url(self) -> None:
+    #     """
+    #     Construct the fully qualified issue-detail URL with required query
+    #     parameters and store it on the instance.
+    #     Sets self.url to the prepared GET URL for self.link including standard
+    #     parameters: API key and format.
+    #     """
+    #     req = requests.Request(
+    #         method="GET",
+    #         url=self.link,
+    #         params={
+    #             "api_key": self.api_key,
+    #             "format": "json",
+    #         },
+    #     )
+    #     prepared = req.prepare()
+    #     self.url = prepared.url
 
-    def get_publisher(self) -> str:
-        """
-        Fetch the publisher name for the issue's volume using the instance
-        volume link.
+    # def get_publisher(self) -> str:
+    #     """
+    #     Fetch the publisher name for the issue's volume using the instance
+    #     volume link.
 
-        Returns:
-            str: Publisher name from the API resource.
-        """
-        url = f"{self.pub_link}?api_key={self.api_key}&format=json"
-        response = self.session.get(url)
-        data = response.json()
-        return data["results"]["publisher"]["name"]
+    #     Returns:
+    #         str: Publisher name from the API resource.
+    #     """
+    #     url = f"{self.pub_link}?api_key={self.api_key}&format=json"
+    #     response = self.session.get(url)
+    #     data = response.json()
+    #     return data["results"]["publisher"]["name"]
 
-    def get_request(self) -> None:
-        """
-        Fetches issue data from the prepared API URL and stores the parsed
-        results on the instance.
-        Ensures the request URL is built before performing HTTP GET.
-        Prints a message when the response status is not 200.
-        Sets self.issue_data to the responses JSON 'results' entry.
+    # def get_request(self) -> None:
+    #     """
+    #     Fetches issue data from the prepared API URL and stores the parsed
+    #     results on the instance.
+    #     Ensures the request URL is built before performing HTTP GET.
+    #     Prints a message when the response status is not 200.
+    #     Sets self.issue_data to the responses JSON 'results' entry.
 
-        Raises:
-            ValueError: Raises the error if the URL is still None even after
-            the function call to expliciting bind it.
-        """
-        if not self.url:
-            self.build_url()
-        if self.url is None:
-            raise ValueError("url cannot be None")
-        response = self.session.get(self.url)
-        if response.status_code != 200:
-            logging.warning(f"Request failed with status code: {response.status_code}")
-        data = response.json()
-        self.issue_data = data["results"]
+    #     Raises:
+    #         ValueError: Raises the error if the URL is still None even after
+    #         the function call to expliciting bind it.
+    #     """
+    #     if not self.url:
+    #         self.build_url()
+    #     if self.url is None:
+    #         raise ValueError("url cannot be None")
+    #     response = self.session.get(self.url)
+    #     if response.status_code != 200:
+    #         logging.warning(f"Request failed with status code: {response.status_code}")
+    #     data = response.json()
+    #     self.issue_data = data["results"]
 
-    def parse_list_of_dicts(self, field) -> list[str]:
-        """
-        Extracts the list of 'name' values from a named list field in the
-        loaded issue data.
+    # def parse_list_of_dicts(self, field) -> list[str]:
+    #     """
+    #     Extracts the list of 'name' values from a named list field in the
+    #     loaded issue data.
 
-        Args:
-            field (str): Key in 'self.issue_data' whose value is a list of dicts
-                each containing a '"name"' entry.
+    #     Args:
+    #         field (str): Key in 'self.issue_data' whose value is a list of dicts
+    #             each containing a '"name"' entry.
 
-        Raises:
-            ValueError: If 'self.issue_data' is None.
+    #     Raises:
+    #         ValueError: If 'self.issue_data' is None.
 
-        Returns:
-            list[str]: List of 'name' strings extracted from each dictionary in
-                'self.issue_data[field]'.
-        """
-        if self.issue_data is None:
-            raise ValueError("issue_data cannot be None")
-        entries = self.issue_data[field]
-        things = []
-        for entry in entries:
-            things.append(entry["name"])
-        return things
+    #     Returns:
+    #         list[str]: List of 'name' strings extracted from each dictionary in
+    #             'self.issue_data[field]'.
+    #     """
+    #     if self.issue_data is None:
+    #         raise ValueError("issue_data cannot be None")
+    #     entries = self.issue_data[field]
+    #     things = []
+    #     for entry in entries:
+    #         things.append(entry["name"])
+    #     return things
 
     def create_metadata_dict(self) -> dict:
         """
@@ -137,9 +134,7 @@ class TagApplication:
         Returns:
             dict: Metadata mapping containing keys such as 'Title', 'Series', etc.
         """
-        if self.issue_data is None:
-            raise ValueError("issue_data cannot be None")
-        date_str = self.issue_data["cover_date"]
+        date_str = self.info.cover_date
         date_obj = datetime.strptime(date_str, "%Y-%m-%d")
         year = date_obj.year
         month = date_obj.month
@@ -147,9 +142,9 @@ class TagApplication:
             primary_key="temp",
             filepath=Path("temp"),
             original_filename=self.filename,
-            title=self.issue_data["name"],
-            series=self.issue_data["volume"]["name"],
-            volume_num=self.issue_data["issue_number"],
+            title=self.info.name,
+            series=self.info.volume.name,
+            volume_num=self.info.issue_number,
         )
         processor = MetadataProcessing(simple_info)
         clean_title_info = processor.title_parsing()
@@ -158,27 +153,27 @@ class TagApplication:
             "Title": clean_title_info["title"],
             "Series": clean_title_info["series"],
             "Number": clean_title_info["volume_num"],
-            "Publisher": self.get_publisher(),
+            "Publisher": self.publisher_info.name,
             "Month": month,
             "Year": year,
-            "Summary": self.issue_data["description"],
+            "Summary": self.info.description,
             "Characters": ", ".join(
-                self.character_or_team_parsing(self.issue_data["character_credits"])
+                self.character_or_team_parsing(self.info.character_credits)
             ),
             "Teams": ", ".join(
-                self.character_or_team_parsing(self.issue_data["team_credits"])
+                self.character_or_team_parsing(self.info.team_credits)
             ),
-            "api_link": self.issue_data["api_detail_url"],
+            "api_link": self.info.api_detail_url,
         }
 
         information.update(
-            self.creators_entry_parsing(self.issue_data["person_credits"])
+            self.creators_entry_parsing(self.info.person_credits)
         )
         self.final_info = information
         return information
 
     @staticmethod
-    def creators_entry_parsing(list_of_creator_info: list[dict]) -> dict[str, str]:
+    def creators_entry_parsing(list_of_creator_info: list[PersonInfo]) -> dict[str, str]:
         """
         Aggregate creator credits into a mapping of standard role keys to comma-seperated
         names.
@@ -202,22 +197,24 @@ class TagApplication:
             "colorist": "Colorist",
             "artist": "Penciller",
         }
-        creator_dict = {v: "" for v in mapping.values()}
-
-        for info in list_of_creator_info:
-            roles = [r.strip().lower() for r in info["role"].split(",")]
+        dummy_creator_dict: dict[str, list] = {v: [] for v in mapping.values()}
+        creator_dict: dict[str, str] = {}
+        for person in list_of_creator_info:
+            if person.role is None:
+                continue
+            roles = [r.strip().lower() for r in person.role.split(",")]
             for role in roles:
                 if role in mapping:
                     key = mapping[role]
-                    if creator_dict[key]:
-                        creator_dict[key] += ", " + info["name"]
-                    else:
-                        creator_dict[key] = info["name"]
+                    dummy_creator_dict[key].append(person.name)
+
+        for title, names in dummy_creator_dict.items():
+            creator_dict[title] = ", ".join(names)
 
         return creator_dict
 
     @staticmethod
-    def character_or_team_parsing(list_of_info: list[dict]) -> list[str]:
+    def character_or_team_parsing(list_of_info: list[TeamInfo] | list[CharacterInfo] | None) -> list[str]:
         """
         Extract the 'name' field from each character or team entry.
 
@@ -229,10 +226,9 @@ class TagApplication:
             list[str]: A list of names (as strings) taken from each entry's "name"
                 field.
         """
-        peoples = []
-        for i in list_of_info:
-            peoples.append(str(i["name"]))
-        return peoples
+        if list_of_info is None:
+            return []
+        return [i.name for i in list_of_info]
 
     def fill_gaps(self):
         """
