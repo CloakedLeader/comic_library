@@ -42,7 +42,7 @@ class MetadataExtraction:
             ET.ParseError: If ComicInfo.xml is not valid XML.
             Any other exceptions encountered during file access/parsing.
         """
-        self.extract()
+        # self.extract()
         if self.metadata_root is not None:
             return
         xml_path = self.temp_dir / "ComicInfo.xml"
@@ -68,18 +68,18 @@ class MetadataExtraction:
         element = self.metadata_root.find(tag)
         if element is not None and element.text:
             return element.text.strip()
+        # else:
+            # if tag in [
+            #     "Editor",
+            #     "Letterer",
+            #     "Inker",
+            #     "Colorist",
+            #     "CoverArtist",
+            #     "Teams",
+            # ]:
+            #     return ""
         else:
-            if tag in [
-                "Editor",
-                "Letterer",
-                "Inker",
-                "Colorist",
-                "CoverArtist",
-                "Teams",
-            ]:
-                return ""
-            else:
-                raise KeyError(f"No info inside tag: {tag}.")
+            raise KeyError(f"No info inside tag: {tag}.")
 
     def easy_parsing(self, field: str, as_type: type = str) -> str | int:
         """
@@ -94,7 +94,6 @@ class MetadataExtraction:
 
         Returns:
         The metadata inside that field, either a string or integer.
-        Never type None.
         """
         text = self.get_text(field)
         try:
@@ -186,5 +185,5 @@ class MetadataExtraction:
             "teams": self.parse_characters_or_teams("Teams"),
         }
         final_info = self.comic_info.model_copy(update=updates)
-        self.cleanup()
+        # self.cleanup()
         return final_info

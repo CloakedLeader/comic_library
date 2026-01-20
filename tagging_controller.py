@@ -183,7 +183,7 @@ class TaggingPipeline:
             return MatchCode.NO_MATCH
 
 
-def run_tagging_process(filepath: Path, api_key: str) -> Optional[tuple[list, RequestData]]:
+def run_tagging_process(filepath: Path, api_key: str) -> TaggingPipeline:
     filename = filepath.stem
     lexer_instance = Lexer(filename)
     state: Optional[LexerFunc] = run_lexer
@@ -202,23 +202,17 @@ def run_tagging_process(filepath: Path, api_key: str) -> Optional[tuple[list, Re
     tagger = TaggingPipeline(data=data, path=filepath, size=filepath.stat().st_size, api_key=api_key)
 
     final_result = tagger.run()
+    return tagger
     if final_result == MatchCode.ONE_MATCH:
-        inserter = TagApplication(tagger.results[0], tagger.publisher_info, api_key, filename, session)
-        inserter.create_metadata_dict()
-        inserter.insert_xml_into_cbz(filepath)
-        return None
+        # inserter = TagApplication(tagger.results[0], tagger.publisher_info, api_key, filename, session)
+        # inserter.create_metadata_dict()
+        # inserter.insert_xml_into_cbz(filepath)
+        return tagger
     elif final_result == MatchCode.NO_MATCH:
-        return (tagger.potential_results, tagger.data)
-        print("Need another method to find matches")
-        best_matches = tagger.filtered_for_none
-        return (best_matches, tagger.data)
+        return tagger
         # Add a method to rank and return the best 3-5 matches.
     elif final_result == MatchCode.MULTIPLE_MATCHES:
-        return (tagger.results, tagger.data)
-        print("Multiple matches, require user input to disambiguate.")
-        best_matches = tagger.filtered_for_many
-        return (best_matches, tagger.data)
-        # Need to create a gui popup to allow user to select correct match.
+        return tagger
     else:
         raise ValueError("Something has gone wrong")
 

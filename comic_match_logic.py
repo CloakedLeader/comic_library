@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import TypedDict, cast
 import logging
 
+from classes.helper_classes import ComicVineIssueStruct
+from tagging.requester import RequestData
 
 logging.basicConfig(
     filename="debug.log",
@@ -22,11 +24,11 @@ class ComicMatch(TypedDict):
 
 
 class ResultsFilter:
-    def __init__(self, query_results: list, expected_info, filepath: Path):
-        temp = self.unwrap_data(query_results)
-        if not isinstance(temp, list):
-            raise ValueError("Expected list of dictionaries after unwrapping")
-        self.query_results = temp
+    def __init__(self, query_results: list[ComicVineIssueStruct], expected_info: RequestData, filepath: Path):
+        # temp = self.unwrap_data(query_results)
+        # if not isinstance(temp, list):
+        #     raise ValueError("Expected list of dictionaries after unwrapping")
+        self.query_results = query_results
         self.expected_info = expected_info
         self.filepath = filepath
 
@@ -42,11 +44,11 @@ class ResultsFilter:
             logging.debug("Exiting ResultsFilter context cleanly.")
         return False
 
-    @staticmethod
-    def unwrap_data(data):
-        while isinstance(data, list) and len(data) == 1:
-            data = data[0]
-        return data
+    # @staticmethod
+    # def unwrap_data(data):
+    #     while isinstance(data, list) and len(data) == 1:
+    #         data = data[0]
+    #     return data
 
     def title_similarity(self, candidate_title: str) -> float:
         return SequenceMatcher(
@@ -86,13 +88,13 @@ class ResultsFilter:
         score += self.number_match(int(issue_num))
         return score
 
-    def filter_results(self, top_n: int = 5) -> list[tuple[dict, int]]:
+    def filter_results(self, top_n: int = 5) -> list[tuple[ComicVineIssueStruct, int]]:
         logging.info(f"Adam here you go:\n{self.query_results}")
         ids: set[int] = set()
-        scored: list[tuple[float, dict, int]] = []
+        scored: list[tuple[float, ComicVineIssueStruct, int]] = []
         # Each tuple has (score, result, position)
         for index, result in enumerate(self.query_results):
-            indiv_id = int(result["id"])
+            indiv_id = int(result.id)
             if indiv_id not in ids:
                 ids.add(indiv_id)
             else:

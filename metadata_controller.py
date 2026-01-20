@@ -206,7 +206,7 @@ class MetadataController:
                 logging.error(f"Missing required {key} field.")
                 # Need to remove ComicInfo.xml and
                 # wait until sufficient data is supplied.
-                return
+                raise ValueError(f"Missing required {key} field.")
 
         self.insert_into_db(cleaned_comic_info)
         self.extract_cover()
@@ -218,20 +218,26 @@ class MetadataController:
         compiles this, renames the file and then extracts its cover, adds the comic to the database
         and finally moves the file to the correct folder.
         """
-        result = run_tagging_process(self.filepath, API_KEY)
-        if not result:
-            return None
-        results, actual = result
-        ranked = self.rank_results(results, actual)
-        selected = self.request_disambiguation(
-            ranked, actual, results
-        )  # TODO: Test this and then remove as wrong logic if there is only 1 good match.
-        if not selected:
-            logging.info("User cancelled disambiguation process.")
-            return None
-        result = selected
-        self.continue_tagging_from_user_match(result)
-        return None
+        tagger = run_tagging_process(self.filepath, API_KEY)
+        if len(tagger.results) == 1:
+            return tagger[0]
+        elif len(tagger.results) > 1:
+            ranked = self.rank_results(tagger.results, tagger.data)
+            selected = self.request_disambiguation(ranked, tagger.data, tagger.results) 
+            # TODO: Test this and then remove as wrong logic if there is only 1 good match.
+            if not selected:
+                logging.info("User cancelled disambiguation process.")
+                return None
+            return selected
+            # self.continue_tagging_from_user_match(result)
+        elif len(tagger.results) == 0:
+            ranked = self.rank_results(tagger.potential_results, tagger.data)
+            selected = self.request_disambiguation(ranked, tagger.data, tagger.potential_results)
+            if not selected:
+                logging.info("User cancelled disambiguation process.")
+                return None
+            return selected
+            # self.continue_tagging_from_user_match(result)
 
     def insert_into_db(self, cleaned_comic_info: ComicInfo) -> None:
         """
@@ -296,8 +302,7 @@ class MetadataController:
 
     def rank_results(self, all_results, comic_info):
         with ResultsFilter(all_results, comic_info, self.filepath) as filterer:
-            filtered_results = filterer.present_choices()
-        return filtered_results
+            return filterer.present_choices()
 
     def request_disambiguation(
         self,
