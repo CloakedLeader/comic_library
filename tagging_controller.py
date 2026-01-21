@@ -13,7 +13,6 @@ import requests
 from dotenv import load_dotenv
 from PIL import Image
 
-from tagging.applier import TagApplication
 from tagging.lexer import Lexer, LexerFunc, run_lexer
 from tagging.parser import Parser
 from tagging.requester import HttpRequest, RequestData
@@ -160,7 +159,6 @@ class TaggingPipeline:
                 logging.info("There is ONE match!!!")
                 logging.info(good_matches)
                 self.results.extend(final_results)
-                self.publisher_info = self.search_validator.get_publisher_info(final_results[0].volume.id)
                 break
             elif len(final_results) == 0:
                 logging.warning(f"There are no matches using query {q}.")
@@ -201,25 +199,25 @@ def run_tagging_process(filepath: Path, api_key: str) -> TaggingPipeline:
 
     tagger = TaggingPipeline(data=data, path=filepath, size=filepath.stat().st_size, api_key=api_key)
 
-    final_result = tagger.run()
+    tagger.run()
     return tagger
-    if final_result == MatchCode.ONE_MATCH:
-        # inserter = TagApplication(tagger.results[0], tagger.publisher_info, api_key, filename, session)
-        # inserter.create_metadata_dict()
-        # inserter.insert_xml_into_cbz(filepath)
-        return tagger
-    elif final_result == MatchCode.NO_MATCH:
-        return tagger
-        # Add a method to rank and return the best 3-5 matches.
-    elif final_result == MatchCode.MULTIPLE_MATCHES:
-        return tagger
-    else:
-        raise ValueError("Something has gone wrong")
+    # if final_result == MatchCode.ONE_MATCH:
+    #     # inserter = TagApplication(tagger.results[0], tagger.publisher_info, api_key, filename, session)
+    #     # inserter.create_metadata_dict()
+    #     # inserter.insert_xml_into_cbz(filepath)
+    #     return tagger
+    # elif final_result == MatchCode.NO_MATCH:
+    #     return tagger
+    #     # Add a method to rank and return the best 3-5 matches.
+    # elif final_result == MatchCode.MULTIPLE_MATCHES:
+    #     return tagger
+    # else:
+    #     raise ValueError("Something has gone wrong")
 
 
-def extract_and_insert(match, api_key, filename: str, filepath: Path):
-    inserter = TagApplication(match, api_key, filename, session)
-    inserter.get_request()
-    inserter.create_metadata_dict()
-    inserter.insert_xml_into_cbz(filepath)
-    return None
+# def extract_and_insert(match, api_key, filename: str, filepath: Path):
+#     inserter = TagApplication(match, api_key, filename, session)
+#     inserter.get_request()
+#     inserter.create_metadata_dict()
+#     inserter.insert_xml_into_cbz(filepath)
+#     return None

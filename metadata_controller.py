@@ -10,7 +10,7 @@ from defusedxml import ElementTree as ET
 from dotenv import load_dotenv
 from PySide6.QtWidgets import QMainWindow
 
-from classes.helper_classes import ComicInfo
+from classes.helper_classes import ComicInfo, ComicVineIssueStruct
 from comic_match_logic import ComicMatch, ResultsFilter
 from cover_processing import ImageExtraction
 from database.db_input import MetadataInputting, insert_new_publisher
@@ -18,7 +18,8 @@ from extract_meta_xml import MetadataExtraction
 from file_utils import convert_cbz, generate_uuid
 from metadata_cleaning import MetadataProcessing, PublisherNotKnown
 from search import insert_into_fts5
-from tagging_controller import RequestData, extract_and_insert, run_tagging_process
+from tagging_controller import RequestData, run_tagging_process # extract_and_insert
+from tagging.applier import TagApplication
 
 logging.basicConfig(
     filename="debug.log",
@@ -179,10 +180,19 @@ class MetadataController:
 
         if self.has_metadata():
             self.process_with_metadata()
+            return
         else:
-            self.process_without_metadata()
-            if self.has_metadata():
-                self.process_with_metadata()
+            tag_applier = self.get_one_result()
+            if tag_applier:
+                tag_applier.create_metadata_dict()
+                tag_applier.insert_xml_into_cbz(self.filepath)
+
+        # This all needs to be split up into modular components so the different aspects, db insertion, cover extracting
+        # are independent and use the same data types to ensure consistency.
+
+        # if self.has_metadata():
+        #     self.process_with_metadata()
+        #     return
 
     def process_with_metadata(self) -> None:
         """
@@ -212,7 +222,7 @@ class MetadataController:
         self.extract_cover()
         self.move_to_publisher_folder(new_name, publisher_int)
 
-    def process_without_metadata(self) -> None:
+    def get_one_result(self) -> Optional[TagApplication]:
         """
         This runs the full tagging process; queries the ComicVine database to get the correct metadata,
         compiles this, renames the file and then extracts its cover, adds the comic to the database
@@ -220,7 +230,8 @@ class MetadataController:
         """
         tagger = run_tagging_process(self.filepath, API_KEY)
         if len(tagger.results) == 1:
-            return tagger[0]
+            publisher_info = tagger.search_validator.get_publisher_info(tagger.results[0].volume.id)
+            return TagApplication(tagger.results[0], publisher_info, API_KEY, self.filename) 
         elif len(tagger.results) > 1:
             ranked = self.rank_results(tagger.results, tagger.data)
             selected = self.request_disambiguation(ranked, tagger.data, tagger.results) 
@@ -228,16 +239,16 @@ class MetadataController:
             if not selected:
                 logging.info("User cancelled disambiguation process.")
                 return None
-            return selected
-            # self.continue_tagging_from_user_match(result)
+            publisher_info = tagger.search_validator.get_publisher_info(selected.volume.id)
+            return TagApplication(selected, publisher_info, API_KEY, self.filename)
         elif len(tagger.results) == 0:
             ranked = self.rank_results(tagger.potential_results, tagger.data)
             selected = self.request_disambiguation(ranked, tagger.data, tagger.potential_results)
             if not selected:
                 logging.info("User cancelled disambiguation process.")
                 return None
-            return selected
-            # self.continue_tagging_from_user_match(result)
+            publisher_info = tagger.search_validator.get_publisher_info(selected.volume.id)
+            return TagApplication(selected, publisher_info, API_KEY, self.filename)
 
     def insert_into_db(self, cleaned_comic_info: ComicInfo) -> None:
         """
@@ -308,17 +319,14 @@ class MetadataController:
         self,
         results: list[tuple[ComicMatch, int]],
         actual_comic: RequestData,
-        all_results: list[dict],
-    ):
+        all_results: list[ComicVineIssueStruct],
+    ) -> Optional[ComicVineIssueStruct]:
         match = self.display.get_user_match(  # type: ignore
             results, actual_comic, all_results, self.filepath
         )
         if match:
             return match
         return None
-
-    def continue_tagging_from_user_match(self, match: dict):
-        extract_and_insert(match, API_KEY, self.original_filename, self.filepath)
 
 
 VALID_EXTENSIONS = {".cbz", ".cbr", ".zip"}

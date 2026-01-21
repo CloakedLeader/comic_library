@@ -20,7 +20,7 @@ class ComicMatch(TypedDict):
     number: int
     cover_link: str
     description: str
-    # id: int
+    id: int
 
 
 class ResultsFilter:
@@ -70,20 +70,15 @@ class ResultsFilter:
             return 0.5
         return 1.0 if candidate_number == self.expected_info.num else 0.0
 
-    def score_results(self, result: dict) -> float:
-        volume_name = result.get("volume")
-        if volume_name is not None:
-            subvolume_name = volume_name.get("name")
-        else:
-            subvolume_name = ""
-        name = cast(str, result.get("name") or subvolume_name)
-        volume = cast(dict, result.get("volume", {}))
-        cover_date = cast(str, result.get("cover_date", ""))
-        issue_num = cast(str, result.get("issue_number", ""))
+    def score_results(self, result: ComicVineIssueStruct) -> float:
+        name = cast(str, result.name)
+        volume = cast(str, result.volume.name)
+        cover_date = cast(str, result.cover_date)
+        issue_num = cast(str, result.issue_number)
 
         score = 0.0
         score += self.title_similarity(name)
-        score += self.volume_similarity(volume.get("name", ""))
+        score += self.volume_similarity(volume)
         score += self.year_match(int(cover_date[:4]))
         score += self.number_match(int(issue_num))
         return score
@@ -109,12 +104,13 @@ class ResultsFilter:
         best_results: list[tuple[ComicMatch, int]] = []
         for r, position in top_results:
             typedict: ComicMatch = {
-                "title": str(r["name"]),
-                "series": str(r["volume"]["name"]),
-                "year": int(str(r["cover_date"])[:4]),
-                "number": int(r["issue_number"]),
-                "cover_link": str(r["image"]["thumb_url"]),
-                "description": str(r["description"]),
+                "title": str(r.name),
+                "series": str(r.volume.name),
+                "year": int(str(r.cover_date)[:4]),
+                "number": int(r.issue_number),
+                "cover_link": str(r.image.thumb_url),
+                "description": str(r.description),
+                "id": int(r.id)
             }
             best_results.append((typedict, position))
 

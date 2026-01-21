@@ -19,8 +19,7 @@ logging.basicConfig(
 
 class TagApplication:
     def __init__(
-        self, comicvine_info: ComicVineIssueStruct, publisher_info: Publisher, api_key: str, filename: str, session
-    ):
+        self, comicvine_info: ComicVineIssueStruct, publisher_info: Publisher, api_key: str, filename: str):
         """
         Intialise a TagApplication from a ComicVine-style entry that had been cleaned
         after an API request.
@@ -41,7 +40,7 @@ class TagApplication:
         self.info = comicvine_info
         self.api_key = api_key
         self.filename = filename
-        self.session = session
+        # self.session = session
         # self.url: Optional[str] = None
         # self.issue_data = None
         # self.final_info: Optional[dict] = None
