@@ -1,7 +1,7 @@
+import logging
 import os
 import sqlite3
 from pathlib import Path
-import logging
 
 from dotenv import load_dotenv
 
@@ -12,7 +12,7 @@ ROOT_DIR = Path(root_folder)
 logging.basicConfig(
     filename="debug.log",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 
@@ -101,7 +101,9 @@ def clean_orphans() -> None:
                     [(oid,) for oid in orphan_ids],
                 )
                 total_removed += len(orphan_ids)
-                logging.info(f"Removed {len(orphan_ids)} orphan references from {table}")
+                logging.info(
+                    f"Removed {len(orphan_ids)} orphan references from {table}"
+                )
 
     conn.commit()
     conn.close()

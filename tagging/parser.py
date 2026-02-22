@@ -1,8 +1,9 @@
 import re
-from typing import Optional
 from dataclasses import dataclass
+from typing import Optional
 
 from .itemtypes import Item, LexerType
+
 
 @dataclass
 class FilenameMetadata:
@@ -22,8 +23,8 @@ class FilenameMetadata:
             Issue: {self.issue_number}
             Year: {self.year}
             Collection Type: {self.collection_type or "None"}
-        """ 
-    
+        """
+
     def __repr__(self) -> str:
         return f"""
             Series: {self.series}
@@ -32,7 +33,7 @@ class FilenameMetadata:
             Issue: {self.issue_number}
             Year: {self.year}
             Collection Type: {self.collection_type or "None"}
-        """ 
+        """
 
 
 known_collections = {
@@ -286,7 +287,7 @@ class Parser:
 
             else:
                 self.next()
-        
+
         for i in ["issue", "volume"]:
             if possible_metadata[i] == 0:
                 possible_metadata[i] = 1

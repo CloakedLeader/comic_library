@@ -1,16 +1,15 @@
+import logging
 import sqlite3
 from pathlib import Path
 from typing import Optional
-import logging
 
 from classes.helper_classes import ComicInfo
 from file_utils import normalise_publisher_name
 
-
 logging.basicConfig(
     filename="debug.log",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 SHARED_ALIASES = [

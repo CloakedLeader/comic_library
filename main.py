@@ -1,12 +1,12 @@
 import asyncio
+import inspect
+import logging
 import os
 import os.path
 import sys
 import threading
 from pathlib import Path
 from typing import Callable, Optional, Sequence
-import inspect
-import logging
 
 import uvicorn
 from dotenv import load_dotenv
@@ -69,7 +69,7 @@ logging.getLogger("qasync").setLevel(logging.WARNING)
 logging.basicConfig(
     filename="debug.log",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 
@@ -281,13 +281,14 @@ class HomePage(QMainWindow):
             if func is None:
                 return None
             if inspect.iscoroutinefunction(func):
-                    def wrapper(*args, **kwargs):
-                        task = asyncio.create_task(func(*args,**kwargs))
-                        task.add_done_callback(self.handle_async_exceptions)
-                    return wrapper
+
+                def wrapper(*args, **kwargs):
+                    task = asyncio.create_task(func(*args, **kwargs))
+                    task.add_done_callback(self.handle_async_exceptions)
+
+                return wrapper
             return func
 
-            
         for pos, comic in enumerate(list_of_info):
             progress = progresses[pos] if progresses else None
             comic_widget = GeneralComicWidget(
@@ -659,6 +660,7 @@ class HomePage(QMainWindow):
             task.result()
         except Exception as e:
             logging.error(f"[Async callback exception] {e}")
+
     def clear_widget_stack(self):
         while self.coll_display.count():
             item = self.coll_display.takeAt(0)

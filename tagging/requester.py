@@ -1,22 +1,31 @@
-from io import BytesIO
 import logging
+from io import BytesIO
+
 import requests
+from pydantic import ValidationError
 
-from classes.helper_classes import APIIssueResults, APISearchResults
-
+from classes.helper_classes import (
+    APIIssueResults,
+    APISearchResults,
+    ComicVineIssueStruct,
+)
 
 logging.basicConfig(
     filename="debug.log",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 
 header = {
-    "User-Agent": "AutoComicLibrary/1.0 (contact: adam.perrott@protonmail.com;"
-    " github.com/CloakedLeader/comic_library)",
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AutoComicLibrary/1.0 (contact: adam.perrott@protonmail.com;"
+        "github.com/CloakedLeader/comic_library)"
+    ),
+    "Referer": "https://comicvine.gamespot.com/",
     "Accept": r"*/*",
-    "Accept-Encoding": "gzip,deflate,br",
+    # "Accept-Encoding": "gzip,deflate,br",
     "Connection": "keep-alive",
 }
 
@@ -71,13 +80,13 @@ class HttpRequest:
         self.session = session
         self.payload: dict[str, str | int] = {}
         self.payload["api_key"] = self.api_key
+        self.payload["format"] = "json"
         self.payload["limit"] = 50
         self.payload["resources"] = "volume"
         self.payload["field_list"] = (
             "id,image,publisher,name,start_year,date_added,"
             "count_of_issues,description,last_issue"
         )
-        self.payload["format"] = "json"
 
     def build_url_search(self, query: str) -> None:
         """
@@ -119,6 +128,7 @@ class HttpRequest:
                 "format": "json",
                 "filter": f"volume:{id}",
             },
+            headers=header,
         )
         prepared = req.prepare()
         self.url_iss = prepared.url
@@ -184,6 +194,15 @@ class HttpRequest:
         if data["error"] != "OK":
             logging.warning("Error, please investigate")
             raise RuntimeError("Error, please investigate")
+        items = data["results"]
+        validated: list[ComicVineIssueStruct] = []
+        for item in items:
+            try:
+                model_info = ComicVineIssueStruct.model_validate(item)
+                validated.append(model_info)
+            except ValidationError:
+                continue
+        data["results"] = validated
         return APIIssueResults.model_validate(data)
 
     def download_img(self, url: str) -> BytesIO:
@@ -198,11 +217,10 @@ class HttpRequest:
         """
 
         try:
-            response = requests.get(url, timeout=3000)
+            response = requests.get(url, timeout=3000, headers=header)
             response.raise_for_status()
             image = BytesIO(response.content)
             return image
         except Exception as e:
             logging.warning(f"Failed to process {url}: {e}")
             raise Exception(e)
-

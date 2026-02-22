@@ -4,7 +4,7 @@ import zipfile
 from pathlib import Path
 
 from defusedxml import ElementTree as ET
-from defusedxml.ElementTree import Element  # type: ignore
+from xml.etree.ElementTree import Element  # type: ignore
 
 from classes.helper_classes import ComicInfo
 
@@ -69,15 +69,15 @@ class MetadataExtraction:
         if element is not None and element.text:
             return element.text.strip()
         # else:
-            # if tag in [
-            #     "Editor",
-            #     "Letterer",
-            #     "Inker",
-            #     "Colorist",
-            #     "CoverArtist",
-            #     "Teams",
-            # ]:
-            #     return ""
+        # if tag in [
+        #     "Editor",
+        #     "Letterer",
+        #     "Inker",
+        #     "Colorist",
+        #     "CoverArtist",
+        #     "Teams",
+        # ]:
+        #     return ""
         else:
             raise KeyError(f"No info inside tag: {tag}.")
 

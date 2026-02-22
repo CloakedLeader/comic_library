@@ -1,7 +1,7 @@
+import logging
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import TypedDict, cast
-import logging
 
 from classes.helper_classes import ComicVineIssueStruct
 from tagging.requester import RequestData
@@ -9,7 +9,7 @@ from tagging.requester import RequestData
 logging.basicConfig(
     filename="debug.log",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 
@@ -24,7 +24,12 @@ class ComicMatch(TypedDict):
 
 
 class ResultsFilter:
-    def __init__(self, query_results: list[ComicVineIssueStruct], expected_info: RequestData, filepath: Path):
+    def __init__(
+        self,
+        query_results: list[ComicVineIssueStruct],
+        expected_info: RequestData,
+        filepath: Path,
+    ):
         # temp = self.unwrap_data(query_results)
         # if not isinstance(temp, list):
         #     raise ValueError("Expected list of dictionaries after unwrapping")
@@ -110,7 +115,7 @@ class ResultsFilter:
                 "number": int(r.issue_number),
                 "cover_link": str(r.image.thumb_url),
                 "description": str(r.description),
-                "id": int(r.id)
+                "id": int(r.id),
             }
             best_results.append((typedict, position))
 

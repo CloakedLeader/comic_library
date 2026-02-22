@@ -21,7 +21,7 @@ def test_primitive():
 def test1():
     result = lex_and_parse("Batman Omnibus Vol 1 (2019)")
 
-    assert result.collection_type== "omnibus"
+    assert result.collection_type == "omnibus"
     assert result.year == 2019
     assert result.volume_number == 1
 

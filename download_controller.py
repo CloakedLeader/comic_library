@@ -1,17 +1,17 @@
+import logging
 import os
 import re
 import urllib.parse
 from email.header import decode_header
 from pathlib import Path
 from typing import Callable, Optional
-from playwright.async_api import async_playwright
-import logging
 
 import aiofiles
 import aiohttp
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+from playwright.async_api import async_playwright
 
 from classes.helper_classes import RSSComicInfo
 
@@ -22,7 +22,7 @@ ROOT_DIR = Path(root_folder)
 logging.basicConfig(
     filename="debug.log",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 
@@ -44,7 +44,9 @@ class DownloadControllerAsync:
             service: The download servie for handling actual file downloads.
         """
         self.view = view
-        self.download_service: DownloadServiceAsync = DownloadServiceAsync(download_folder)
+        self.download_service: DownloadServiceAsync = DownloadServiceAsync(
+            download_folder
+        )
         self.download_folder = download_folder
         self.comic_dict: dict[str, str] = {}
 
@@ -52,7 +54,7 @@ class DownloadControllerAsync:
     #     if self.download_service is None:
     #         self.download_service = DownloadServiceAsync(self.download_folder)
     #         await self.download_service.__aenter__()
-            
+
     async def handle_rss_comic_clicked(self, comic_info: RSSComicInfo) -> None:
         """
         Handle the event when an RSS comic is clicked for download.
@@ -76,14 +78,16 @@ class DownloadControllerAsync:
             aiohttp.ClientError: If there are issues with the async HTTP client.
             IOError: If there are file system issues during download.
 
-        """ 
+        """
         if self.download_service is None:
             self.download_service = DownloadServiceAsync(self.download_folder)
         self.comic_info = comic_info
         self.view.update_status(f"Starting download of: {comic_info.title}")
         logging.debug(f"comic_info.url: {comic_info.url}")
         async with self.download_service as downloader:
-            download_links = await self.download_service.get_download_links(comic_info.url)
+            download_links = await self.download_service.get_download_links(
+                comic_info.url
+            )
             download_links = self.download_service.sort(download_links)
             download_now_link = download_links[0][1]
             try:
@@ -197,7 +201,9 @@ class DownloadServiceAsync:
         )
         return filename.group("name") if filename else None
 
-    async def get_download_links(self, comic_article_link: str) -> list[tuple[str, str]]:
+    async def get_download_links(
+        self, comic_article_link: str
+    ) -> list[tuple[str, str]]:
         """
         Extract download links from a comic article page.
 
@@ -263,10 +269,8 @@ class DownloadServiceAsync:
         return filepath
 
     async def download_with_progress(
-            self,
-            url: str,
-            download_folder: Path,
-            progress_callback: Callable):
+        self, url: str, download_folder: Path, progress_callback: Callable
+    ):
         async with aiohttp.ClientSession() as session:
             async with session.get(url, allow_redirects=True) as response:
                 logging.debug("\n=== Redirect history ===")
@@ -279,7 +283,9 @@ class DownloadServiceAsync:
                 logging.info(dict(response.headers))
 
                 if response.status != 200:
-                    raise Exception(f"Download failed with status code {response.status}")
+                    raise Exception(
+                        f"Download failed with status code {response.status}"
+                    )
 
                 max_size = int(response.headers.get("Content-Length", 0))
                 downloaded = 0
@@ -294,13 +300,13 @@ class DownloadServiceAsync:
                         if last:
                             filename = urllib.parse.unquote(last)
                             break
-                
+
                 if not filename:
                     last = os.path.basename(response.url.path)
                     filename = urllib.parse.unquote(last) if last else "download.cbz"
 
                 if not os.path.splitext(filename)[1]:
-                    filename += ".cbz" 
+                    filename += ".cbz"
 
                 filepath = download_folder / filename
 
@@ -317,7 +323,7 @@ class DownloadServiceAsync:
                                 last_percent = percent
                                 progress_callback(percent)
 
-                return filepath 
+                return filepath
 
     async def resolve_download_link(self, link: str) -> tuple[str, str | None]:
         try:
@@ -330,7 +336,7 @@ class DownloadServiceAsync:
                 logging.error("Detected download-start navigation error")
             final_url = str(self.page.url)
             return final_url, None
-        
+
     async def pixeldrain_download(
         self, download_link: str, progress_callback: Callable
     ) -> Path:

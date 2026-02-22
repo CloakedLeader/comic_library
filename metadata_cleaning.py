@@ -1,7 +1,7 @@
 import calendar
+import logging
 import re
 import traceback
-import logging
 
 from fuzzywuzzy import fuzz  # type: ignore[import-untyped]
 from word2number import w2n  # type: ignore[import-untyped]
@@ -10,11 +10,10 @@ from classes.helper_classes import ComicInfo
 from database.db_utils import get_publisher_info
 from file_utils import normalise_publisher_name
 
-
 logging.basicConfig(
     filename="debug.log",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 SERIES_OVERRIDES = [

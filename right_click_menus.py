@@ -1,20 +1,24 @@
-from PySide6.QtWidgets import QMenu
 import logging
-from database.gui_repo_worker import RepoWorker
 
+from PySide6.QtWidgets import QMenu
+
+from database.gui_repo_worker import RepoWorker
 
 logging.basicConfig(
     filename="debug.log",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
+
 
 class GridViewContextMenuManager:
     def __init__(self, collection_ids, collection_names):
         self.collections = list(zip(collection_ids, collection_names))
 
     def show_menu(self, comic_info, global_pos):
-        logging.debug("Context menu requested for %s at %s", comic_info.title, global_pos)
+        logging.debug(
+            "Context menu requested for %s at %s", comic_info.title, global_pos
+        )
         menu = QMenu()
 
         open_action = menu.addAction("Read")

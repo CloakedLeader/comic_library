@@ -1,3 +1,4 @@
+import logging
 import os
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
@@ -5,26 +6,25 @@ from enum import IntEnum
 from io import BytesIO
 from pathlib import Path
 from typing import Optional
-import logging
 
 import imagehash
-from imagehash import ImageHash
 import requests
 from dotenv import load_dotenv
+from imagehash import ImageHash
 from PIL import Image
 
+from classes.helper_classes import ComicVineIssueStruct
 from tagging.lexer import Lexer, LexerFunc, run_lexer
 from tagging.parser import Parser
 from tagging.requester import HttpRequest, RequestData
-from tagging.validator import SearchResponseValidator, IssueResponseValidator
-from classes.helper_classes import ComicVineIssueStruct
+from tagging.validator import IssueResponseValidator, SearchResponseValidator
 
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
 logging.basicConfig(
     filename="debug.log",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 
@@ -36,9 +36,10 @@ class MatchCode(IntEnum):
 
 header = {
     "User-Agent": "AutoComicLibrary/1.0 (contact: adam.perrott@protonmail.com;"
-    " github.com/CloakedLeader/comic_library)",
+    "github.com/CloakedLeader/comic_library)",
     "Accept": r"*/*",
-    "Accept-Encoding": "gzip,deflate,br",
+    "Referer": "https://comicvine.gamespot.com/",
+    # "Accept-Encoding": "gzip,deflate,br",
     "Connection": "keep-alive",
 }
 session = requests.Session()
@@ -67,7 +68,7 @@ class TaggingPipeline:
             if not image_files:
                 logging.debug(f"Empty archive in {self.path}")
                 raise ValueError("Empty archive.")
-                    
+
             image_files.sort()
             cover = zip_ref.read(image_files[0])
             return BytesIO(cover)
@@ -91,7 +92,6 @@ class TaggingPipeline:
         skipped_vols = []
         good_matches = []
         for q in queries:
-
             self.http.build_url_search(q)
             results = self.http.search_get_request()
             self.search_validator = SearchResponseValidator(results.results, self.data)
@@ -112,7 +112,9 @@ class TaggingPipeline:
                 self.http.build_url_iss(j)
                 issue_results = self.http.issue_get_request()
 
-                self.issue_validator = IssueResponseValidator(issue_results.results, self.data)
+                self.issue_validator = IssueResponseValidator(
+                    issue_results.results, self.data
+                )
                 logging.debug(
                     f"There are {len(self.issue_validator.results)}"
                     + f" issues in the matching volume: '{k}' for query {q}."
@@ -139,8 +141,9 @@ class TaggingPipeline:
                 self.issue_validator.cover_img_url_getter()
                 images: list[BytesIO] = []
                 with ThreadPoolExecutor(max_workers=5) as executor:
-                    images = list(executor.map(
-                            self.http.download_img, self.issue_validator.urls))
+                    images = list(
+                        executor.map(self.http.download_img, self.issue_validator.urls)
+                    )
 
                 for index, i in enumerate(images):
                     try:
@@ -197,7 +200,9 @@ def run_tagging_process(filepath: Path, api_key: str) -> TaggingPipeline:
 
     data = RequestData(num, year, series, title)
 
-    tagger = TaggingPipeline(data=data, path=filepath, size=filepath.stat().st_size, api_key=api_key)
+    tagger = TaggingPipeline(
+        data=data, path=filepath, size=filepath.stat().st_size, api_key=api_key
+    )
 
     tagger.run()
     return tagger

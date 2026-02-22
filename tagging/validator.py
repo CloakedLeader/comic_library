@@ -1,33 +1,39 @@
+import logging
 import re
 from difflib import SequenceMatcher
-from typing import Callable
-import logging
-from typing import TypeAlias
 from io import BytesIO
+from typing import Callable, TypeAlias
 
 import imagehash
 from imagehash import ImageHash
 from PIL import Image
 from rapidfuzz import fuzz
 
-from classes.helper_classes import ComicVineIssueStruct, ComicVineSearchStruct, Publisher
+from classes.helper_classes import (
+    ComicVineIssueStruct,
+    ComicVineSearchStruct,
+    Publisher,
+)
 
 from .requester import RequestData
-
 
 logging.basicConfig(
     filename="debug.log",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 
-ComicVineResponseList: TypeAlias = list[ComicVineIssueStruct] | list[ComicVineSearchStruct]
+ComicVineResponseList: TypeAlias = (
+    list[ComicVineIssueStruct] | list[ComicVineSearchStruct]
+)
 ComicVineResponse: TypeAlias = ComicVineIssueStruct | ComicVineSearchStruct
 
 
 class SearchResponseValidator:
-    def __init__(self, response: list[ComicVineSearchStruct], expected_data: RequestData):
+    def __init__(
+        self, response: list[ComicVineSearchStruct], expected_data: RequestData
+    ):
         self.results = response
         self.expected_info = expected_data
         self.mutable_results = response
@@ -43,9 +49,11 @@ class SearchResponseValidator:
         Returns:
             list: The subset of 'self.results' which fulfills the predicate.
         """
-        self.mutable_results = [item for item in self.mutable_results if predicate(item)]
+        self.mutable_results = [
+            item for item in self.mutable_results if predicate(item)
+        ]
         return self.mutable_results
-    
+
     def issue_count_filter(self, limit: int = 12) -> list[ComicVineSearchStruct]:
         """
         Filter results to exclude items that have too many issues.
@@ -66,7 +74,7 @@ class SearchResponseValidator:
                 return True if issue_count < limit else False
 
         return self.filter_results(is_collection)
-    
+
     def pick_best_volumes(self, number: int = 5) -> list[ComicVineSearchStruct]:
         """
         Selects the top matching volume results whose names best match the expected
@@ -90,12 +98,14 @@ class SearchResponseValidator:
                 ).ratio()
             return score
 
-        scored_volumes = [(i, score_name(item)) for i, item in enumerate(self.mutable_results)]
+        scored_volumes = [
+            (i, score_name(item)) for i, item in enumerate(self.mutable_results)
+        ]
         scored_volumes.sort(key=lambda x: x[1], reverse=True)
         top_indices = [i for i, _ in scored_volumes[:number]]
         self.mutable_results = [self.mutable_results[i] for i in top_indices]
         return self.mutable_results
-    
+
     def pub_checker(self) -> list[ComicVineSearchStruct]:
         """
         Filter a list of results by publisher credibility.
@@ -143,13 +153,13 @@ class SearchResponseValidator:
                 logging.info(f"Accepted '{pub_name}' but please check.")
         self.mutable_results = filtered
         return filtered
-    
+
     def get_publisher_info(self, volume_id: int) -> Publisher:
         for result in self.mutable_results:
             if result.id == volume_id:
                 return result.publisher
         raise KeyError(f"volume_id {volume_id} not found")
-    
+
     def filter_search_results(self) -> list[ComicVineSearchStruct]:
         self.pub_checker()
         self.issue_count_filter()
@@ -161,7 +171,9 @@ class IssueResponseValidator:
     ISSUE_THRESHOLD = 70
     VOLUME_THRESHOLD = 50
 
-    def __init__(self, response: list[ComicVineIssueStruct], expected_data: RequestData) -> None:
+    def __init__(
+        self, response: list[ComicVineIssueStruct], expected_data: RequestData
+    ) -> None:
         """
         Initialise the validator with API response results and the expected
         request data.
@@ -188,9 +200,11 @@ class IssueResponseValidator:
         Returns:
             list: The subset of 'self.results' which fulfills the predicate.
         """
-        self.mutable_results = [item for item in self.mutable_results if predicate(item)]
+        self.mutable_results = [
+            item for item in self.mutable_results if predicate(item)
+        ]
         return self.mutable_results
-    
+
     def year_checker(self) -> list[ComicVineIssueStruct]:
         """
         Filter results to those whose year is within 4 years of the expected
@@ -287,7 +301,7 @@ class IssueResponseValidator:
 
         self.urls: list[str] = []
         for i in self.mutable_results:
-            self.urls.append(i.image.thumb_url)
+            self.urls.append(i.image.small_url)
 
     # def cover_img_comparison(
     #     self, known_image_hash, unsure_image_bytes, threshold=8
@@ -320,7 +334,10 @@ class IssueResponseValidator:
     #     return hash_diff <= threshold
 
     def cover_img_comp_w_weight(
-        self, known_image_hashes: dict[str, ImageHash], unsure_image_bytes: BytesIO, max_dist=64
+        self,
+        known_image_hashes: dict[str, ImageHash],
+        unsure_image_bytes: BytesIO,
+        max_dist=64,
     ) -> float:
         """
         Compute a weighted similarity score between a known image and a
@@ -351,9 +368,8 @@ class IssueResponseValidator:
             normalised = 1 - (dist / max_dist)
             score += weights[key] * normalised
         return score
-    
+
     def filter_issue_results(self) -> list[ComicVineIssueStruct]:
         self.year_checker()
         self.title_checker()
         return self.mutable_results
-

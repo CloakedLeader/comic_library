@@ -1,19 +1,18 @@
+import logging
 import random
 import re
 import zipfile
 from io import BytesIO
 from pathlib import Path
 from typing import Optional
-import logging
 
 import Levenshtein
 from PIL import Image
 
-
 logging.basicConfig(
     filename="debug.log",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 

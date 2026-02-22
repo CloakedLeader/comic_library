@@ -38,7 +38,7 @@ def get_cover_image(comic_id: str):
 
 @app.get("/comics/{comic_id}/metadata")
 def get_metadata(comic_id: str):
-    with RepoWorker("D:/adams-comics/.covers") as worker:
+    with RepoWorker() as worker:
         return worker.get_complete_metadata(comic_id).model_dump()
 
 

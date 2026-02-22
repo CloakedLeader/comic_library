@@ -1,7 +1,7 @@
+import logging
 import zipfile
 from io import BytesIO
 from pathlib import Path
-import logging
 
 import requests
 from PySide6.QtCore import Qt
@@ -22,11 +22,10 @@ from PySide6.QtWidgets import (
 from comic_match_logic import ComicMatch
 from tagging_controller import RequestData
 
-
 logging.basicConfig(
     filename="debug.log",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 

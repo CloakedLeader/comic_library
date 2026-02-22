@@ -1,7 +1,7 @@
+import logging
 from io import BytesIO
 from pathlib import Path
 from typing import Callable, Optional
-import logging
 
 import requests
 from PySide6.QtCore import (
@@ -19,11 +19,10 @@ from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from classes.helper_classes import GUIComicInfo, RSSComicInfo
 
-
 logging.basicConfig(
     filename="debug.log",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 

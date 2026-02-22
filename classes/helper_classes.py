@@ -56,7 +56,7 @@ class ImageInfo(BaseModel):
     medium_url: str
     screen_url: str
     screen_large_url: Optional[str] = None
-    small_url: Optional[str] = None
+    small_url: str
     super_url: Optional[str] = None
     thumb_url: str
     tiny_url: str
@@ -86,14 +86,14 @@ class ComicVineSearchStruct(BaseModel):
     resource_type: Optional[str] = None
 
     model_config = ConfigDict(extra="allow")
-    
+
 
 class APISearchResults(BaseModel):
     error: str
     limit: int
     offset: int
-    result_per_page: int
-    total_results: int
+    number_of_page_results: int
+    number_of_total_results: int
     status_code: int
     results: list[ComicVineSearchStruct]
 
@@ -110,7 +110,7 @@ class PersonInfo(BaseModel):
     id: Optional[int] = None
     name: str
     site_detail_url: Optional[str] = None
-    role: Optional[str] = None
+    role: str
 
 
 class VolumeInfo(BaseModel):
@@ -129,15 +129,15 @@ class TeamInfo(BaseModel):
 
 class ComicVineIssueStruct(BaseModel):
     api_detail_url: Optional[str] = None
-    character_credits: list[CharacterInfo]
+    character_credits: Optional[list[CharacterInfo]] = None
     cover_date: str
     date_added: str
-    description: str
+    description: Optional[str] = None
     id: int
     image: ImageInfo
     issue_number: int
-    name: str
-    person_credits: list[PersonInfo]
+    name: Optional[str] = None
+    person_credits: Optional[list[PersonInfo]] = None
     site_detail_url: Optional[str] = None
     team_credits: Optional[list[TeamInfo]] = None
     volume: VolumeInfo
@@ -147,7 +147,7 @@ class APIIssueResults(BaseModel):
     error: str
     limit: int
     offset: int
-    result_per_page: int
-    total_results: int
+    number_of_page_results: int
+    number_of_total_results: int
     status_code: int
     results: list[ComicVineIssueStruct]

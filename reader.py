@@ -1,8 +1,8 @@
+import logging
 import zipfile
 from collections import OrderedDict
 from functools import partial
 from io import BytesIO
-import logging
 
 from PIL import Image
 from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, QTimer, Signal
@@ -19,12 +19,12 @@ from PySide6.QtWidgets import (
 from classes.helper_classes import GUIComicInfo
 from metadata_gui_panel import MetadataDialog
 
-
 logging.basicConfig(
     filename="debug.log",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
+
 
 class ComicError(Exception):
     """Base exception for Comic-related issues."""

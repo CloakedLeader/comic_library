@@ -17,14 +17,15 @@ from database.db_input import MetadataInputting, insert_new_publisher
 from extract_meta_xml import MetadataExtraction
 from file_utils import convert_cbz, generate_uuid
 from metadata_cleaning import MetadataProcessing, PublisherNotKnown
+from metadata_inserter import MetadataInserter
 from search import insert_into_fts5
-from tagging_controller import RequestData, run_tagging_process # extract_and_insert
 from tagging.applier import TagApplication
+from tagging_controller import RequestData, run_tagging_process  # extract_and_insert
 
 logging.basicConfig(
     filename="debug.log",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 load_dotenv()
@@ -154,7 +155,9 @@ class MetadataController:
                             ]
 
                             if missing:
-                                logging.error(f"ComicInfo.xml is missing tags: {missing}")
+                                logging.error(
+                                    f"ComicInfo.xml is missing tags: {missing}"
+                                )
                                 return False
                             else:
                                 logging.debug("ComicInfo.xml is valid and complete")
@@ -179,13 +182,28 @@ class MetadataController:
         self.reformat()
 
         if self.has_metadata():
-            self.process_with_metadata()
-            return
+            raw_comic_metadata: ComicInfo = self.get_embedded_metadata()
         else:
             tag_applier = self.get_one_result()
             if tag_applier:
-                tag_applier.create_metadata_dict()
-                tag_applier.insert_xml_into_cbz(self.filepath)
+                raw_comic_metadata = tag_applier.create_metadata_dict()
+            else:
+                raise RuntimeError("No comic with which to match.")
+        clean_comic_metadata: ComicInfo = self.clean_embedded_metadata(
+            raw_comic_metadata
+        )
+        for key, value in clean_comic_metadata.model_dump().items():
+            if value == "PENDING":
+                logging.error(f"Missing required {key} field.")
+                # Need to remove ComicInfo.xml and
+                # wait until sufficient data is supplied.
+                raise ValueError(f"Missing required {key} field.")
+
+        inserter = MetadataInserter(clean_comic_metadata, self.filepath)
+        inserter.insert_xml()
+        self.insert_into_db(clean_comic_metadata)
+        self.extract_cover()
+        self.move_to_publisher_folder(new_name, publisher_int)
 
         # This all needs to be split up into modular components so the different aspects, db insertion, cover extracting
         # are independent and use the same data types to ensure consistency.
@@ -193,6 +211,24 @@ class MetadataController:
         # if self.has_metadata():
         #     self.process_with_metadata()
         #     return
+
+    def get_embedded_metadata(self) -> ComicInfo:
+        with MetadataExtraction(self.comic_info) as extractor:
+            return extractor.run()
+
+    def clean_embedded_metadata(self, raw_data: ComicInfo) -> ComicInfo:
+        with MetadataProcessing(raw_data) as cleaner:
+            try:
+                cleaned_comic_info = cleaner.run()
+                # new_name, publisher_int = cleaner.new_filename_and_folder()
+                # ! Take this function from metadata_cleaning and use in this class.
+                return cleaned_comic_info
+            except PublisherNotKnown as e:
+                logging.warning(f"Publisher unknown: {e.publisher_name}")
+                insert_new_publisher(e.publisher_name)
+                return self.clean_embedded_metadata(
+                    raw_data
+                )  # This may cause infinite loop!
 
     def process_with_metadata(self) -> None:
         """
@@ -230,24 +266,34 @@ class MetadataController:
         """
         tagger = run_tagging_process(self.filepath, API_KEY)
         if len(tagger.results) == 1:
-            publisher_info = tagger.search_validator.get_publisher_info(tagger.results[0].volume.id)
-            return TagApplication(tagger.results[0], publisher_info, API_KEY, self.filename) 
+            publisher_info = tagger.search_validator.get_publisher_info(
+                tagger.results[0].volume.id
+            )
+            return TagApplication(
+                tagger.results[0], publisher_info, API_KEY, self.filename
+            )
         elif len(tagger.results) > 1:
             ranked = self.rank_results(tagger.results, tagger.data)
-            selected = self.request_disambiguation(ranked, tagger.data, tagger.results) 
+            selected = self.request_disambiguation(ranked, tagger.data, tagger.results)
             # TODO: Test this and then remove as wrong logic if there is only 1 good match.
             if not selected:
                 logging.info("User cancelled disambiguation process.")
                 return None
-            publisher_info = tagger.search_validator.get_publisher_info(selected.volume.id)
+            publisher_info = tagger.search_validator.get_publisher_info(
+                selected.volume.id
+            )
             return TagApplication(selected, publisher_info, API_KEY, self.filename)
-        elif len(tagger.results) == 0:
+        else:
             ranked = self.rank_results(tagger.potential_results, tagger.data)
-            selected = self.request_disambiguation(ranked, tagger.data, tagger.potential_results)
+            selected = self.request_disambiguation(
+                ranked, tagger.data, tagger.potential_results
+            )
             if not selected:
                 logging.info("User cancelled disambiguation process.")
                 return None
-            publisher_info = tagger.search_validator.get_publisher_info(selected.volume.id)
+            publisher_info = tagger.search_validator.get_publisher_info(
+                selected.volume.id
+            )
             return TagApplication(selected, publisher_info, API_KEY, self.filename)
 
     def insert_into_db(self, cleaned_comic_info: ComicInfo) -> None:
@@ -282,7 +328,7 @@ class MetadataController:
         root directory.
         """
         logging.info("Starting cover extraction")
-       
+
         image_proc = ImageExtraction(
             self.filepath, ROOT_DIR / ".covers", self.primary_key
         )

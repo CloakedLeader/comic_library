@@ -1,15 +1,14 @@
+import logging
 import subprocess
 import tempfile
 import uuid
 import zipfile
 from pathlib import Path
-import logging
-
 
 logging.basicConfig(
     filename="debug.log",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 
