@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QPixmap
@@ -55,13 +56,14 @@ class ReadingOrderCreation(QDialog):
         with RepoWorker() as worker:
             if description == "":
                 description = None
-            worker.create_reading_order(name, description)
+            order_int = worker.create_reading_order(name, description)
 
-        self.open_order_creation()
+        self.open_order_creation(order_int, name)
         self.close()
 
-    def open_order_creation(self):
-        pass
+    def open_order_creation(self, order_id: int, order_title: str):
+        self.order_editor = ReadingOrderEditor(order_id, order_title)
+        self.order_editor.show()
 
 
 class CustomListWidget(QWidget):
@@ -105,13 +107,16 @@ class ReadingOrderListEditor(QListWidget):
 
         self.create_list_items()
 
-    def get_db_order(self) -> list[tuple[str, int]]:
+    def get_db_order(self) -> Optional[list[tuple[str, int]]]:
         with RepoWorker() as worker:
             return worker.get_order_contents(self.order_id)
 
     def create_list_items(self) -> None:
         order = self.get_db_order()
-        ids_in_order = [c[0] for c in order]
+        if order is None:
+            ids_in_order = []
+        else:
+            ids_in_order = [c[0] for c in order]
         with RepoWorker() as worker:
             comic_info = worker.create_basemodel(ids_in_order, thumb=True)
         comic_info.reverse()

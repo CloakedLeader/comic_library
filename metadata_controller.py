@@ -5,6 +5,8 @@ import sqlite3
 import zipfile
 from pathlib import Path
 from typing import Optional
+import re
+import calendar
 
 from defusedxml import ElementTree as ET
 from dotenv import load_dotenv
@@ -32,6 +34,13 @@ load_dotenv()
 API_KEY = os.getenv("API_KEY", "")
 root_folder = os.getenv("ROOT_DIR")
 ROOT_DIR = Path(root_folder if root_folder is not None else "")
+
+SERIES_OVERRIDES = [
+    ("tpb", 1, "TPB"),
+    ("omnibus", 2, "Omni"),
+    ("modern era epic collection", 4, "MEC"),
+    ("epic collection", 3, "EC"),
+]
 
 
 def get_comicid_from_path(path: Path) -> int:
@@ -79,6 +88,12 @@ class MetadataController:
         )
         self.page_count: Optional[int] = None
 
+    @staticmethod
+    def sanitise(filename: str) -> str:
+        santised = re.sub(r'[<>:"/\\|?*]', "-", filename)
+        santised = santised.rstrip(" .")
+        return santised
+    
     def reformat(self) -> None:
         """
         Converts .cbr files into .cbz files.
@@ -198,6 +213,8 @@ class MetadataController:
                 # Need to remove ComicInfo.xml and
                 # wait until sufficient data is supplied.
                 raise ValueError(f"Missing required {key} field.")
+            
+        new_name, publisher_int = self.create_name(clean_comic_metadata)
 
         inserter = MetadataInserter(clean_comic_metadata, self.filepath)
         inserter.insert_xml()
@@ -211,6 +228,21 @@ class MetadataController:
         # if self.has_metadata():
         #     self.process_with_metadata()
         #     return
+
+    def create_name(self, clean_metadata: ComicInfo) -> tuple[str, int]:
+        date_suffix = f"{calendar.month_abbr[clean_metadata.month]} {clean_metadata.year}"  # type: ignore
+        volume_num = clean_metadata.volume_num
+        collection_id = clean_metadata.collection_type
+        collection_name = ""
+        for _, val, abbr in SERIES_OVERRIDES:
+            if val == collection_id:
+                collection_name = abbr.strip()
+                break
+        series_name = self.sanitise(str(clean_metadata.series)).strip()
+        title_name = self.sanitise(str(clean_metadata.title)).strip()
+        filename = f"{series_name} - {title_name} {collection_name} #0{volume_num} ({date_suffix}).cbz"  # noqa: E501
+        filename = self.sanitise(filename).strip()
+        return filename, clean_metadata.publisher_id  # type: ignore
 
     def get_embedded_metadata(self) -> ComicInfo:
         with MetadataExtraction(self.comic_info) as extractor:

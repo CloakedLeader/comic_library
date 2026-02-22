@@ -1,46 +1,4 @@
-INFO:     Started server process [11676]
+INFO:     Started server process [27188]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-Traceback (most recent call last):
-  File "g:\comic_library\main.py", line 626, in clicked_reading_order
-    order_list = ReadingOrderListEditor(id, name)
-  File "g:\comic_library\reading_order_widget.py", line 106, in __init__
-    self.create_list_items()
-    ~~~~~~~~~~~~~~~~~~~~~~^^
-  File "g:\comic_library\reading_order_widget.py", line 113, in create_list_items
-    order = self.get_db_order()
-  File "g:\comic_library\reading_order_widget.py", line 110, in get_db_order
-    return worker.get_order_contents(self.order_id)
-           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
-  File "g:\comic_library\database\gui_repo_worker.py", line 570, in get_order_contents
-    raise ValueError(f"Order {order_id} does not exist.")
-ValueError: Order 1 does not exist.
-Traceback (most recent call last):
-  File "g:\comic_library\main.py", line 626, in clicked_reading_order
-    order_list = ReadingOrderListEditor(id, name)
-  File "g:\comic_library\reading_order_widget.py", line 106, in __init__
-    self.create_list_items()
-    ~~~~~~~~~~~~~~~~~~~~~~^^
-  File "g:\comic_library\reading_order_widget.py", line 113, in create_list_items
-    order = self.get_db_order()
-  File "g:\comic_library\reading_order_widget.py", line 110, in get_db_order
-    return worker.get_order_contents(self.order_id)
-           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
-  File "g:\comic_library\database\gui_repo_worker.py", line 570, in get_order_contents
-    raise ValueError(f"Order {order_id} does not exist.")
-ValueError: Order 2 does not exist.
-Traceback (most recent call last):
-  File "g:\comic_library\main.py", line 626, in clicked_reading_order
-    order_list = ReadingOrderListEditor(id, name)
-  File "g:\comic_library\reading_order_widget.py", line 106, in __init__
-    self.create_list_items()
-    ~~~~~~~~~~~~~~~~~~~~~~^^
-  File "g:\comic_library\reading_order_widget.py", line 113, in create_list_items
-    order = self.get_db_order()
-  File "g:\comic_library\reading_order_widget.py", line 110, in get_db_order
-    return worker.get_order_contents(self.order_id)
-           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
-  File "g:\comic_library\database\gui_repo_worker.py", line 570, in get_order_contents
-    raise ValueError(f"Order {order_id} does not exist.")
-ValueError: Order 3 does not exist.

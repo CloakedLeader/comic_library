@@ -68,18 +68,18 @@ class MetadataExtraction:
         element = self.metadata_root.find(tag)
         if element is not None and element.text:
             return element.text.strip()
-        # else:
-        # if tag in [
-        #     "Editor",
-        #     "Letterer",
-        #     "Inker",
-        #     "Colorist",
-        #     "CoverArtist",
-        #     "Teams",
-        # ]:
-        #     return ""
         else:
-            raise KeyError(f"No info inside tag: {tag}.")
+            if tag in [
+                "Editor",
+                "Letterer",
+                "Inker",
+                "Colorist",
+                "CoverArtist",
+                "Teams",
+            ]:
+                return ""
+            else:
+                raise KeyError(f"No info inside tag: {tag}.")
 
     def easy_parsing(self, field: str, as_type: type = str) -> str | int:
         """

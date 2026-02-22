@@ -553,7 +553,7 @@ class RepoWorker:
             )
         return
 
-    def get_order_contents(self, order_id: int) -> list[tuple[str, int]]:
+    def get_order_contents(self, order_id: int) -> Optional[list[tuple[str, int]]]:
         self.cursor.execute(
             """
             SELECT comic_id, position
@@ -563,8 +563,9 @@ class RepoWorker:
             """,
             (order_id,),
         )
+        
         result = self.cursor.fetchall()
         if result:
             return [(r[0], r[1]) for r in result]
         else:
-            raise ValueError(f"Order {order_id} does not exist.")
+            return None

@@ -91,6 +91,6 @@ class MetadataInserter:
             if field not in comic_info.keys() or not comic_info[field]:
                 comic_info[field] = "PENDING"
         for key in comic_info.keys():
-            if key not in MANDATORY_FIELDS and comic_info[key] in (None or ""):
+            if key not in MANDATORY_FIELDS and not comic_info[key]:
                 comic_info[key] = "PENDING"
         return comic_info
