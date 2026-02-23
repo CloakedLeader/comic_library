@@ -16,6 +16,7 @@ from classes.helper_classes import ComicInfo, ComicVineIssueStruct
 from comic_match_logic import ComicMatch, ResultsFilter
 from cover_processing import ImageExtraction
 from database.db_input import MetadataInputting, insert_new_publisher
+from database.gui_repo_worker import RepoWorker
 from extract_meta_xml import MetadataExtraction
 from file_utils import convert_cbz, generate_uuid
 from metadata_cleaning import MetadataProcessing, PublisherNotKnown
@@ -195,8 +196,9 @@ class MetadataController:
         what to do from there.
         """
         self.reformat()
-
-        if self.has_metadata():
+        has_metadata = self.has_metadata()
+        
+        if has_metadata:
             raw_comic_metadata: ComicInfo = self.get_embedded_metadata()
         else:
             tag_applier = self.get_one_result()
@@ -430,6 +432,9 @@ def run_tagger(display: QMainWindow):
             path.name.lower().endswith(ext) for ext in VALID_EXTENSIONS
         ):
             logging.info(f"Starting to process {path.name}")
+            with RepoWorker() as worker:
+                if worker.comic_in_db(path):
+                    return None
             new_id = generate_uuid()
             cont = MetadataController(new_id, path, display)
             cont.process()

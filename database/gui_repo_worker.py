@@ -79,6 +79,11 @@ class RepoWorker:
             return self.create_basemodel(ids, thumb=True)
         else:
             return self.create_basemodel(ids)
+        
+    def comic_in_db(self, filepath: Path) -> bool:
+        rel_path = filepath.relative_to(ROOT_DIR)
+        self.cursor.execute("SELECT * FROM comics WHERE file_path = ? LIMIT 1", (str(rel_path),))
+        return True if self.cursor.fetchone() else False
 
     def run(self) -> tuple[list[GUIComicInfo], list[float], list[GUIComicInfo]]:
         """
