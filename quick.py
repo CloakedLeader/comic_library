@@ -29,7 +29,7 @@ asyncio.set_event_loop(loop)
 asyncio.get_event_loop().set_debug(False)
 
 home = HomePage()
-for path in (ROOT_DIR / "1 - Marvel Comics").rglob("*"):
+for path in (ROOT_DIR / "2 - DC Comics").rglob("*"):
     if path.is_dir():
         continue
     if path.is_file():

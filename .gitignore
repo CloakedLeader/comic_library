@@ -15,3 +15,4 @@ log.txt
 *.toml
 *.log
 .bandit
+quick.py
