@@ -155,12 +155,31 @@ class SearchResponseValidator:
         return filtered
 
     def get_publisher_info(self, volume_id: int) -> Publisher:
+        """
+        Finds the publisher information for the correct volume in the results.
+
+        Args:
+            volume_id (int): The ID of the volume.
+
+        Raises:
+            KeyError: If the volume ID cannot be found in the results.
+
+        Returns:
+            Publisher: A structure that includes name, and comicvines ID.
+        """
         for result in self.mutable_results:
             if result.id == volume_id:
                 return result.publisher
         raise KeyError(f"volume_id {volume_id} not found")
 
     def filter_search_results(self) -> list[ComicVineSearchStruct]:
+        """
+        Combines many filters and checks to reduce the number of results to a more reasonable amount
+        to check.
+
+        Returns:
+            list[ComicVineSearchStruct]: The remaining results once all the filering has been completed.
+        """
         self.pub_checker()
         self.issue_count_filter()
         self.pick_best_volumes()
@@ -370,6 +389,12 @@ class IssueResponseValidator:
         return score
 
     def filter_issue_results(self) -> list[ComicVineIssueStruct]:
+        """
+        Combines a check of the publication year and title to identify the exact comic.
+
+        Returns:
+            list[ComicVineIssueStruct]: The remaining results after the filtering has been completed.
+        """
         self.year_checker()
         self.title_checker()
         return self.mutable_results

@@ -61,28 +61,69 @@ class Parser:
                 continue
 
     def current(self) -> Item:
+        """
+        Gets the current token in the list.
+
+        Returns:
+            Item: The current token if not at the end, else end of line token.
+        """
         if self.pos < len(self.tokens):
             return self.tokens[self.pos]
         return Item(LexerType.EOF, val="", pos=self.pos)
 
     def peek(self, n=1) -> Item:
+        """
+        Goes forward by n amounts and returns the token there. Does not change the token place
+        counter.
+
+        Args:
+            n (int, optional): The number of tokens to skip forward by. Defaults to 1.
+
+        Returns:
+            Item: The token n places ahead or end of line token if n goes too far.
+        """
         new_pos = self.pos + n
         if new_pos < len(self.tokens):
             return self.tokens[new_pos]
         return Item(LexerType.EOF, val="", pos=new_pos)
 
     def prev(self, n=1) -> Item:
+        """
+        Goes backward by n amounts and returns the token there. Does not change the token place
+        counter.
+
+        Args:
+            n (int, optional): The amount of tokens to go backwards by. Defaults to 1.
+
+        Returns:
+            Item: The token n places backward or end of line token if n goes too far back.
+        """
         new_pos = self.pos - n
         if new_pos >= 0:
             return self.tokens[new_pos]
         return Item(LexerType.EOF, val="", pos=new_pos)
 
     def next(self, n=1) -> Item:
+        """
+        Advances the token counter by n amounts and returns the token here.
+
+        Args:
+            n (int, optional): The number of tokens to advance by. Defaults to 1.
+
+        Returns:
+            Item: The token n places ahead or end of line token.
+        """
         self.pos += n
         token = self.current()
         return token
 
     def skip_whitespaces(self) -> int:
+        """
+        Finds how many spaces are between the current and next non-space token.
+
+        Returns:
+            int: The number of tokens to skip forward.
+        """
         n = 1
         while True:
             next_typ = self.peek(n=n).typ
@@ -94,6 +135,13 @@ class Parser:
         return n
 
     def try_parse_date_in_paren(self) -> Optional[int]:
+        """
+        Attempts to find a year within brackets, applies many criteria such as token length
+        and size (>1900). Finally advances the token counter after the closing parenthesis.
+
+        Returns:
+            Optional[int]: Returns the year if one matching criteria is found, else None.
+        """
         if self.peek().typ == LexerType.EOF:
             return None
         maybe_year = self.peek()
@@ -107,6 +155,15 @@ class Parser:
         return None
 
     def try_parse_useless_info(self, seen_year_yet: bool) -> Optional[str]:
+        """Attempts to parse the extraneous information at the end of file names
+        such as ripper and (digital) tag. Then advances the token counter.
+
+        Args:
+            seen_year_yet (bool): Whether the year has already been found in the token yet.
+
+        Returns:
+            Optional[str]: The text inside the token if one is found, else None.
+        """
         if self.peek().typ == LexerType.EOF:
             return None
         maybe_useless = self.peek()
@@ -119,6 +176,9 @@ class Parser:
         return None
 
     def skip_parenthesis(self):
+        """
+        Advances the token counter past any parentheis.
+        """
         depth = 0
 
         while True:
@@ -138,6 +198,15 @@ class Parser:
             self.next()
 
     def try_parse_issue_number(self, hash: bool) -> Optional[int]:
+        """
+        Attempts to find the issue number. Uses '#' as the main identifier for this.
+
+        Args:
+            hash (bool): Whether the previous token was a '#'.
+
+        Returns:
+            Optional[int]: The issue number if found, else None.
+        """
         if hash:
             if self.peek().typ == LexerType.EOF:
                 return None
@@ -159,6 +228,12 @@ class Parser:
                 return None
 
     def try_parse_volume_number(self) -> Optional[int]:
+        """
+        Attempts to find the volume number in the next non-space token.
+
+        Returns:
+            Optional[int]: The volume number, else None.
+        """
         if self.peek().typ == LexerType.EOF:
             return None
         n = self.skip_whitespaces()
@@ -171,15 +246,28 @@ class Parser:
         return None
 
     def decide_if_separator(self) -> bool:
+        """
+        Decides if the a dash is a separator of text or part of a hyphenated word.
+
+        Returns:
+            bool: Whether the dash is a separator.
+        """
         if self.prev().typ == LexerType.Space and self.peek().typ == LexerType.Space:
             return True
         else:
             return False
 
     def try_parse_author(self):
+        # TODO: Implement this to capture author names in titles. 
         pass
 
     def count_dashes(self) -> int:
+        """
+        Counts hte number of dashes within the entire list of tokens.
+
+        Returns:
+            int: The number of dashes.
+        """
         count = 0
         for token in self.tokens:
             if token.typ == LexerType.Dash:
@@ -188,6 +276,13 @@ class Parser:
         return count
 
     def parse(self) -> FilenameMetadata:
+        """
+        Goes through the list of tokens and assigns them semantic meaning.
+
+        Returns:
+            FilenameMetadata: The collection of metadata collected from the list of tokens. 
+                Contains information like year, issue & volume number etc.
+        """
         title_parts = []
         series_parts = []
         possible_metadata: dict[str, str | int] = {
