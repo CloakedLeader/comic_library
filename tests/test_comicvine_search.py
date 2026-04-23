@@ -1,4 +1,5 @@
 from pathlib import Path
+import pytest
 
 from classes.helper_classes import ComicVineIssueStruct
 from tagging.requester import RequestData
@@ -27,7 +28,7 @@ def check_id(id: int, data: list[ComicVineIssueStruct]) -> bool:
                 break
         return matched
 
-
+@pytest.mark.local
 def test_1():
     result = tag(
         RequestData(1, 2023, "Strange Academy", "Year One"),
@@ -35,7 +36,7 @@ def test_1():
     )
     assert check_id(985028, result)
 
-
+@pytest.mark.local
 def test_2():
     result = tag(
         RequestData(1, 2022, "Dark Knights of Steel", "Dark Knights of Steel"),
