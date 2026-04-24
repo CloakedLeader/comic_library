@@ -6,7 +6,7 @@ def run_step(name: str, command: list[str]) -> None:
     print(f"\n {name}...")
     result = subprocess.run(command)
     if result.returncode != 0:
-        print(f"❌ {name} failed")
+        print(f"{name} failed")
         sys.exit(result.returncode)
 
 
