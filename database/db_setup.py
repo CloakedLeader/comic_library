@@ -15,6 +15,7 @@ cursor.execute(
         file_path TEXT,
         description TEXT,
         type_id INTEGER,
+        page_count INTEGER,
         FOREIGN KEY (type_id) REFERENCES comic_types(id),
         FOREIGN KEY (publisher_id) REFERENCES publishers(id),
         FOREIGN KEY (series) REFERENCES series(id)
@@ -80,7 +81,7 @@ cursor.execute(
 
 cursor.execute(
     """
-    CREATE TABLE identities (
+    CREATE TABLE IF NOT EXISTS identities (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     real_name TEXT NOT NULL UNIQUE
     )
@@ -89,7 +90,7 @@ cursor.execute(
 
 cursor.execute(
     """
-    CREATE TABLE character_identity_links (
+    CREATE TABLE IF NOT EXISTS character_identity_links (
     character_id INTEGER NOT NULL,
     identity_id INTEGER NOT NULL,
     PRIMARY KEY (character_id, identity_id),
@@ -101,7 +102,7 @@ cursor.execute(
 
 cursor.execute(
     """
-    CREATE TABLE comic_characters (
+    CREATE TABLE IF NOT EXISTS comic_characters (
     comic_id TEXT NOT NULL,
     character_id INTEGER NOT NULL,
     identity_id INTEGER,
@@ -210,6 +211,30 @@ cursor.execute(
     """
 )
 
+cursor.execute(
+    """
+    CREATE TABLE IF NOT EXISTS rss_entries (
+    url TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    pub_epoch INT,
+    summary TEXT,
+    cover_url TEXT NOT NULL
+    )
+    """
+)
+
+cursor.execute(
+    """
+    CREATE VIRTUAL TABLE IF NOT EXISTS comics_fts5 USING fts5(
+    comic_id UNINDEXED,
+    series,
+    title,
+    creators,
+    characters,
+    teams
+    )
+    """
+)
 
 conn.commit()
 conn.close()

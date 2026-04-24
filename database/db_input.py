@@ -55,7 +55,7 @@ class MetadataInputting:
     def dict_into_main_db_table(self) -> None:
         self.cursor.execute(
             """
-            INSERT INTO comics (id, title, series, volume_id, publisher_id,
+            INSERT OR IGNORE INTO comics (id, title, series, volume_id, publisher_id,
             release_date, description, type_id, page_count)
             VALUES (:primary_key, :title, :series, :volume_num, :publisher_id, :date,
             :description, :collection_type, :pages)
@@ -186,7 +186,7 @@ class MetadataInputting:
         if creator_role_pairs is not None:
             for index, info in enumerate(creators):
                 creator_role_id_tuples.append(creator_role_pairs[index] + (info[1],))
-
+        print(creator_role_id_tuples)
         for entry in creator_role_id_tuples:
             _, role, id = entry
             if role in roles.keys():
