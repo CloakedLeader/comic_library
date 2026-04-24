@@ -3,7 +3,7 @@ import sys
 
 
 def run_step(name: str, command: list[str]) -> None:
-    print(f"\n🔹 {name}...")
+    print(f"\n {name}...")
     result = subprocess.run(command)
     if result.returncode != 0:
         print(f"❌ {name} failed")
@@ -11,7 +11,7 @@ def run_step(name: str, command: list[str]) -> None:
 
 
 def main() -> None:
-    print("🚀 Running pre-push checks...")
+    print("Running pre-push checks...")
 
     # 1. Type checking
     run_step("Type checking (mypy)", ["mypy", "."])
@@ -25,7 +25,7 @@ def main() -> None:
     # 3. Tests
     run_step("Running tests (pytest)", ["pytest", "-q"])
 
-    print("\n✅ All pre-push checks passed!")
+    print("\n All pre-push checks passed!")
 
 
 if __name__ == "__main__":
