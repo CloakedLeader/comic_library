@@ -6,7 +6,6 @@ dependencies = []
 [tool.setuptools]
 packages = ["classes", "tagging"]
 
-
 [tool.ruff.lint]
 extend-select = ["I", "B"]
 
