@@ -27,6 +27,6 @@ repos:
     hooks:
       - id: pre-push-checks
         name: pre-push-checks
-        entry: python scripts/pre-push.python
+        entry: python scripts/pre-push.py
         language: system
         stages: [pre-push]
