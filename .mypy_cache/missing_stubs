@@ -1,0 +1,9 @@
+lxml-stubs
+types-PySocks
+types-PyYAML
+types-Pygments
+types-colorama
+types-greenlet
+types-html5lib
+types-pexpect
+types-ujson

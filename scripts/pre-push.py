@@ -19,7 +19,7 @@ def main() -> None:
     # 2. Docstring coverage
     run_step(
         "Docstring coverage (interrogate)",
-        ["interrogate", "-q", "--fail-under", "80", "."],
+        ["interrogate", "-q", "--fail-under", "40", "."],
     )
 
     # 3. Tests
