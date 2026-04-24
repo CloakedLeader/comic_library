@@ -169,5 +169,47 @@ cursor.execute(
     """
 )
 
+cursor.execute(
+    """
+    CREATE TABLE IF NOT EXISTS collections (
+    id INT PRIMARY KEY,
+    name TEXT NOT NULL
+    )
+    """
+)
+
+cursor.execute(
+    """
+    CREATE TABLE IF NOT EXISTS collections_contents (
+    collection_id INT NOT NULL,
+    comic_id TEXT NOT NULL,
+    PRIMARY KEY (collection_id, comic_id),
+    FOREIGN KEY (comic_id) REFERENCES comics(id)
+    )
+    """
+)
+
+cursor.execute(
+    """
+    CREATE TABLE IF NOT EXISTS reading_orders (
+    id INT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    created TEXT NOT NULL
+    )
+    """
+)
+
+cursor.execute(
+    """
+    CREATE TABLE IF NOT EXISTS reading_order_items (
+    reading_order_id INT NOT NULL,
+    comic_id TEXT NOT NULL,
+    position INT NOT NULL
+    )
+    """
+)
+
+
 conn.commit()
 conn.close()

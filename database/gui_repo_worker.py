@@ -2,7 +2,7 @@ import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -79,10 +79,12 @@ class RepoWorker:
             return self.create_basemodel(ids, thumb=True)
         else:
             return self.create_basemodel(ids)
-        
+
     def comic_in_db(self, filepath: Path) -> bool:
         rel_path = filepath.relative_to(ROOT_DIR)
-        self.cursor.execute("SELECT * FROM comics WHERE file_path = ? LIMIT 1", (str(rel_path),))
+        self.cursor.execute(
+            "SELECT * FROM comics WHERE file_path = ? LIMIT 1", (str(rel_path),)
+        )
         return True if self.cursor.fetchone() else False
 
     def run(self) -> tuple[list[GUIComicInfo], list[float], list[GUIComicInfo]]:
@@ -496,7 +498,7 @@ class RepoWorker:
         Outputs:
         The id of the newly created reading order.
         """
-        now = datetime.now()
+        now = datetime.now().isoformat()
         if desc is None:
             self.cursor.execute(
                 "INSERT INTO reading_orders (name, created) VALUES (?, ?)",
@@ -568,7 +570,7 @@ class RepoWorker:
             """,
             (order_id,),
         )
-        
+
         result = self.cursor.fetchall()
         if result:
             return [(r[0], r[1]) for r in result]
