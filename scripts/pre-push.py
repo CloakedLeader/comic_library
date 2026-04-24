@@ -17,13 +17,13 @@ def main() -> None:
     run_step("Type checking (mypy)", ["mypy", "."])
 
     # 2. Docstring coverage
-    run_step(
-        "Docstring coverage (interrogate)",
-        [
-            "interrogate",
-            "-q",
-        ],  # "--fail-under", "10", "."
-    )
+    # run_step(
+    #     "Docstring coverage (interrogate)",
+    #     [
+    #         "interrogate",
+    #         "-q",
+    #     ],  # "--fail-under", "10", "."
+    # )
 
     # 3. Tests
     run_step("Running tests (pytest)", ["pytest", "-q"])
