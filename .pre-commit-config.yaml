@@ -29,5 +29,4 @@ repos:
         name: pre-push-checks
         entry: python scripts/pre-push.python
         language: system
-        stages: [push]
-
+        stages: [pre-push]
