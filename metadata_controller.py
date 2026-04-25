@@ -1,12 +1,12 @@
+import calendar
 import logging
 import os
+import re
 import shutil
 import sqlite3
 import zipfile
 from pathlib import Path
 from typing import Optional
-import re
-import calendar
 
 from defusedxml import ElementTree as ET
 from dotenv import load_dotenv
@@ -94,7 +94,7 @@ class MetadataController:
         santised = re.sub(r'[<>:"/\\|?*]', "-", filename)
         santised = santised.rstrip(" .")
         return santised
-    
+
     def reformat(self) -> None:
         """
         Converts .cbr files into .cbz files.
@@ -197,7 +197,7 @@ class MetadataController:
         """
         self.reformat()
         has_metadata = self.has_metadata()
-        
+
         if has_metadata:
             raw_comic_metadata: ComicInfo = self.get_embedded_metadata()
         else:
@@ -215,11 +215,15 @@ class MetadataController:
                 # Need to remove ComicInfo.xml and
                 # wait until sufficient data is supplied.
                 raise ValueError(f"Missing required {key} field.")
-            
+
         new_name, publisher_int = self.create_name(clean_comic_metadata)
 
         inserter = MetadataInserter(clean_comic_metadata, self.filepath)
-        inserter.insert_xml()
+        if inserter.create_valid_struc():
+            inserter.run_inserter()
+        else:
+            raise ValueError("Missing required required fields in metadata.")
+
         self.insert_into_db(clean_comic_metadata)
         self.extract_cover()
         self.move_to_publisher_folder(new_name, publisher_int)
@@ -227,12 +231,10 @@ class MetadataController:
         # This all needs to be split up into modular components so the different aspects, db insertion, cover extracting
         # are independent and use the same data types to ensure consistency.
 
-        # if self.has_metadata():
-        #     self.process_with_metadata()
-        #     return
-
     def create_name(self, clean_metadata: ComicInfo) -> tuple[str, int]:
-        date_suffix = f"{calendar.month_abbr[clean_metadata.month]} {clean_metadata.year}"  # type: ignore
+        date_suffix = (
+            f"{calendar.month_abbr[clean_metadata.month]} {clean_metadata.year}"  # type: ignore
+        )
         volume_num = clean_metadata.volume_num
         collection_id = clean_metadata.collection_type
         collection_name = ""
@@ -351,7 +353,7 @@ class MetadataController:
             inputter.run()
             flat_data = inputter.flatten_data()
         except Exception as e:
-            raise ValueError(f"[Error] {e}")
+            raise ValueError(f"[Error] {e}") from e
         insert_into_fts5(flat_data)
         logging.info("Success! Added all data to the database")
         self.inputter = inputter

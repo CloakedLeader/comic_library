@@ -16,3 +16,4 @@ log.txt
 *.log
 .bandit
 quick.py
+missing_stubs
