@@ -52,7 +52,7 @@ class MetadataInserter:
             update=self.creators_parsing(self.info.creators or [])
         )
         self.information = self.fill_gaps(information)
-        return self.pending
+        return not self.pending
 
     def create_xml(self) -> bytes:
         root = ET.Element("ComicInfo")
@@ -66,16 +66,13 @@ class MetadataInserter:
         tree.write(xml_bytes, encoding="utf-8", xml_declaration=True)
         return xml_bytes.getvalue()
 
-    def insert_xml(self, xml_bytes: bytes):
+    def insert_xml(self, xml_bytes: bytes) -> None:
         with zipfile.ZipFile(self.path, "a") as cbz:
             cbz.writestr("ComicInfo.xml", xml_bytes)
 
     def already_has_xml(self) -> bool:
         with zipfile.ZipFile(self.path, "r") as cbz:
-            if "ComicInfo.xml" in cbz.namelist():
-                return True
-            else:
-                return False
+            return "ComicInfo.xml" in cbz.namelist()
 
     @staticmethod
     def creators_parsing(creators: list[tuple[str, str]]) -> dict[str, str]:
@@ -141,14 +138,19 @@ class MetadataInserter:
 
     def replace_xml(self, xml_bytes: bytes) -> None:
         temp_path = self.path.with_suffix(".tmp")
-        with zipfile.ZipFile(self.path, "r") as zin:
-            with zipfile.ZipFile(temp_path, "w") as zout:
+        try:
+            with zipfile.ZipFile(self.path, "r") as zin, \
+            zipfile.ZipFile(temp_path, "w", zipfile.ZIP_DEFLATED) as zout:
                 for item in zin.infolist():
                     if item.filename != "ComicInfo.xml":
                         zout.writestr(item, zin.read(item.filename))
                 zout.writestr("ComicInfo.xml", xml_bytes)
 
-        os.replace(temp_path, self.path)
+            os.replace(temp_path, self.path)
+        except Exception:
+            if temp_path.exists():
+                temp_path.unlink(missing_ok=True)
+            raise
 
     def run_inserter(self) -> None:
         xml = self.create_xml()

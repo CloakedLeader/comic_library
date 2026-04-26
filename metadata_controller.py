@@ -222,7 +222,7 @@ class MetadataController:
         if inserter.create_valid_struc():
             inserter.run_inserter()
         else:
-            raise ValueError("Missing required required fields in metadata.")
+            raise ValueError("Missing required fields in metadata.")
 
         self.insert_into_db(clean_comic_metadata)
         self.extract_cover()
