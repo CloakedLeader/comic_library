@@ -1,3 +1,4 @@
+import os
 import xml.etree.ElementTree as ET  # nosec
 import zipfile
 from io import BytesIO
@@ -32,8 +33,9 @@ class MetadataInserter:
     def __init__(self, clean_info: ComicInfo, filepath: Path):
         self.info = clean_info
         self.path = filepath
+        self.pending = False
 
-    def insert_xml(self):
+    def create_valid_struc(self) -> bool:
         information = XMLStruc(
             Title=self.info.title or "",
             Series=self.info.series or "",
@@ -49,35 +51,28 @@ class MetadataInserter:
         information = information.model_copy(
             update=self.creators_parsing(self.info.creators or [])
         )
-        information = self.fill_gaps(information)
+        self.information = self.fill_gaps(information)
+        return not self.pending
 
+    def create_xml(self) -> bytes:
         root = ET.Element("ComicInfo")
 
-        for key, value in information.model_dump().items():
+        for key, value in self.information.model_dump().items():
             child = ET.SubElement(root, key)
             child.text = str(value)
 
         xml_bytes = BytesIO()
         tree = ET.ElementTree(root)
         tree.write(xml_bytes, encoding="utf-8", xml_declaration=True)
+        return xml_bytes.getvalue()
 
-        if self.has_complete_xml(xml_bytes.getvalue()):
-            return
-
+    def insert_xml(self, xml_bytes: bytes) -> None:
         with zipfile.ZipFile(self.path, "a") as cbz:
-            cbz.writestr("ComicInfo.xml", xml_bytes.getvalue())
+            cbz.writestr("ComicInfo.xml", xml_bytes)
 
-    def has_complete_xml(self, xml_bytes: bytes) -> bool:
+    def already_has_xml(self) -> bool:
         with zipfile.ZipFile(self.path, "r") as cbz:
-            if "ComicInfo.xml" in cbz.namelist():
-                content = cbz.read("ComicInfo.xml")
-                return self.xml_equal(content, xml_bytes)
-            else:
-                return False
-
-    @staticmethod
-    def xml_equal(a: bytes, b: bytes) -> bool:
-        return ET.tostring(ET.fromstring(a)) == ET.tostring(ET.fromstring(b))
+            return "ComicInfo.xml" in cbz.namelist()
 
     @staticmethod
     def creators_parsing(creators: list[tuple[str, str]]) -> dict[str, str]:
@@ -118,8 +113,7 @@ class MetadataInserter:
 
         return creator_dict
 
-    @staticmethod
-    def fill_gaps(comic_info: XMLStruc) -> XMLStruc:
+    def fill_gaps(self, comic_info: XMLStruc) -> XMLStruc:
         MANDATORY_FIELDS = {
             "Writer",
             "Penciller",
@@ -135,8 +129,35 @@ class MetadataInserter:
         for field in MANDATORY_FIELDS:
             if field not in data or not data[field]:
                 data[field] = "PENDING"
+                self.pending = True
         for key in list(data.keys()):
             if key not in MANDATORY_FIELDS and not data[key]:
                 data[key] = "MISSING"
 
         return comic_info.model_copy(update=data)
+
+    def replace_xml(self, xml_bytes: bytes) -> None:
+        temp_path = self.path.with_suffix(".tmp")
+        try:
+            with (
+                zipfile.ZipFile(self.path, "r") as zin,
+                zipfile.ZipFile(temp_path, "w", zipfile.ZIP_DEFLATED) as zout,
+            ):
+                for item in zin.infolist():
+                    if item.filename != "ComicInfo.xml":
+                        zout.writestr(item, zin.read(item.filename))
+                zout.writestr("ComicInfo.xml", xml_bytes)
+
+            os.replace(temp_path, self.path)
+        except Exception:
+            if temp_path.exists():
+                temp_path.unlink(missing_ok=True)
+            raise
+
+    def run_inserter(self) -> None:
+        xml = self.create_xml()
+
+        if self.already_has_xml():
+            self.replace_xml(xml)
+        else:
+            self.insert_xml(xml)
