@@ -139,8 +139,10 @@ class MetadataInserter:
     def replace_xml(self, xml_bytes: bytes) -> None:
         temp_path = self.path.with_suffix(".tmp")
         try:
-            with zipfile.ZipFile(self.path, "r") as zin, \
-            zipfile.ZipFile(temp_path, "w", zipfile.ZIP_DEFLATED) as zout:
+            with (
+                zipfile.ZipFile(self.path, "r") as zin,
+                zipfile.ZipFile(temp_path, "w", zipfile.ZIP_DEFLATED) as zout,
+            ):
                 for item in zin.infolist():
                     if item.filename != "ComicInfo.xml":
                         zout.writestr(item, zin.read(item.filename))
