@@ -17,3 +17,5 @@ rapidfuzz
 pydantic
 sqlmodel
 fastapi
+playwright
+feedparser
