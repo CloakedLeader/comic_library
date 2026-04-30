@@ -39,8 +39,8 @@ from collections_widget import CollectionCreation
 from comic_grid_view import ComicGridView
 from comic_match_logic import ComicMatch
 from comic_match_ui import ComicMatcherUI
-from db_init import startup_checks
 from database.gui_repo_worker import RepoWorker
+from db_init import startup_checks
 from download_controller import DownloadControllerAsync
 from general_comic_widget import GeneralComicWidget
 from left_widget_assets import ButtonDisplay
@@ -597,7 +597,7 @@ class HomePage(QMainWindow):
             try:
                 comic_ids = worker.get_collection_contents(id)
             except ValueError as e:
-                print(str(e))
+                logging.error(str(e))
                 return
             # TODO: Add method to communicate errors to user.
             comic_infos = worker.create_basemodel(comic_ids)
