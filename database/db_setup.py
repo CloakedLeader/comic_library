@@ -1,8 +1,17 @@
 import sqlite3
+from pathlib import Path
 
 
-def create_tables() -> None:
-    conn = sqlite3.connect("comics.db")
+def create_tables(db_path: Path | str) -> None:
+    """
+    Creates all the database tables within the schema. This includes
+    a fts5 table for search.
+
+    Args:
+        db_path (Path | str): The database path where the tables are to be
+            created.
+    """
+    conn = sqlite3.connect(str(db_path))
     cursor = conn.cursor()
 
     cursor.execute(
@@ -19,11 +28,12 @@ def create_tables() -> None:
             type_id INTEGER,
             page_count INTEGER,
             FOREIGN KEY (type_id) REFERENCES comic_types(id),
-            FOREIGN KEY (publisher_id) REFERENCES publishers(id),
-            FOREIGN KEY (series) REFERENCES series(id)
+            FOREIGN KEY (publisher_id) REFERENCES publishers(id)
         )
         """
     )
+    # Add later:
+    # FOREIGN KEY (series) REFERENCES series(id)
 
     cursor.execute(
         """
@@ -105,7 +115,7 @@ def create_tables() -> None:
         identity_id INTEGER,
         PRIMARY KEY (comic_id, character_id),
         FOREIGN KEY (comic_id) REFERENCES comics(id),
-        FOREIGN KEY (identity_id) REFERENCES identity(id),
+        FOREIGN KEY (identity_id) REFERENCES identities(id),
         FOREIGN KEY (character_id) REFERENCES characters(id)
         )
         """
@@ -203,7 +213,10 @@ def create_tables() -> None:
         CREATE TABLE IF NOT EXISTS reading_order_items (
         reading_order_id INT NOT NULL,
         comic_id TEXT NOT NULL,
-        position INT NOT NULL
+        position INT NOT NULL,
+        PRIMARY KEY (reading_order_id, comic_id),
+        FOREIGN KEY (reading_order_id) REFERENCES reading_orders(id),
+        FOREIGN KEY (comid_id) REFERENCES comics(id)
         )
         """
     )
@@ -237,8 +250,15 @@ def create_tables() -> None:
     conn.close()
 
 
-def insert_roles() -> None:
-    conn = sqlite3.connect("comics.db")
+def insert_roles(db_path: str | Path) -> None:
+    """
+    Ensures that the roles table always has the required entries prior
+    to any tagging processes.
+
+    Args:
+        db_path (str | Path): The database path where the roles table lives.
+    """
+    conn = sqlite3.connect(str(db_path))
     cursor = conn.cursor()
 
     cursor.execute(
