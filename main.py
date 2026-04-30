@@ -39,6 +39,7 @@ from collections_widget import CollectionCreation
 from comic_grid_view import ComicGridView
 from comic_match_logic import ComicMatch
 from comic_match_ui import ComicMatcherUI
+from db_init import startup_checks
 from database.gui_repo_worker import RepoWorker
 from download_controller import DownloadControllerAsync
 from general_comic_widget import GeneralComicWidget
@@ -701,7 +702,7 @@ def start_api():
 
 if __name__ == "__main__":
     # scan_and_clean()
-
+    startup_checks()
     api_thread = threading.Thread(target=start_api, daemon=True)
     api_thread.start()
 
