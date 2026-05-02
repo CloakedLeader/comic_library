@@ -180,7 +180,7 @@ def create_tables(db_path: Path | str) -> None:
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS collections (
-        id INT PRIMARY KEY,
+        id INTEGER PRIMARY KEY,
         name TEXT NOT NULL
         )
         """
@@ -200,7 +200,7 @@ def create_tables(db_path: Path | str) -> None:
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS reading_orders (
-        id INT PRIMARY KEY,
+        id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,
         description TEXT,
         created TEXT NOT NULL
@@ -216,7 +216,7 @@ def create_tables(db_path: Path | str) -> None:
         position INT NOT NULL,
         PRIMARY KEY (reading_order_id, comic_id),
         FOREIGN KEY (reading_order_id) REFERENCES reading_orders(id),
-        FOREIGN KEY (comid_id) REFERENCES comics(id)
+        FOREIGN KEY (comic_id) REFERENCES comics(id)
         )
         """
     )
@@ -231,6 +231,15 @@ def create_tables(db_path: Path | str) -> None:
         cover_url TEXT NOT NULL
         )
         """
+    )
+
+    cursor.execute(
+        """
+    CREATE TABLE IF NOT EXISTS favourites (
+    comic_id TEXT PRIMARY KEY,
+    FOREIGN KEY (comic_id) REFERENCES comics(id)
+    )
+    """
     )
 
     cursor.execute(
