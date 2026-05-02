@@ -250,7 +250,8 @@ def create_tables(db_path: Path | str) -> None:
         title,
         creators,
         characters,
-        teams
+        teams,
+        prefix='2 3 4'
         )
         """
     )

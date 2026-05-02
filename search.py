@@ -116,15 +116,17 @@ def text_search(text: str) -> list[GUIComicInfo] | None:
     Returns:
         list[GUIComicInfo] | None: A list of the comics matching the search criteria, or None if none match.
     """
+    query = " ".join(f"{term}*" for term in text.split())
+
     cursor.execute(
         """
         SELECT comic_id, title, series FROM comics_fts5
         WHERE comics_fts5 MATCH ?
         """,
-        (text,),
+        (query,),
     )
     results = cursor.fetchall()
-    if results is None:
+    if not results:
         return None
     hits = []
     for result in results:
