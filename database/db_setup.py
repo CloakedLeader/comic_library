@@ -236,7 +236,7 @@ def create_tables(db_path: Path | str) -> None:
     cursor.execute(
         """
     CREATE TABLE IF NOT EXISTS favourites (
-    comic_id TEXT NOT NULL,
+    comic_id TEXT PRIMARY KEY,
     FOREIGN KEY (comic_id) REFERENCES comics(id)
     )
     """
