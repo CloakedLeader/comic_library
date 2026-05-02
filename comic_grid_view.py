@@ -1,10 +1,13 @@
-from PySide6.QtCore import QMimeData, QSize, Qt, Signal
+from PySide6.QtCore import QEvent, QMimeData, QObject, QSize, Qt, Signal
 from PySide6.QtGui import QDrag, QIcon
 from PySide6.QtWidgets import (
     QGridLayout,
+    QHBoxLayout,
     QListWidget,
     QListWidgetItem,
+    QPushButton,
     QScrollArea,
+    QSplitter,
     QVBoxLayout,
     QWidget,
 )
@@ -24,24 +27,48 @@ class ComicGridView(QWidget):
         comics: list[GUIComicInfo],
         reading_controller: ReadingController,
         colums: int = 5,
+        collection: bool = False,
     ):
         super().__init__()
-
+        self.collection = collection
+        self.comics = comics
         self.cont = reading_controller
         with RepoWorker() as repo_worker:
             collection_names, collection_ids = repo_worker.get_collections()
         self.context_menu = GridViewContextMenuManager(collection_ids, collection_names)
-        self.comic_widgets = []
-        layout = QVBoxLayout()
+        self.comic_widgets: list[GeneralComicWidget] = []
 
-        grid_widget = QWidget()
-        grid_layout = QGridLayout(grid_widget)
-        grid_widget.setLayout(grid_layout)
-        grid_layout.setSpacing(10)
-        grid_layout.setContentsMargins(10, 10, 10, 10)
+        basic_layout = QVBoxLayout()
+
+        self.scroll_area = self.create_scroll_area(colums)
+        self.scroll_area.viewport().installEventFilter(self)
+
+        basic_layout.addWidget(self.scroll_area)
+        if collection:
+            col_layout = QVBoxLayout()
+            self.splitter = QSplitter()
+            self.add_to_collection_button = QPushButton("Add..")
+            self.add_to_collection_button.clicked.connect(self.comic_explore_window)
+            col_layout.addWidget(self.scroll_area)
+            col_layout.addWidget(self.add_to_collection_button)
+            self.collection_content = QWidget()
+            self.collection_content.setLayout(col_layout)
+            self.splitter.addWidget(self.collection_content)
+            fin_layout = QHBoxLayout()
+            fin_layout.addWidget(self.splitter)
+            self.setLayout(fin_layout)
+        else:
+            self.setLayout(basic_layout)
+
+    def create_scroll_area(self, columns) -> QScrollArea:
+        self.grid_widget = QWidget()
+        self.grid_layout = QGridLayout(self.grid_widget)
+        self.grid_widget.setLayout(self.grid_layout)
+        self.grid_layout.setSpacing(10)
+        self.grid_layout.setContentsMargins(10, 10, 10, 10)
 
         row = col = 0
-        for comic in comics:
+        for comic in self.comics:
             comic_widget = GeneralComicWidget(
                 comic,
                 single_left_click=self.metadata_panel,
@@ -50,7 +77,7 @@ class ComicGridView(QWidget):
                 size=(180, 270),
             )
             self.comic_widgets.append(comic_widget)
-            grid_layout.addWidget(
+            self.grid_layout.addWidget(
                 comic_widget,
                 row,
                 col,
@@ -58,22 +85,51 @@ class ComicGridView(QWidget):
             )
 
             col += 1
-            if col >= colums:
+            if col >= columns:
                 col = 0
                 row += 1
 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setWidget(grid_widget)
-
-        layout.addWidget(scroll_area)
-        self.setLayout(layout)
+        scroll_area.setWidget(self.grid_widget)
+        return scroll_area
 
     def open_reader(self, comic_info: GUIComicInfo):
         self.cont.read_comic(comic_info)
 
     def metadata_panel(self, comic_info: GUIComicInfo):
         self.metadata_requested.emit(comic_info)
+
+    def comic_explore_window(self):
+        with RepoWorker() as repo_worker:
+            comics = repo_worker.get_all_comics(thumb=True)
+        self.all_comics = DraggableComicGridView(comics)
+        self.splitter.addWidget(self.all_comics)
+
+    def relayout_grid(self):
+        width = self.scroll_area.viewport().width()
+        item_width = 180 + 10
+        columns = max(1, width // item_width)
+
+        while self.grid_layout.count():
+            self.grid_layout.takeAt(0)
+
+        row = col = 0
+        for widget in self.comic_widgets:
+            self.grid_layout.addWidget(widget, row, col)
+            col += 1
+            if col >= columns:
+                col = 0
+                row += 1
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if (
+            watched == self.scroll_area.viewport()
+            and event.type() == QEvent.Type.Resize
+        ):
+            if self.collection:
+                self.relayout_grid()
+        return super().eventFilter(watched, event)
 
 
 class DraggableComicGridView(QListWidget):
