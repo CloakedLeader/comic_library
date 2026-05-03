@@ -482,10 +482,7 @@ class RepoWorker:
             (collection_id,),
         )
         result = self.cursor.fetchall()
-        if result:
-            return [r[0] for r in result]
-        else:
-            raise ValueError(f"Collection with id={collection_id} does not exist.")
+        return [r[0] for r in result]
 
     def create_reading_order(self, title: str, desc: Optional[str]) -> int:
         """

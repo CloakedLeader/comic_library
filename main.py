@@ -36,7 +36,7 @@ from api.api_main import app
 from classes.helper_classes import GUIComicInfo, RSSComicInfo
 from cleanup import scan_and_clean
 from collections_widget import CollectionCreation
-from comic_grid_view import ComicGridView
+from comic_grid_view import ComicCollectionGridView, ComicGridView
 from comic_match_logic import ComicMatch
 from comic_match_ui import ComicMatcherUI
 from database.gui_repo_worker import RepoWorker
@@ -601,8 +601,8 @@ class HomePage(QMainWindow):
                 return
             # TODO: Add method to communicate errors to user.
             comic_infos = worker.create_basemodel(comic_ids)
-        collection_grid = ComicGridView(
-            comic_infos, self.reader_controller, collection=True
+        collection_grid = ComicCollectionGridView(
+            comic_infos, self.reader_controller, id
         )
         self.coll_display.addWidget(collection_grid)
         self.stack.setCurrentWidget(self.collections_widget)
