@@ -36,7 +36,7 @@ from api.api_main import app
 from classes.helper_classes import GUIComicInfo, RSSComicInfo
 from cleanup import scan_and_clean
 from collections_widget import CollectionCreation
-from comic_grid_view import ComicGridView
+from comic_grid_view import ComicCollectionGridView, ComicGridView
 from comic_match_logic import ComicMatch
 from comic_match_ui import ComicMatcherUI
 from database.gui_repo_worker import RepoWorker
@@ -203,7 +203,7 @@ class HomePage(QMainWindow):
             continue_list, progress_list
         )
         # need_review = self.create_review_area(review_list)
-        rss = self.create_rss_area(25)
+        rss = self.create_rss_area(10)
 
         # content_layout.addWidget(stats_bar, stretch=1)
         content_layout.addWidget(continue_reading, stretch=3)
@@ -601,7 +601,9 @@ class HomePage(QMainWindow):
                 return
             # TODO: Add method to communicate errors to user.
             comic_infos = worker.create_basemodel(comic_ids)
-        collection_grid = ComicGridView(comic_infos, self.reader_controller)
+        collection_grid = ComicCollectionGridView(
+            comic_infos, self.reader_controller, id
+        )
         self.coll_display.addWidget(collection_grid)
         self.stack.setCurrentWidget(self.collections_widget)
 
@@ -663,6 +665,13 @@ class HomePage(QMainWindow):
             logging.error(f"[Async callback exception] {e}")
 
     def clear_widget_stack(self):
+        """
+        Remove and safely delete all widgets from the collection display layout.
+
+        Iterates through all items in 'self.coll_display', removes each item from
+        the layour and schedules its associated widgets for deletion using
+        'deleteLater()'.
+        """
         while self.coll_display.count():
             item = self.coll_display.takeAt(0)
             widget = item.widget()
