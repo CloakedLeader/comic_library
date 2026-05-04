@@ -54,7 +54,7 @@ from reading_order_widget import (
 )
 from rss.rss_controller import RSSController
 from rss.rss_repository import RSSRepository
-from search import text_search
+from search import collection_search, text_search
 from settings import Settings
 
 load_dotenv()
@@ -549,7 +549,16 @@ class HomePage(QMainWindow):
     def go_home(self):
         self.stack.setCurrentWidget(self.content_area)
 
-    def search(self, text):
+    def search(self, text: str):
+        if text == "" or text is None:
+            return
+        current = self.stack.currentWidget()
+        if current == self.collections_widget:
+            self.collection_search(text)
+        else:
+            self.library_search(text)
+
+    def library_search(self, text: str):
         display_info = text_search(text)
         if display_info is None:
             # TODO: Need to add logic here.
@@ -562,6 +571,20 @@ class HomePage(QMainWindow):
 
         self.search_layout.addWidget(search_view)
         self.stack.setCurrentWidget(self.search_display)
+
+    def collection_search(self, text: str):
+        if self.collection_grid.explore:
+            display_info = text_search(text)
+            if display_info is None:
+                # TODO: Need to add logic here.
+                raise ValueError("Incorrect type passed!")
+            self.collection_grid.all_comics.set_comics(display_info)
+        else:
+            display_info = collection_search(text, self.collection_grid.coll_id)
+            if display_info is None:
+                # TODO: Need to add logic here.
+                raise ValueError("Incorrect type passed!")
+            self.collection_grid.grid.reload_contents(display_info)
 
     def open_review_panel(self, comic_info: GUIComicInfo):
         self.metadata_popup = MetadataDialog(comic_info)
@@ -601,10 +624,10 @@ class HomePage(QMainWindow):
                 return
             # TODO: Add method to communicate errors to user.
             comic_infos = worker.create_basemodel(comic_ids)
-        collection_grid = ComicCollectionGridView(
+        self.collection_grid = ComicCollectionGridView(
             comic_infos, self.reader_controller, id
         )
-        self.coll_display.addWidget(collection_grid)
+        self.coll_display.addWidget(self.collection_grid)
         self.stack.setCurrentWidget(self.collections_widget)
 
     def create_reading_order(self):

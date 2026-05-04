@@ -145,6 +145,34 @@ def text_search(text: str) -> list[GUIComicInfo] | None:
     return hits
 
 
+def collection_search(text: str, collection_id: int) -> list[GUIComicInfo] | None:
+    basic_search = text_search(text)
+    if basic_search is None:
+        return None
+
+    def check_in_collection(comic_id: str) -> bool:
+        cursor.execute(
+            """
+            SELECT EXISTS(
+            SELECT 1
+            FROM collections_contents
+            WHERE collection_id = ?
+                AND comic_id = ?)
+            """,
+            (collection_id, comic_id),
+        )
+        return cursor.fetchone()[0] == 1
+
+    collection_results = []
+    for result in basic_search:
+        if check_in_collection(result.primary_id):
+            collection_results.append(result)
+        else:
+            continue
+
+    return collection_results
+
+
 def get_filepath(primary_key: str) -> Path | None:
     """
     Uses the unique ID of the comic to query the database and get the filepath.
