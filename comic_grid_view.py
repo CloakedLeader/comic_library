@@ -356,6 +356,7 @@ class ComicGridView(QWidget):
         self.grid = ComicGrid(
             self.comics, self.cont, collection_names, collection_ids, colums
         )
+        self.grid.metadata_requested.connect(self.metadata_requested.emit)
 
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
