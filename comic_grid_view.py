@@ -111,6 +111,41 @@ class ComicGrid(QWidget):
                 comic_widget, row, col, alignment=Qt.AlignmentFlag.AlignTop
             )
 
+    def clear_grid(self):
+        for widget in self.comic_widgets:
+            self.grid_layout.removeWidget(widget)
+            widget.deleteLater()
+
+        self.comic_widgets.clear()
+
+    def reload_contents(self, comics: list[GUIComicInfo]):
+        self.clear_grid()
+        self.comics = comics
+
+        row = col = 0
+        for comic in self.comics:
+            comic_widget = GeneralComicWidget(
+                comic,
+                single_left_click=self.metadata_panel,
+                single_right_click=self.context_menu.show_menu,
+                double_left_click=self.open_reader,
+                size=(180, 270),
+            )
+
+            self.comic_widgets.append(comic_widget)
+
+            self.grid_layout.addWidget(
+                comic_widget,
+                row,
+                col,
+                alignment=Qt.AlignmentFlag.AlignTop,
+            )
+
+            col += 1
+            if col >= self.columns:
+                col = 0
+                row += 1
+
     def open_reader(self, comic_info: GUIComicInfo):
         """
         Uses the passed in reading controller to open the comic with the reader.
@@ -420,15 +455,15 @@ class DraggableComicGridView(QListWidget):
         self.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
 
         self.setDragEnabled(True)
+        self.set_comics(comics)
+        # for comic in comics:
+        #     item = QListWidgetItem()
+        #     item.setData(Qt.ItemDataRole.UserRole, comic.primary_id)
+        #     item.setText(comic.title)
+        #     item.setIcon(QIcon(str(comic.cover_path)))
+        #     item.setToolTip(comic.title)
 
-        for comic in comics:
-            item = QListWidgetItem()
-            item.setData(Qt.ItemDataRole.UserRole, comic.primary_id)
-            item.setText(comic.title)
-            item.setIcon(QIcon(str(comic.cover_path)))
-            item.setToolTip(comic.title)
-
-            self.addItem(item)
+        #     self.addItem(item)
 
     def startDrag(self, supportedActions):
         """
@@ -458,3 +493,15 @@ class DraggableComicGridView(QListWidget):
         drag.setPixmap(scaled)
         drag.setHotSpot(QPoint(scaled.width() // 2, scaled.height() // 2))
         drag.exec(Qt.DropAction.CopyAction)
+
+    def set_comics(self, comics: list[GUIComicInfo]):
+        self.clear()
+
+        for comic in comics:
+            item = QListWidgetItem()
+            item.setData(Qt.ItemDataRole.UserRole, comic.primary_id)
+            item.setText(comic.title)
+            item.setIcon(QIcon(str(comic.cover_path)))
+            item.setToolTip(comic.title)
+
+            self.addItem(item)
