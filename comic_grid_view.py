@@ -20,6 +20,10 @@ from right_click_menus import GridViewContextMenuManager
 
 
 class ComicGrid(QWidget):
+    """
+    A class to create a grid of widgets, the grid itself is QWidget.
+    """
+
     metadata_requested = Signal(GUIComicInfo)
 
     def __init__(
@@ -30,6 +34,22 @@ class ComicGrid(QWidget):
         coll_ids: list[int],
         colums: int = 5,
     ):
+        """
+        Generates the grid of comics from an inital list of comic information. Adds
+        different behaviours of the individual comic widgets on different clicks.
+
+        Args:
+            comics (list[GUIComicInfo]): The initial list of comic information to
+            construct the grid from.
+            reading_controller (ReadingController): The reading controller which
+            allows the user to easily read the comic via a double left-click.
+            coll_names (list[str]): The list of all collection names, needed for
+            the right-click context menu.
+            coll_ids (list[int]): The list of all collection ids, needed for the
+            right-click context menu.
+            colums (int, optional): The number of columns to arrange the comic
+            widgets into. Defaults to 5.
+        """
         super().__init__()
         self.comics = comics
         self.cont = reading_controller
@@ -64,7 +84,15 @@ class ComicGrid(QWidget):
                 row += 1
 
     def add_comics(self, comics: list[GUIComicInfo]):
-        start_index = len(self.comics)
+        """
+        Adds comics to the grid by figuring out which row or column to place
+        them in.
+
+        Args:
+            comics (list[GUIComicInfo]): The list of comic information that needs
+                to be added to the grid.
+        """
+        start_index = len(self.comic_widgets)
         for i, comic in enumerate(comics):
             comic_widget = GeneralComicWidget(
                 comic,
@@ -84,12 +112,33 @@ class ComicGrid(QWidget):
             )
 
     def open_reader(self, comic_info: GUIComicInfo):
+        """
+        Uses the passed in reading controller to open the comic with the reader.
+
+        Args:
+            comic_info (GUIComicInfo): The information of the comic to be read.
+        """
         self.cont.read_comic(comic_info)
 
     def metadata_panel(self, comic_info: GUIComicInfo):
+        """
+        Opens a metadata panel on the rhs containing detailed information about
+        the clicked comic.
+
+        Args:
+            comic_info (GUIComicInfo): The information of the comic that extended
+                metedata must be fetched for.
+        """
         self.metadata_requested.emit(comic_info)
 
     def relayout_grid(self, columns: int):
+        """
+        Rearranges the items in the grid to a certain amount of columns.
+
+        Args:
+            columns (int): The number of columns to arrange the grid items
+                into.
+        """
         self.columns = columns
         while self.grid_layout.count():
             item = self.grid_layout.takeAt(0)
@@ -109,6 +158,11 @@ class ComicGrid(QWidget):
 
 
 class ComicCollectionGridView(QWidget):
+    """
+    A class to create a grid of widgets representing the contents
+    of a comic collection. Has type QWidget.
+    """
+
     def __init__(
         self,
         comics: list[GUIComicInfo],
@@ -116,11 +170,25 @@ class ComicCollectionGridView(QWidget):
         collection_id: int,
         columns: int = 5,
     ):
+        """
+        Creates a grid of comics in a collection, allows drag actions to happen
+        so the user can easily add comics to the collection.
+
+        Args:
+            comics (list[GUIComicInfo]): The list of comics to initially create the
+            grid with.
+            reading_controller (ReadingController): The application-wide reading
+            controller.
+            collection_id (int): The id of the specific collection the grid is showing.
+            columns (int, optional): The number of columns to originally display the
+            comic widgets with. Defaults to 5.
+        """
         super().__init__()
         self.coll_id = collection_id
         self.col = columns
         self.comics = comics
         self.cont = reading_controller
+        self.explore = False
         with RepoWorker() as repo_worker:
             collection_names, collection_ids = repo_worker.get_collections()
         self.context_menu = GridViewContextMenuManager(collection_ids, collection_names)
@@ -153,18 +221,39 @@ class ComicCollectionGridView(QWidget):
         self.setLayout(fin_layout)
 
     def comic_explore_window(self):
-        with RepoWorker() as repo_worker:
-            comics = repo_worker.get_all_comics(thumb=True)
-        self.all_comics = DraggableComicGridView(comics)
-        self.splitter.addWidget(self.all_comics)
+        """
+        Opens a window on the rhs containing all the comics in the database, of which the
+        user can drag to move comics into the collection in the left-hand panel.
+
+        If the explore panel is already open, clicking the button closes it and
+        vice-versa.
+        """
+        if not self.explore:
+            with RepoWorker() as repo_worker:
+                comics = repo_worker.get_all_comics(thumb=True)
+            self.all_comics = DraggableComicGridView(comics)
+            self.splitter.addWidget(self.all_comics)
+            self.explore = True
+        else:
+            self.all_comics.setParent(None)
+            self.all_comics.deleteLater()
+            self.explore = False
 
     def relayout_grid(self):
+        """
+        Triggered upon a resizing of the grid. Calculates the new number of columns
+        given the new width of the comic grid widget.
+        """
         width = self.scroll_area.viewport().width()
         item_width = 180 + 10
         columns = max(1, width // item_width)
         self.grid.relayout_grid(columns)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        """
+        Watches for events and checks that they are resizing evenets. If so,
+        calls the resizing function.
+        """
         if (
             watched == self.scroll_area.viewport()
             and event.type() == QEvent.Type.Resize
@@ -173,18 +262,31 @@ class ComicCollectionGridView(QWidget):
         return super().eventFilter(watched, event)
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
+        """
+        Watches for drag events to enter the frame of the widget, allows it to
+        continue if the MIME data comes from the DraggableComicGridView.
+        """
         if event.mimeData().hasFormat(DraggableComicGridView.MIME_TYPE):
             event.acceptProposedAction()
         else:
             event.ignore()
 
     def dragMoveEvent(self, event: QDragMoveEvent) -> None:
+        """
+        Watches for drag events moving across the widget,allows it to continue
+        if the MIME data comes from the DraggableComicGridView.
+        """
         if event.mimeData().hasFormat(DraggableComicGridView.MIME_TYPE):
             event.acceptProposedAction()
         else:
             event.ignore()
 
     def dropEvent(self, event: QDropEvent) -> None:
+        """
+        Watches for drop events in this widget. If the MIME data comes from the
+        DraggableComicGridView, then it decodes the information and passes it to
+        the handler.
+        """
         if event.mimeData().hasFormat(DraggableComicGridView.MIME_TYPE):
             data = event.mimeData().data(DraggableComicGridView.MIME_TYPE)
 
@@ -197,16 +299,34 @@ class ComicCollectionGridView(QWidget):
             event.ignore()
 
     def handle_dropped_comic(self, ids: list[str]):
+        """
+        Handles comics being dropped into the collection; ensures duplicates
+        are ignored, adds the remainder to the database and updates the UI
+        to display the changes.
+
+        Args:
+            ids (list[str]): The list of comic ids that were dragged into the widget.
+        """
+        existing_ids = {comic.primary_id for comic in self.comics}
+        ids_to_add = [i for i in ids if i not in existing_ids]
+        if not ids_to_add:
+            return
+
         with RepoWorker() as worker:
-            for i in ids:
+            for i in ids_to_add:
                 worker.add_to_collection(self.coll_id, i)
-            updated = worker.create_basemodel(ids)
+            updated = worker.create_basemodel(ids_to_add)
 
         self.comics.extend(updated)
         self.grid.add_comics(updated)
 
 
 class ComicGridView(QWidget):
+    """
+    A class to represent a grid of comics with no additional, special
+    functionality. Has type QWidget.
+    """
+
     metadata_requested = Signal(GUIComicInfo)
 
     def __init__(
@@ -215,6 +335,17 @@ class ComicGridView(QWidget):
         reading_controller: ReadingController,
         colums: int = 5,
     ):
+        """
+        Creates the inital grid of comics.
+
+        Args:
+            comics (list[GUIComicInfo]): The list of comic information to create
+            the grid from.
+            reading_controller (ReadingController): The application-wide reading
+            controller.
+            colums (int, optional): The number of columns to arrange the grid of
+            comic widgets into. Defaults to 5.
+        """
         super().__init__()
         self.comics = comics
         self.cont = reading_controller
@@ -236,12 +367,20 @@ class ComicGridView(QWidget):
         self.setLayout(basic_layout)
 
     def relayout_grid(self):
+        """
+        Triggered upon a resizing of the grid. Calculates the new number of columns
+        given the new width of the comic grid widget.
+        """
         width = self.scroll_area.viewport().width()
         item_width = 180 + 10
         columns = max(1, width // item_width)
         self.grid.relayout_grid(columns)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        """
+        Watches for events and checks that they are resizing evenets. If so,
+        calls the resizing function.
+        """
         if (
             watched == self.scroll_area.viewport()
             and event.type() == QEvent.Type.Resize
@@ -251,9 +390,22 @@ class ComicGridView(QWidget):
 
 
 class DraggableComicGridView(QListWidget):
+    """
+    A class representing a collection of comic widgets, each of which
+    is draggable. Has type QListWidget.
+    """
+
     MIME_TYPE = "application/x-comic-id"
 
     def __init__(self, comics: list[GUIComicInfo]):
+        """
+        Creates the list (which looks like a grid) of draggable comic
+        widgets.
+
+        Args:
+            comics (list[GUIComicInfo]): The list of comic information to
+            add into the list.
+        """
         super().__init__()
 
         self.setViewMode(QListWidget.ViewMode.IconMode)
@@ -278,6 +430,10 @@ class DraggableComicGridView(QListWidget):
             self.addItem(item)
 
     def startDrag(self, supportedActions):
+        """
+        Starts the drag event by adding MIME data to the widget and creates a
+        smaller version of the comic thumbnail to follow the cursor during the drag.
+        """
         items = self.selectedItems()
         if not items:
             return
