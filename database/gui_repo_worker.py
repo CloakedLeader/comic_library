@@ -528,34 +528,24 @@ class RepoWorker:
 
         return (names, ids, desc)
 
-    def add_to_orders(self, order_id: int, comic_id: str, position: int):
-        current_order = self.get_order_contents(order_id)
-        if not current_order:
+    def add_to_order(self, order_id: int, comic_ids: list[str]) -> None:
+        with self.conn:
             self.cursor.execute(
                 """
+            DELETE FROM reading_order_items
+            WHERE reading_order_id = ?
+            """,
+                (order_id,),
+            )
+
+            for pos, comic_id in enumerate(comic_ids, start=1):
+                self.cursor.execute(
+                    """
                 INSERT INTO reading_order_items (comic_id, reading_order_id, position)
                 VALUES (?, ?, ?)
                 """,
-                (comic_id, order_id, 1),
-            )
-            return
-        self.cursor.execute(
-            """
-            INSERT INTO reading_order_items (comic_id, reading_order_id, position)
-            VALUES (?, ?, ?)
-            """,
-            (comic_id, order_id, position),
-        )
-        for primary_key, pos in current_order[: position - 1]:
-            self.cursor.execute(
-                """
-                UPDATE reading_order_items
-                SET position = ?
-                WHERE comic_d = ? and reading_order_id = ?
-                """,
-                ((pos + 1, primary_key, order_id)),
-            )
-        return
+                    (comic_id, order_id, pos),
+                )
 
     def get_order_contents(self, order_id: int) -> Optional[list[tuple[str, int]]]:
         self.cursor.execute(

@@ -50,7 +50,6 @@ from reader_controller import ReadingController
 from reading_order_widget import (
     ReadingOrderCreation,
     ReadingOrderEditor,
-    ReadingOrderListEditor,
 )
 from rss.rss_controller import RSSController
 from rss.rss_repository import RSSRepository
@@ -546,6 +545,14 @@ class HomePage(QMainWindow):
             previous = getattr(self, "sidebar_width", 150)
             self.splitter.setSizes([previous, sizes[1]])
 
+    def collapse_sidebar(self):
+        sizes = self.splitter.sizes()
+        if sizes[0] > 0:
+            self.sidebar_width = sizes[0]
+            self.splitter.setSizes([0, sizes[1] + sizes[0]])
+        else:
+            return
+
     def go_home(self):
         self.stack.setCurrentWidget(self.content_area)
 
@@ -555,6 +562,8 @@ class HomePage(QMainWindow):
         current = self.stack.currentWidget()
         if current == self.collections_widget:
             self.collection_search(text)
+        elif current == self.order_widget:
+            self.order_search(text)
         else:
             self.library_search(text)
 
@@ -636,28 +645,24 @@ class HomePage(QMainWindow):
             logging.info(dialog.textbox.text())
 
     def clicked_reading_order(self, id: int, name: str):
+        self.collapse_sidebar()
         self.clear_widget_stack()
-        # with RepoWorker() as worker:
-        #     try:
-        #         comics = worker.get_order_contents(id)
-        #     except ValueError as e:
-        #         print(str(e))
-        #         return
-        #     comic_ids: list[str] = []
-        #     positions: list[int] = []
-        #     for key, pos in comics:
-        #         comic_ids.append(key)
-        #         positions.append(pos)
-        #     comic_infos = worker.create_basemodel(comic_ids)
-        order_list = ReadingOrderListEditor(id, name)
-        self.order_display_.addWidget(order_list)
+        self.order_editor = ReadingOrderEditor(id, name)
+        self.order_display_.addWidget(self.order_editor)
         self.stack.setCurrentWidget(self.order_widget)
+
+    def order_search(self, text: str):
+        display_info = text_search(text)
+        if display_info is None:
+            # TODO: Need to add logic here.
+            raise ValueError("Incorrect type passed!")
+        self.order_editor.library_panel.set_comics(display_info)
 
     def open_order_editor(self, id: int, name: str):
         self.order_editor = ReadingOrderEditor(id, name)
         self.order_editor.setWindowFlag(Qt.WindowType.Window)
         # order_editor.show()
-        self.order_editor.showFullScreen()
+        # self.order_editor.showFullScreen()
 
     def open_settings(self):
         dialog = Settings()

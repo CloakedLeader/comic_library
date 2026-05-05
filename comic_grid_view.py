@@ -454,16 +454,9 @@ class DraggableComicGridView(QListWidget):
         self.setSpacing(10)
         self.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
 
+        self.acceptDrops()
         self.setDragEnabled(True)
         self.set_comics(comics)
-        # for comic in comics:
-        #     item = QListWidgetItem()
-        #     item.setData(Qt.ItemDataRole.UserRole, comic.primary_id)
-        #     item.setText(comic.title)
-        #     item.setIcon(QIcon(str(comic.cover_path)))
-        #     item.setToolTip(comic.title)
-
-        #     self.addItem(item)
 
     def startDrag(self, supportedActions):
         """
