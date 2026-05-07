@@ -185,7 +185,7 @@ class HomePage(QMainWindow):
             order_names,
             order_ids,
             self.clicked_reading_order,
-            order_edit=self.open_order_editor,
+            order_edit=self.clicked_reading_order,
         )
         left_layout.addWidget(self.order_display, stretch=1)
         self.splitter = QSplitter()
@@ -657,12 +657,6 @@ class HomePage(QMainWindow):
             # TODO: Need to add logic here.
             raise ValueError("Incorrect type passed!")
         self.order_editor.library_panel.set_comics(display_info)
-
-    def open_order_editor(self, id: int, name: str):
-        self.order_editor = ReadingOrderEditor(id, name)
-        self.order_editor.setWindowFlag(Qt.WindowType.Window)
-        # order_editor.show()
-        # self.order_editor.showFullScreen()
 
     def open_settings(self):
         dialog = Settings()

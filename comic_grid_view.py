@@ -465,7 +465,6 @@ class DraggableComicGridView(QListWidget):
         self.setSpacing(10)
         self.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
 
-        self.acceptDrops()
         self.setDragEnabled(True)
         self.set_comics(comics)
 

@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from classes.helper_classes import GUIComicInfo
 from comic_grid_view import DraggableComicGridView
 from database.gui_repo_worker import RepoWorker
 
@@ -104,7 +105,7 @@ class ReadingOrderList(QListWidget):
 
         self.setAcceptDrops(True)
         self.setWindowTitle("Draggable List")
-        self.setDragDropMode(QListWidget.DragDropMode.InternalMove)
+        self.setDragDropMode(QListWidget.DragDropMode.DragDrop)
         self.setDropIndicatorShown(True)
         self.setDefaultDropAction(Qt.DropAction.MoveAction)
         self.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
@@ -139,12 +140,25 @@ class ReadingOrderList(QListWidget):
         with RepoWorker() as worker:
             comic_info = worker.create_basemodel(ids_in_order, thumb=True)
         for comic in comic_info:
-            item = QListWidgetItem(comic.title)
-            item.setData(Qt.ItemDataRole.UserRole, comic.primary_id)
-            item.setSizeHint(QSize(100, 180))
-            pixmap = self.get_comic_icon(comic.cover_path)
-            item.setData(Qt.ItemDataRole.DecorationRole, pixmap)
-            self.addItem(item)
+            self.addItem(self.build_item(comic))
+
+    def build_item(self, comic: GUIComicInfo) -> QListWidgetItem:
+        """
+        Creates the QListWidgetItem object by adding a title and a picture.
+
+        Args:
+            comic (GUIComicInfo): The UI facing comic information.
+
+        Returns:
+            QListWidgetItem: The object that is created to go into the list.
+        """
+        item = QListWidgetItem(comic.title)
+        item.setData(Qt.ItemDataRole.UserRole, comic.primary_id)
+        item.setSizeHint(QSize(100, 180))
+        item.setData(
+            Qt.ItemDataRole.DecorationRole, self.get_comic_icon(comic.cover_path)
+        )
+        return item
 
     def get_current_order(self) -> list[str]:
         """
@@ -193,10 +207,7 @@ class ReadingOrderList(QListWidget):
             return
 
         item = self.takeItem(start)
-        widget = self.itemWidget(item)
-        self.removeItemWidget(item)
         self.insertItem(end, item)
-        self.setItemWidget(item, widget)
 
     def add_comic(self, comic_id: str, row: int):
         """
@@ -213,14 +224,7 @@ class ReadingOrderList(QListWidget):
 
         with RepoWorker() as worker:
             comic = worker.create_basemodel([comic_id], thumb=True)[0]
-
-        item = QListWidgetItem(comic.title)
-        item.setData(Qt.ItemDataRole.UserRole, comic_id)
-        item.setSizeHint(QSize(100, 180))
-        pixmap = self.get_comic_icon(comic.cover_path)
-
-        item.setData(Qt.ItemDataRole.DecorationRole, pixmap)
-        self.insertItem(row, item)
+        self.insertItem(row, self.build_item(comic))
 
     def contains_comic(self, comic_id: str) -> bool:
         """
@@ -318,8 +322,8 @@ class ReadingOrderList(QListWidget):
             insert_row = self.indexAt(event.position().toPoint()).row()
             if insert_row < 0:
                 insert_row = self.count()
-            for i in comic_ids and positions:
-                self.move_item(i, insert_row)
+            pos = positions[0]
+            self.move_item(pos, insert_row)
             event.acceptProposedAction()
 
         elif event.mimeData().hasFormat(DraggableComicGridView.MIME_TYPE):

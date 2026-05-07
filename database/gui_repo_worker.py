@@ -18,7 +18,7 @@ class RepoWorker:
         self.cover_folder = ROOT_DIR / ".covers"
 
     def __enter__(self):
-        self.conn = sqlite3.connect("comics.db")
+        self.conn = sqlite3.connect(DB_PATH)
         self.cursor = self.conn.cursor()
         return self
 
@@ -577,14 +577,13 @@ class RepoWorker:
                 (order_id,),
             )
 
-            for pos, comic_id in enumerate(comic_ids, start=1):
-                self.cursor.execute(
-                    """
+            self.cursor.executemany(
+                """
                 INSERT INTO reading_order_items (comic_id, reading_order_id, position)
                 VALUES (?, ?, ?)
                 """,
-                    (comic_id, order_id, pos),
-                )
+                ((cid, order_id, pos) for pos, cid in enumerate(comic_ids, start=1)),
+            )
 
     def get_order_contents(self, order_id: int) -> Optional[list[tuple[str, int]]]:
         """
