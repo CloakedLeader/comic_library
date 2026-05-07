@@ -10,6 +10,7 @@ from classes.helper_classes import GUIComicInfo, MetadataInfo
 
 load_dotenv()
 ROOT_DIR = Path(os.getenv("ROOT_DIR") or "")
+DB_PATH = Path(os.getenv("DB_PATH") or "comics.db")
 
 
 class RepoWorker:
@@ -72,6 +73,15 @@ class RepoWorker:
         return comic_info
 
     def get_all_comics(self, **thumb: bool) -> list[GUIComicInfo]:
+        """
+        Gets the GUI information for every comic in the database.
+        The size of the cover image can be specified by the keyword
+        argument "thumb".
+
+        Returns:
+            list[GUIComicInfo]: A list of the GUIComicInfo for every
+            comic in the database.
+        """
         self.cursor.execute("SELECT id FROM comics")
         rows = self.cursor.fetchall()
         ids = [row[0] for row in rows]
@@ -81,6 +91,15 @@ class RepoWorker:
             return self.create_basemodel(ids)
 
     def comic_in_db(self, filepath: Path) -> bool:
+        """
+        Checks whether a comic with a certain filepath is in the database.
+
+        Args:
+            filepath (Path): The filepath of the comic to check.
+
+        Returns:
+            bool: True if it is in the database, False otherwise.
+        """
         rel_path = filepath.relative_to(ROOT_DIR)
         self.cursor.execute(
             "SELECT * FROM comics WHERE file_path = ? LIMIT 1", (str(rel_path),)
@@ -516,6 +535,16 @@ class RepoWorker:
         return self.cursor.lastrowid or 0
 
     def get_orders(self) -> tuple[list[str], list[int], list[str]]:
+        """
+        Gets all of the current reading orders, even ones that are empty.
+
+        Returns:
+            tuple[list[str], list[int], list[str]]: A tuple of three elements;
+            a list of the reading order names, a list of the ids and a list of
+            the reading order descriptions. The lists all have the same order,
+            so the i'th element of each list corresponds to the same reading
+            order.
+        """
         self.cursor.execute("SELECT name, id, description from reading_orders")
         results = self.cursor.fetchall()
         names = []
@@ -529,6 +558,16 @@ class RepoWorker:
         return (names, ids, desc)
 
     def add_to_order(self, order_id: int, comic_ids: list[str]) -> None:
+        """
+        Adds a list of comic_ids to the reading order. The full list of comic_ids
+        must be passed in as this overwrites the order each time instead of
+        complicated list comparisons.
+
+        Args:
+            order_id (int): The id of the reading order.
+            comic_ids (list[str]): The FULL list of comic_id's for the reading
+            order
+        """
         with self.conn:
             self.cursor.execute(
                 """
@@ -548,6 +587,18 @@ class RepoWorker:
                 )
 
     def get_order_contents(self, order_id: int) -> Optional[list[tuple[str, int]]]:
+        """
+        Gets the current contents of a reading order from the database.
+
+        Args:
+            order_id (int): The id of the reading order being queried.
+
+        Returns:
+            Optional[list[tuple[str, int]]]: A list of tuples, where the first element
+            is the comic_id and the second is the position within the order.
+        """
+        # ? Perhaps having the tuples is redundant since just a list of strings can
+        # ? communicate order.
         self.cursor.execute(
             """
             SELECT comic_id, position

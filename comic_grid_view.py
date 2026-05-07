@@ -112,6 +112,7 @@ class ComicGrid(QWidget):
             )
 
     def clear_grid(self):
+        """Get rid of all of the widgets on display."""
         for widget in self.comic_widgets:
             self.grid_layout.removeWidget(widget)
             widget.deleteLater()
@@ -119,6 +120,16 @@ class ComicGrid(QWidget):
         self.comic_widgets.clear()
 
     def reload_contents(self, comics: list[GUIComicInfo]):
+        """
+        Update the view with a new set of comics. This removes what
+        is currently displayed and then rebuilts the view from the new
+        data. It also sets the self.comics attribute to this new set of
+        comics - practically forgetting the originally passed in data.
+
+        Args:
+            comics (list[GUIComicInfo]): The list of comic information
+            to rebuilt the view from.
+        """
         self.clear_grid()
         self.comics = comics
 
@@ -488,6 +499,14 @@ class DraggableComicGridView(QListWidget):
         drag.exec(Qt.DropAction.CopyAction)
 
     def set_comics(self, comics: list[GUIComicInfo]):
+        """
+        Completely reloads the current selection of comics on show to the user
+        with the list passed into the function.
+
+        Args:
+            comics (list[GUIComicInfo]): The list of GUIComicInfo to update the
+            view with.
+        """
         self.clear()
 
         for comic in comics:
