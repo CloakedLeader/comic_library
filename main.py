@@ -624,7 +624,7 @@ class HomePage(QMainWindow):
             logging.info(dialog.textbox.text())
 
     def clicked_collection(self, id: int, name: str):
-        self.clear_widget_stack()
+        self.clear_layout(self.coll_display)
         with RepoWorker() as worker:
             try:
                 comic_ids = worker.get_collection_contents(id)
@@ -646,7 +646,7 @@ class HomePage(QMainWindow):
 
     def clicked_reading_order(self, id: int, name: str):
         self.collapse_sidebar()
-        self.clear_widget_stack()
+        self.clear_layout(self.order_display_)
         self.order_editor = ReadingOrderEditor(id, name)
         self.order_display_.addWidget(self.order_editor)
         self.stack.setCurrentWidget(self.order_widget)
@@ -686,16 +686,20 @@ class HomePage(QMainWindow):
         except Exception as e:
             logging.error(f"[Async callback exception] {e}")
 
-    def clear_widget_stack(self):
+    def clear_layout(self, layout: QHBoxLayout | QVBoxLayout) -> None:
         """
-        Remove and safely delete all widgets from the collection display layout.
+        Remove and safely delete all widgets from a layout.
 
-        Iterates through all items in 'self.coll_display', removes each item from
-        the layour and schedules its associated widgets for deletion using
+        Iterates through all items in the layout, removes each item from
+        the layout and schedules its associated widgets for deletion using
         'deleteLater()'.
+
+        Args:
+            layout (QHBoxLayout | QVBoxLayout): The layout to delete clear
+            the widgets from.
         """
-        while self.coll_display.count():
-            item = self.coll_display.takeAt(0)
+        while layout.count():
+            item = layout.takeAt(0)
             widget = item.widget()
             if widget:
                 widget.deleteLater()
