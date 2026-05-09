@@ -59,7 +59,7 @@ from settings import Settings
 load_dotenv()
 root_string = os.getenv("ROOT_DIR")
 ROOT_DIR = Path(root_string if root_string is not None else "")
-
+DB_PATH = Path(os.getenv("DB_PATH") or "comics.db")
 log_file = open("debug.log", "w", encoding="utf-8")
 sys.stdout = log_file
 sys.stderr = log_file
@@ -385,7 +385,7 @@ class HomePage(QMainWindow):
         creates a scroll area with download functionality
         for each comic.
         """
-        repository = RSSRepository("comics.db")
+        repository = RSSRepository(DB_PATH)
         rss_cont = RSSController(repository)
         recent_comics_list = rss_cont.run(num)
         self.download_controller = DownloadControllerAsync(view=self)
@@ -584,16 +584,10 @@ class HomePage(QMainWindow):
     def collection_search(self, text: str):
         if self.collection_grid.explore:
             display_info = text_search(text)
-            if display_info is None:
-                # TODO: Need to add logic here.
-                raise ValueError("Incorrect type passed!")
-            self.collection_grid.all_comics.set_comics(display_info)
+            self.collection_grid.all_comics.set_comics(display_info or [])
         else:
             display_info = collection_search(text, self.collection_grid.coll_id)
-            if display_info is None:
-                # TODO: Need to add logic here.
-                raise ValueError("Incorrect type passed!")
-            self.collection_grid.grid.reload_contents(display_info)
+            self.collection_grid.grid.reload_contents(display_info or [])
 
     def open_review_panel(self, comic_info: GUIComicInfo):
         self.metadata_popup = MetadataDialog(comic_info)
@@ -653,10 +647,8 @@ class HomePage(QMainWindow):
 
     def order_search(self, text: str):
         display_info = text_search(text)
-        if display_info is None:
-            # TODO: Need to add logic here.
-            raise ValueError("Incorrect type passed!")
-        self.order_editor.library_panel.set_comics(display_info)
+        self.order_editor.library_panel.set_comics(display_info or [])
+        return
 
     def open_settings(self):
         dialog = Settings()
@@ -695,13 +687,14 @@ class HomePage(QMainWindow):
         'deleteLater()'.
 
         Args:
-            layout (QHBoxLayout | QVBoxLayout): The layout to delete clear
+            layout (QHBoxLayout | QVBoxLayout): The layout to delete
             the widgets from.
         """
         while layout.count():
             item = layout.takeAt(0)
             widget = item.widget()
             if widget:
+                widget.setParent(None)
                 widget.deleteLater()
 
 

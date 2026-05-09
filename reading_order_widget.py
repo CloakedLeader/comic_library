@@ -35,7 +35,7 @@ class ReadingOrderCreation(QDialog):
         reading order name and the other for the description.
         """
         super().__init__()
-
+        self.setWindowTitle("Reading order creation")
         self.main_display = QWidget()
         self.main_layout = QVBoxLayout(self.main_display)
 
@@ -71,13 +71,27 @@ class ReadingOrderCreation(QDialog):
         """
         name = self.textbox.text()
         description = self.textbox2.text()
+        if name == "":
+            self.show_error_message("Cannot have empty name.").exec()
+        else:
+            with RepoWorker() as worker:
+                if description == "":
+                    description = None
+                worker.create_reading_order(name, description)
 
-        with RepoWorker() as worker:
-            if description == "":
-                description = None
-            worker.create_reading_order(name, description)
+            self.close()
 
-        self.close()
+    @staticmethod
+    def show_error_message(message: str) -> QDialog:
+        error_dialog = QDialog()
+        error_dialog.setWindowTitle("Error!")
+        message_box = QLabel(message)
+        layout = QVBoxLayout(error_dialog)
+        layout.addWidget(message_box)
+        exit_button = QPushButton("Ok")
+        layout.addWidget(exit_button, alignment=Qt.AlignmentFlag.AlignBottom)
+        exit_button.clicked.connect(error_dialog.close)
+        return error_dialog
 
 
 class ReadingOrderList(QListWidget):
@@ -258,9 +272,8 @@ class ReadingOrderList(QListWidget):
             return
 
         ids = [item.data(Qt.ItemDataRole.UserRole) for item in items]
-        positions = []
-        for i in ids:
-            positions.append(self.get_position(i))
+        positions = [self.row(item) for item in items]
+
         payload = {"comic_ids": ids, "positions": positions}
 
         mime = QMimeData()
@@ -283,9 +296,9 @@ class ReadingOrderList(QListWidget):
         """
         Allows a drag action from this widget, or from the DraggableComicGridView.
         """
-        if event.mimeData().hasFormat(self.MIME_TYPE):
-            event.acceptProposedAction()
-        elif event.mimeData().hasFormat(DraggableComicGridView.MIME_TYPE):
+        if event.mimeData().hasFormat(self.MIME_TYPE) or event.mimeData().hasFormat(
+            DraggableComicGridView.MIME_TYPE
+        ):
             event.acceptProposedAction()
         else:
             event.ignore()
@@ -294,9 +307,9 @@ class ReadingOrderList(QListWidget):
         """
         Allows a drag action from this widget, or from the DraggableComicGridView.
         """
-        if event.mimeData().hasFormat(self.MIME_TYPE):
-            event.acceptProposedAction()
-        elif event.mimeData().hasFormat(DraggableComicGridView.MIME_TYPE):
+        if event.mimeData().hasFormat(self.MIME_TYPE) or event.mimeData().hasFormat(
+            DraggableComicGridView.MIME_TYPE
+        ):
             event.acceptProposedAction()
         else:
             event.ignore()
@@ -330,6 +343,8 @@ class ReadingOrderList(QListWidget):
             data = event.mimeData().data(DraggableComicGridView.MIME_TYPE)
             comic_ids = bytes(data.data()).decode().split(",")
             comic_ids = [str(i) for i in comic_ids]
+            if len(comic_ids) != 1:
+                return
             insert_row = self.indexAt(event.position().toPoint()).row()
             if insert_row < 0:
                 insert_row = self.count()
@@ -376,14 +391,13 @@ class ReadingOrderEditor(QWidget):
 
         Args:
             order_id (int): The id of the reading order being edited.
-            order_title (str): The description of the reading order.
+            order_title (str): The display name of the reading order.
         """
         super().__init__()
         self.order_id = order_id
         self.order_title = order_title
 
-        dummy_layout = QHBoxLayout(self)
-        # main_layout.setSpacing(12)
+        main_layout = QHBoxLayout()
         self.splitter = QSplitter()
         with RepoWorker() as worker:
             all_comics = worker.get_all_comics()
@@ -398,7 +412,9 @@ class ReadingOrderEditor(QWidget):
         self.save_button.clicked.connect(self.save_order)
         self.splitter.addWidget(self.left_widget)
         self.splitter.addWidget(self.library_panel)
-        dummy_layout.addWidget(self.splitter)
+        main_layout.addWidget(self.splitter)
+
+        self.setLayout(main_layout)
 
     def save_order(self):
         """Saves the currently displayed reading order to the database."""
