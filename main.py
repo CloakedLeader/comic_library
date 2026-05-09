@@ -176,7 +176,8 @@ class HomePage(QMainWindow):
             "Collections",
             collection_names,
             collection_ids,
-            self.clicked_collection,
+            left_clicked=self.clicked_collection,
+            delete=self.delete_col,
         )
         left_layout.addWidget(self.collection_display, stretch=1)
 
@@ -184,8 +185,8 @@ class HomePage(QMainWindow):
             "Reading Orders",
             order_names,
             order_ids,
-            self.clicked_reading_order,
-            order_edit=self.clicked_reading_order,
+            left_clicked=self.clicked_reading_order,
+            delete=self.delete_ord,
         )
         left_layout.addWidget(self.order_display, stretch=1)
         self.splitter = QSplitter()
@@ -654,6 +655,14 @@ class HomePage(QMainWindow):
         dialog = Settings()
         if dialog.exec() == QDialog.DialogCode.Accepted:
             return
+
+    def delete_col(self, identifier: int) -> None:
+        with RepoWorker() as worker:
+            worker.delete_collection(identifier)
+
+    def delete_ord(self, identifier: int) -> None:
+        with RepoWorker() as worker:
+            worker.delete_order(identifier)
 
     def update_status(self, message: str) -> None:
         """

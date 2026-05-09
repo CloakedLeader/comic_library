@@ -613,3 +613,35 @@ class RepoWorker:
             return [(r[0], r[1]) for r in result]
         else:
             return None
+
+    def delete_collection(self, parent_id: int) -> None:
+        self.cursor.execute(
+            """
+        DELETE FROM collections_contents
+        WHERE collection_id = ?
+        """,
+            (parent_id,),
+        )
+        self.cursor.execute(
+            """
+        DELETE FROM collections
+        WHERE id = ?
+        """,
+            (parent_id,),
+        )
+
+    def delete_order(self, parent_id: int) -> None:
+        self.cursor.execute(
+            """
+        DELETE FROM reading_order_items
+        WHERE reading_order_id = ?
+        """,
+            (parent_id,),
+        )
+        self.cursor.execute(
+            """
+        DELETE FROM reading_orders
+        WHERE id = ?
+        """,
+            (parent_id,),
+        )
