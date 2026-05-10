@@ -615,6 +615,13 @@ class RepoWorker:
             return None
 
     def delete_collection(self, parent_id: int) -> None:
+        """
+        Delete a collection and all its contents from the database.
+
+        Args:
+            parent_id (int): The unique identifier of the collection
+            to delete.
+        """
         self.cursor.execute(
             """
         DELETE FROM collections_contents
@@ -631,6 +638,13 @@ class RepoWorker:
         )
 
     def delete_order(self, parent_id: int) -> None:
+        """
+        Delete a reading order and all its contents from the database.
+
+        Args:
+            parent_id (int): The unique identifier of the reading order
+            to delete.
+        """
         self.cursor.execute(
             """
         DELETE FROM reading_order_items

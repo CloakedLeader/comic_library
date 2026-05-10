@@ -649,7 +649,6 @@ class HomePage(QMainWindow):
     def order_search(self, text: str):
         display_info = text_search(text)
         self.order_editor.library_panel.set_comics(display_info or [])
-        return
 
     def open_settings(self):
         dialog = Settings()

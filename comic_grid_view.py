@@ -130,33 +130,9 @@ class ComicGrid(QWidget):
             comics (list[GUIComicInfo]): The list of comic information
             to rebuild the view from.
         """
-        # self.clear_grid()
+        self.clear_grid()
         self.comics = comics
         self.add_comics(self.comics)
-
-        # row = col = 0
-        # for comic in self.comics:
-        #     comic_widget = GeneralComicWidget(
-        #         comic,
-        #         single_left_click=self.metadata_panel,
-        #         single_right_click=self.context_menu.show_menu,
-        #         double_left_click=self.open_reader,
-        #         size=(180, 270),
-        #     )
-
-        #     self.comic_widgets.append(comic_widget)
-
-        #     self.grid_layout.addWidget(
-        #         comic_widget,
-        #         row,
-        #         col,
-        #         alignment=Qt.AlignmentFlag.AlignTop,
-        #     )
-
-        #     col += 1
-        #     if col >= self.columns:
-        #         col = 0
-        #         row += 1
 
     def open_reader(self, comic_info: GUIComicInfo):
         """
