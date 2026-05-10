@@ -39,7 +39,7 @@ class StyledButton(QWidget):
             """
 
         self.menu = QMenu(self)
-        edit_action = self.menu.addAction("Edit reading order")
+        edit_action = self.menu.addAction("Edit")
         delete_action = self.menu.addAction("Delete")
         edit_action.triggered.connect(self._edit)
         delete_action.triggered.connect(self._delete)
@@ -76,6 +76,7 @@ class ButtonDisplay(QWidget):
         ids: list[int],
         left_clicked: Callable,
         order_edit: Callable | None = None,
+        delete: Callable | None = None,
     ):
         super().__init__()
 
@@ -95,6 +96,8 @@ class ButtonDisplay(QWidget):
             widget.clicked.connect(left_clicked)
             if order_edit:
                 widget.editOrder.connect(order_edit)
+            if delete:
+                widget.deleteOrder.connect(delete)
             widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
             layout.addWidget(widget)
 

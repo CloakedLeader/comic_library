@@ -50,7 +50,6 @@ from reader_controller import ReadingController
 from reading_order_widget import (
     ReadingOrderCreation,
     ReadingOrderEditor,
-    ReadingOrderListEditor,
 )
 from rss.rss_controller import RSSController
 from rss.rss_repository import RSSRepository
@@ -60,7 +59,7 @@ from settings import Settings
 load_dotenv()
 root_string = os.getenv("ROOT_DIR")
 ROOT_DIR = Path(root_string if root_string is not None else "")
-
+DB_PATH = Path(os.getenv("DB_PATH") or "comics.db")
 log_file = open("debug.log", "w", encoding="utf-8")
 sys.stdout = log_file
 sys.stderr = log_file
@@ -177,7 +176,8 @@ class HomePage(QMainWindow):
             "Collections",
             collection_names,
             collection_ids,
-            self.clicked_collection,
+            left_clicked=self.clicked_collection,
+            delete=self.delete_col,
         )
         left_layout.addWidget(self.collection_display, stretch=1)
 
@@ -185,8 +185,8 @@ class HomePage(QMainWindow):
             "Reading Orders",
             order_names,
             order_ids,
-            self.clicked_reading_order,
-            order_edit=self.open_order_editor,
+            left_clicked=self.clicked_reading_order,
+            delete=self.delete_ord,
         )
         left_layout.addWidget(self.order_display, stretch=1)
         self.splitter = QSplitter()
@@ -386,7 +386,7 @@ class HomePage(QMainWindow):
         creates a scroll area with download functionality
         for each comic.
         """
-        repository = RSSRepository("comics.db")
+        repository = RSSRepository(DB_PATH)
         rss_cont = RSSController(repository)
         recent_comics_list = rss_cont.run(num)
         self.download_controller = DownloadControllerAsync(view=self)
@@ -546,6 +546,14 @@ class HomePage(QMainWindow):
             previous = getattr(self, "sidebar_width", 150)
             self.splitter.setSizes([previous, sizes[1]])
 
+    def collapse_sidebar(self):
+        sizes = self.splitter.sizes()
+        if sizes[0] > 0:
+            self.sidebar_width = sizes[0]
+            self.splitter.setSizes([0, sizes[1] + sizes[0]])
+        else:
+            return
+
     def go_home(self):
         self.stack.setCurrentWidget(self.content_area)
 
@@ -555,6 +563,8 @@ class HomePage(QMainWindow):
         current = self.stack.currentWidget()
         if current == self.collections_widget:
             self.collection_search(text)
+        elif current == self.order_widget:
+            self.order_search(text)
         else:
             self.library_search(text)
 
@@ -575,16 +585,10 @@ class HomePage(QMainWindow):
     def collection_search(self, text: str):
         if self.collection_grid.explore:
             display_info = text_search(text)
-            if display_info is None:
-                # TODO: Need to add logic here.
-                raise ValueError("Incorrect type passed!")
-            self.collection_grid.all_comics.set_comics(display_info)
+            self.collection_grid.all_comics.set_comics(display_info or [])
         else:
             display_info = collection_search(text, self.collection_grid.coll_id)
-            if display_info is None:
-                # TODO: Need to add logic here.
-                raise ValueError("Incorrect type passed!")
-            self.collection_grid.grid.reload_contents(display_info)
+            self.collection_grid.grid.reload_contents(display_info or [])
 
     def open_review_panel(self, comic_info: GUIComicInfo):
         self.metadata_popup = MetadataDialog(comic_info)
@@ -615,7 +619,7 @@ class HomePage(QMainWindow):
             logging.info(dialog.textbox.text())
 
     def clicked_collection(self, id: int, name: str):
-        self.clear_widget_stack()
+        self.clear_layout(self.coll_display)
         with RepoWorker() as worker:
             try:
                 comic_ids = worker.get_collection_contents(id)
@@ -636,33 +640,28 @@ class HomePage(QMainWindow):
             logging.info(dialog.textbox.text())
 
     def clicked_reading_order(self, id: int, name: str):
-        self.clear_widget_stack()
-        # with RepoWorker() as worker:
-        #     try:
-        #         comics = worker.get_order_contents(id)
-        #     except ValueError as e:
-        #         print(str(e))
-        #         return
-        #     comic_ids: list[str] = []
-        #     positions: list[int] = []
-        #     for key, pos in comics:
-        #         comic_ids.append(key)
-        #         positions.append(pos)
-        #     comic_infos = worker.create_basemodel(comic_ids)
-        order_list = ReadingOrderListEditor(id, name)
-        self.order_display_.addWidget(order_list)
+        self.collapse_sidebar()
+        self.clear_layout(self.order_display_)
+        self.order_editor = ReadingOrderEditor(id, name)
+        self.order_display_.addWidget(self.order_editor)
         self.stack.setCurrentWidget(self.order_widget)
 
-    def open_order_editor(self, id: int, name: str):
-        self.order_editor = ReadingOrderEditor(id, name)
-        self.order_editor.setWindowFlag(Qt.WindowType.Window)
-        # order_editor.show()
-        self.order_editor.showFullScreen()
+    def order_search(self, text: str):
+        display_info = text_search(text)
+        self.order_editor.library_panel.set_comics(display_info or [])
 
     def open_settings(self):
         dialog = Settings()
         if dialog.exec() == QDialog.DialogCode.Accepted:
             return
+
+    def delete_col(self, identifier: int) -> None:
+        with RepoWorker() as worker:
+            worker.delete_collection(identifier)
+
+    def delete_ord(self, identifier: int) -> None:
+        with RepoWorker() as worker:
+            worker.delete_order(identifier)
 
     def update_status(self, message: str) -> None:
         """
@@ -687,18 +686,23 @@ class HomePage(QMainWindow):
         except Exception as e:
             logging.error(f"[Async callback exception] {e}")
 
-    def clear_widget_stack(self):
+    def clear_layout(self, layout: QHBoxLayout | QVBoxLayout) -> None:
         """
-        Remove and safely delete all widgets from the collection display layout.
+        Remove and safely delete all widgets from a layout.
 
-        Iterates through all items in 'self.coll_display', removes each item from
-        the layour and schedules its associated widgets for deletion using
+        Iterates through all items in the layout, removes each item from
+        the layout and schedules its associated widgets for deletion using
         'deleteLater()'.
+
+        Args:
+            layout (QHBoxLayout | QVBoxLayout): The layout to delete
+            the widgets from.
         """
-        while self.coll_display.count():
-            item = self.coll_display.takeAt(0)
+        while layout.count():
+            item = layout.takeAt(0)
             widget = item.widget()
             if widget:
+                widget.setParent(None)
                 widget.deleteLater()
 
 

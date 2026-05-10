@@ -1,5 +1,6 @@
 import sqlite3
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 
@@ -11,7 +12,7 @@ class RSSRepository:
     RSS feed entries with automatic cleanup of old entries.
     """
 
-    def __init__(self, db_file: str) -> None:
+    def __init__(self, db_file: Path) -> None:
         """
         Initialise the RSS repository with a database connection.
 

@@ -10,6 +10,7 @@ from classes.helper_classes import GUIComicInfo, MetadataInfo
 
 load_dotenv()
 ROOT_DIR = Path(os.getenv("ROOT_DIR") or "")
+DB_PATH = Path(os.getenv("DB_PATH") or "comics.db")
 
 
 class RepoWorker:
@@ -17,7 +18,7 @@ class RepoWorker:
         self.cover_folder = ROOT_DIR / ".covers"
 
     def __enter__(self):
-        self.conn = sqlite3.connect("comics.db")
+        self.conn = sqlite3.connect(DB_PATH)
         self.cursor = self.conn.cursor()
         return self
 
@@ -72,6 +73,15 @@ class RepoWorker:
         return comic_info
 
     def get_all_comics(self, **thumb: bool) -> list[GUIComicInfo]:
+        """
+        Gets the GUI information for every comic in the database.
+        The size of the cover image can be specified by the keyword
+        argument "thumb".
+
+        Returns:
+            list[GUIComicInfo]: A list of the GUIComicInfo for every
+            comic in the database.
+        """
         self.cursor.execute("SELECT id FROM comics")
         rows = self.cursor.fetchall()
         ids = [row[0] for row in rows]
@@ -81,6 +91,15 @@ class RepoWorker:
             return self.create_basemodel(ids)
 
     def comic_in_db(self, filepath: Path) -> bool:
+        """
+        Checks whether a comic with a certain filepath is in the database.
+
+        Args:
+            filepath (Path): The filepath of the comic to check.
+
+        Returns:
+            bool: True if it is in the database, False otherwise.
+        """
         rel_path = filepath.relative_to(ROOT_DIR)
         self.cursor.execute(
             "SELECT * FROM comics WHERE file_path = ? LIMIT 1", (str(rel_path),)
@@ -516,6 +535,16 @@ class RepoWorker:
         return self.cursor.lastrowid or 0
 
     def get_orders(self) -> tuple[list[str], list[int], list[str]]:
+        """
+        Gets all of the current reading orders, even ones that are empty.
+
+        Returns:
+            tuple[list[str], list[int], list[str]]: A tuple of three elements;
+            a list of the reading order names, a list of the ids and a list of
+            the reading order descriptions. The lists all have the same order,
+            so the i'th element of each list corresponds to the same reading
+            order.
+        """
         self.cursor.execute("SELECT name, id, description from reading_orders")
         results = self.cursor.fetchall()
         names = []
@@ -528,36 +557,47 @@ class RepoWorker:
 
         return (names, ids, desc)
 
-    def add_to_orders(self, order_id: int, comic_id: str, position: int):
-        current_order = self.get_order_contents(order_id)
-        if not current_order:
+    def add_to_order(self, order_id: int, comic_ids: list[str]) -> None:
+        """
+        Adds a list of comic_ids to the reading order. The full list of comic_ids
+        must be passed in as this overwrites the order each time instead of
+        complicated list comparisons.
+
+        Args:
+            order_id (int): The id of the reading order.
+            comic_ids (list[str]): The FULL list of comic_id's for the reading
+            order
+        """
+        with self.conn:
             self.cursor.execute(
+                """
+            DELETE FROM reading_order_items
+            WHERE reading_order_id = ?
+            """,
+                (order_id,),
+            )
+
+            self.cursor.executemany(
                 """
                 INSERT INTO reading_order_items (comic_id, reading_order_id, position)
                 VALUES (?, ?, ?)
                 """,
-                (comic_id, order_id, 1),
+                ((cid, order_id, pos) for pos, cid in enumerate(comic_ids, start=1)),
             )
-            return
-        self.cursor.execute(
-            """
-            INSERT INTO reading_order_items (comic_id, reading_order_id, position)
-            VALUES (?, ?, ?)
-            """,
-            (comic_id, order_id, position),
-        )
-        for primary_key, pos in current_order[: position - 1]:
-            self.cursor.execute(
-                """
-                UPDATE reading_order_items
-                SET position = ?
-                WHERE comic_d = ? and reading_order_id = ?
-                """,
-                ((pos + 1, primary_key, order_id)),
-            )
-        return
 
     def get_order_contents(self, order_id: int) -> Optional[list[tuple[str, int]]]:
+        """
+        Gets the current contents of a reading order from the database.
+
+        Args:
+            order_id (int): The id of the reading order being queried.
+
+        Returns:
+            Optional[list[tuple[str, int]]]: A list of tuples, where the first element
+            is the comic_id and the second is the position within the order.
+        """
+        # ? Perhaps having the tuples is redundant since just a list of strings can
+        # ? communicate order.
         self.cursor.execute(
             """
             SELECT comic_id, position
@@ -573,3 +613,51 @@ class RepoWorker:
             return [(r[0], r[1]) for r in result]
         else:
             return None
+
+    def delete_collection(self, parent_id: int) -> None:
+        """
+        Delete a collection and all its contents from the database.
+
+        Args:
+            parent_id (int): The unique identifier of the collection
+            to delete.
+        """
+        with self.conn:
+            self.cursor.execute(
+                """
+            DELETE FROM collections_contents
+            WHERE collection_id = ?
+            """,
+                (parent_id,),
+            )
+            self.cursor.execute(
+                """
+            DELETE FROM collections
+            WHERE id = ?
+            """,
+                (parent_id,),
+            )
+
+    def delete_order(self, parent_id: int) -> None:
+        """
+        Delete a reading order and all its contents from the database.
+
+        Args:
+            parent_id (int): The unique identifier of the reading order
+            to delete.
+        """
+        with self.conn:
+            self.cursor.execute(
+                """
+            DELETE FROM reading_order_items
+            WHERE reading_order_id = ?
+            """,
+                (parent_id,),
+            )
+            self.cursor.execute(
+                """
+            DELETE FROM reading_orders
+            WHERE id = ?
+            """,
+                (parent_id,),
+            )
