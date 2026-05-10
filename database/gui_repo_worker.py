@@ -622,20 +622,21 @@ class RepoWorker:
             parent_id (int): The unique identifier of the collection
             to delete.
         """
-        self.cursor.execute(
-            """
-        DELETE FROM collections_contents
-        WHERE collection_id = ?
-        """,
-            (parent_id,),
-        )
-        self.cursor.execute(
-            """
-        DELETE FROM collections
-        WHERE id = ?
-        """,
-            (parent_id,),
-        )
+        with self.conn:
+            self.cursor.execute(
+                """
+            DELETE FROM collections_contents
+            WHERE collection_id = ?
+            """,
+                (parent_id,),
+            )
+            self.cursor.execute(
+                """
+            DELETE FROM collections
+            WHERE id = ?
+            """,
+                (parent_id,),
+            )
 
     def delete_order(self, parent_id: int) -> None:
         """
@@ -645,17 +646,18 @@ class RepoWorker:
             parent_id (int): The unique identifier of the reading order
             to delete.
         """
-        self.cursor.execute(
-            """
-        DELETE FROM reading_order_items
-        WHERE reading_order_id = ?
-        """,
-            (parent_id,),
-        )
-        self.cursor.execute(
-            """
-        DELETE FROM reading_orders
-        WHERE id = ?
-        """,
-            (parent_id,),
-        )
+        with self.conn:
+            self.cursor.execute(
+                """
+            DELETE FROM reading_order_items
+            WHERE reading_order_id = ?
+            """,
+                (parent_id,),
+            )
+            self.cursor.execute(
+                """
+            DELETE FROM reading_orders
+            WHERE id = ?
+            """,
+                (parent_id,),
+            )
