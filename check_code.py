@@ -42,6 +42,9 @@ def run(title: str, cmd: list[str], env: dict | None = None) -> int:
 
 
 def main():
+    """
+    Runs the processses involved in thoroughly checking the codebase.
+    """
     parser = argparse.ArgumentParser(
         description="Run code quality checks with autofix."
     )

@@ -1,3 +1,7 @@
+"""
+A file containing functions that add to the fts5 database and query it.
+"""
+
 import os
 import sqlite3
 from pathlib import Path
@@ -148,11 +152,25 @@ def text_search(text: str) -> list[GUIComicInfo] | None:
 
 
 def collection_search(text: str, collection_id: int) -> list[GUIComicInfo] | None:
+    """
+    Gets all comics in the collection that are also in the collection.
+
+    First gets all text search results for the entire database and then loops
+    through each of these and only keeps the ones that are in the collection.
+
+    Args:
+        text (str): The next for the general search.
+        collection_id (int): The unique identifier for the comic collecetion.
+
+    Returns:
+        list[GUIComicInfo] | None: The list of results.
+    """
     basic_search = text_search(text)
     if basic_search is None:
         return None
 
     def check_in_collection(comic_id: str) -> bool:
+        """Checks whether a given comic_id is in the collection from the parent function."""
         cursor.execute(
             """
             SELECT EXISTS(

@@ -39,6 +39,8 @@ class ImageLoadError(ComicError):
 
 
 class Comic:
+    """A class which represents a particular comic."""
+
     def __init__(
         self, comic_info: GUIComicInfo, start_index: int = 0, max_cache: int = 10
     ) -> None:
@@ -77,6 +79,7 @@ class Comic:
         self.info = comic_info
 
     def set_page_index(self, index: int) -> None:
+        """Sets the current page of the comic to 'index'."""
         self.current_index = index
 
     def get_image_data(self, index: int) -> bytes:
@@ -127,18 +130,104 @@ class Comic:
 
 
 class ImageLoadSignals(QObject):
+    """
+    Qt signal container for asynchronous image loading tasks.
+
+    This object defines the signals emitted by :class`ImageLoadTask`
+    instances during background execution. It provides a communication
+    bridge between worker threads and main GUI thread.
+
+    Signals:
+        finished(int, QPixmap):
+            Emitted when an image has been successfully loaded and converted
+            into a :class`QPixmap`.
+
+            Args:
+                int:
+                    The page index associated with the loaded image.
+                QPixmap:
+                    The resulting pixmap ready for display.
+
+        error (int, str):
+            Emitted when an exception occurs while loading or processing
+            an image.
+
+            Args:
+                int:
+                    The page index that failed to load.
+                str:
+                    Human-readable error message describing the failure.
+
+    Signals are emitted from worker thread but are automatically delivered
+    safely through Qt's queued connection system when connected to slots in
+    the GUI thread.
+    """
+
     finished = Signal(int, QPixmap)
     error = Signal(int, str)
 
 
 class ImageLoadTask(QRunnable):
+    """
+    Background worker task responsible for loading and converting a comic page.
+
+    This QRunnable is executed by a :class`QThreadPool` to avoid blocking the
+    GUI thread while image data is fetched and decoded. The task retrieves raw
+    image bytes from a :class`Comic` instance, converts them into a Pillow image,
+    then transforms the result into a Qt-compatible :class`QPixmap`.
+
+    Attributes:
+        comic (Comic):
+            Comic data source used to retrieve page image data.
+
+        index (int):
+            Zero-based page index to load.
+
+        signals (ImageLoadSignals):
+            Signal container used to notify listeners when loading succeeds or fails.
+
+    Workflow:
+        1. Fetch raw image bytes from comic source.
+        2. Decode image data using Pillow.
+        3. Convert the image to RGBA format.
+        4. Create a :class`QImage` from the raw pixel buffer.
+        5. Convert the QImage into a :class`QPixmap`.
+        6. Emit either a success or error signal.
+
+    Notes:
+        - The image is fully loaded into memory via ``image.load()`` before
+        conversion to ensure thread-safe access.
+        - RGBA conversion guarantees a predictable pixel format for Qt.
+        - Exceptions are caught internally and reported through the ``error``
+        signal instead of propagating across threads.
+    """
+
     def __init__(self, comic: Comic, index: int):
+        """Initialises the class by assigning the attributes."""
         super().__init__()
         self.comic = comic
         self.index = index
         self.signals = ImageLoadSignals()
 
     def run(self):
+        """
+        Execute the image loading task.
+
+        This method is invoked automatically by Qt's thread pool when
+        the runnable is scheduled. It performs image retrieval, decoding,
+        conversion, and signal emission.
+
+        Emits:
+            signals.finished:
+                When the image is successfuly loaded and converted.
+
+            signals.error:
+                When any exception occurs during processing.
+
+        Raises:
+            No exceptions are propageted directly. All exceptions are caught
+            and forwarded through the ``error`` signal.
+        """
         try:
             data = self.comic.get_image_data(self.index)
 
@@ -161,9 +250,63 @@ class ImageLoadTask(QRunnable):
 
 
 class PagePreloader(QObject):
+    """
+    Asynchronous image preloading and caching manager for comic pages.
+
+    The PagePreloader maintains an in-memory cache of nearby comic page
+    images and loads them asynchronously using :class`QThreadPool`.
+    Its primary goal is to improve navigation responsiveness by ensuring
+    pages close to the current reading position are already decoded and
+    available for immediate display.
+
+    Signals:
+        page_ready (int):
+            Emitted when a page has been successfully loaded and cached.
+
+            Args:
+                int:
+                    The index of the page that is now available.
+
+    Attributes:
+        comic (Comic):
+            Comic source used to retrieve page image data.
+
+        buffer (int):
+            Number of pages before and after the current page that should
+            remain preloaded.
+
+        image_cache (dict[int, QPixmap]):
+            In-memory cache mapping page indices to loaded pixmaps.
+
+        loading (set[int]):
+            Set of page indices currently being loaded. Used to prevent
+            duplicate scheduling.
+
+        pool (QThreadPool):
+            Thread pool used to execute background loading tasks.
+
+    Caching strategy:
+        The preloader maintains a sliding window centered around the
+        current page.Pages outside the buffer range are removed from
+        memory to reduce resource usage.
+
+    Threading:
+        Image loading occurs on worker threads managed by the internal
+        thread pool, while cache updates and signal emissions occur
+        safely through Qt's signal-slot system.
+    """
+
     page_ready = Signal(int)
 
-    def __init__(self, comic: Comic, buffer: int = 5):
+    def __init__(self, comic: Comic, buffer: int = 8):
+        """
+        Intialise the page preloader.
+
+        Args:
+            comic (Comic): Comic source for page image retrieval.
+            buffer (int, optional): Number of pages before and after the
+            current page that should remain cached and preloaded. Defaults to 8.
+        """
         super().__init__()
         self.comic = comic
         self.buffer = buffer
@@ -175,6 +318,24 @@ class PagePreloader(QObject):
         self.pool.setMaxThreadCount(4)
 
     def preload(self, current_index: int):
+        """
+        Preload pages surrounding the current reading position.
+
+        This method determines which pages should remain based on
+        the configured buffer size. Pages outside the desired range
+        are evicted, and missing pages inside the range are scheduled
+        for asynchronous loading.
+
+        Args:
+            current_index (int): Current page index around which
+            preloading should occur.
+
+        Notes:
+            - Already cached pages are reused.
+            - Pages currently loaded are not scheduled again.
+            - Cache eviction occurs immediately for pages outside
+            the preload window.
+        """
         start = max(0, current_index - self.buffer)
         end = min(self.comic.total_pages - 1, current_index + self.buffer)
 
@@ -190,6 +351,19 @@ class PagePreloader(QObject):
             self.schedule_load(idx)
 
     def schedule_load(self, index: int):
+        """
+        Schedule asynchronous loading of a page image.
+
+        Creates a :class`ImageLoadTask`, connects its signals
+        and submits it to the internal thread pool for execution.
+
+        Args:
+            index (int): Page index to load.
+
+        Notes:
+            The page index is added to ``loading`` immediately to prevent
+            duplicate scheduling before the worker thread begins execution.
+        """
         self.loading.add(index)
 
         task = ImageLoadTask(self.comic, index)
@@ -199,13 +373,44 @@ class PagePreloader(QObject):
         self.pool.start(task)
 
     def on_loaded(self, index: int, pixmap: QPixmap):
+        """
+        Handle successful completion of an image loading task.
+
+        The loaded pixmap is inserted into the cache and the page is
+        marked as no longer loading.
+
+        Args:
+            index (int): Index of the loaded page.
+            pixmap (QPixmap): Loaded page image.
+
+        Emits:
+            page_ready:
+                Emitted after the image has been stored in the cache.
+        """
         self.loading.discard(index)
         self.image_cache[index] = pixmap
         self.page_ready.emit(index)
 
     def on_error(self, index: int, message: str):
+        """
+        Handle failure during asynchronous page loading.
+
+        Removes the page from the active loading set and logs
+        the error.
+
+        Args:
+            index (int): Index of the page that failed to load.
+            message (str): Description of the error that occured.
+
+        Notes:
+        Failed pages are not automatically retried.
+
+        """
         self.loading.discard(index)
         print(f"[ERROR] Failed to load page {index}: {message}")
+        # TODO: Add retry method for pages that fail to load.
+        # Need to implement some kind of diagnostic,
+        # or at the minimum flag error to the user.
 
 
 class SimpleReader(QMainWindow):

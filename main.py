@@ -131,7 +131,7 @@ class HomePage(QMainWindow):
         self.create_reading_order_button = toolbar.addAction("Create Reading Order")
         self.create_reading_order_button.triggered.connect(self.create_reading_order)
         self.settings_action = toolbar.addAction("Settings")
-        # self.settings_action.triggered.connect(self.open_settings)
+        self.settings_action.triggered.connect(self.open_settings)
 
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -236,9 +236,6 @@ class HomePage(QMainWindow):
         self.stack.addWidget(self.order_widget)
 
         self.setCentralWidget(container)
-
-    def print_num(self, num: int):
-        print(f"Clicked order with id {num}")
 
     def create_scroll_area(
         self,
@@ -668,8 +665,7 @@ class HomePage(QMainWindow):
         Update the status bar with a message.
 
         Args:
-            message: The message to display in the
-        status bar.
+            message: The message to display in the status bar.
         """
         self.statusBar().showMessage(message, 4000)
 

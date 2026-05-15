@@ -1,3 +1,7 @@
+"""
+A settings popup window for user interaction and editing.
+"""
+
 import os
 
 from dotenv import load_dotenv, set_key
@@ -16,9 +20,20 @@ ENV_PATH = ".env"
 
 
 class Settings(QDialog):
+    """
+    A settings popup window with fields for the comics directory and
+    ComicVine API key.
+    """
+
     def __init__(self):
+        """
+        Creates the popup window with 2 QLineEdit's for user input.
+        Gets the current values for the fields and adds them to the
+        QLineEdit so the user can see what is currently set.
+        """
         super().__init__()
 
+        self.setWindowTitle("Settings")
         self.main_display = QWidget()
         self.main_layout = QVBoxLayout(self.main_display)
 
@@ -60,11 +75,23 @@ class Settings(QDialog):
         self.key, self.dir = self.load_vars()
 
     def browse_folder(self):
+        """
+        Opens up a QFileDialog for the user to select the comics directory.
+
+        The path of the selected folder is then added to the QLineEdit text.
+        """
         folder = QFileDialog.getExistingDirectory(self, "Select Folder")
         if folder:
             self.path_input.setText(folder)
 
-    def load_vars(self):
+    def load_vars(self) -> tuple[str, str]:
+        """
+        Gets the current entries in the .env file and adds them as the default
+        in the QLineEdits.
+
+        Returns:
+            tuple[str, str]: A tuple of the API key and comic directory.
+        """
         if os.path.exists(ENV_PATH):
             load_dotenv(ENV_PATH)
             current_key = os.getenv("API_KEY", "")
@@ -80,6 +107,10 @@ class Settings(QDialog):
         return current_key, current_dir
 
     def save_env_vars(self):
+        """
+        Saves the current entries in the QLineEdits into the .env
+        file.
+        """
         api_key = self.api_input.text().strip()
         folder = self.path_input.text().strip()
         if not os.path.exists(ENV_PATH):
@@ -91,6 +122,11 @@ class Settings(QDialog):
         load_dotenv(ENV_PATH, override=True)
 
     def okay_pressed(self):
+        """
+        Triggered upon the 'Okay' button pressed. Checks if the QLineEdits
+        have been changed since they were last saved and asks the user
+        what to do.
+        """
         if (
             self.api_input.text().strip() != self.key
             or self.path_input.text().strip() != self.dir
@@ -109,7 +145,16 @@ class Settings(QDialog):
 
 
 class SaveChanges(QDialog):
+    """
+    A popup window for asking the user whether to save the changes.
+    """
+
     def __init__(self):
+        """
+        Opens the popup window with a message about the unsaved changes
+        and two buttons, one to save the changes and then quit. The other
+        to discard the changes.
+        """
         super().__init__()
 
         self.main_display = QWidget()

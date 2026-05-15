@@ -72,7 +72,7 @@ class ReadingOrderCreation(QDialog):
         name = self.textbox.text()
         description = self.textbox2.text()
         if name == "":
-            self.show_error_message("Cannot have empty name.").exec()
+            self.error_message("Cannot have empty name.").exec()
         else:
             with RepoWorker() as worker:
                 if description == "":
@@ -82,7 +82,7 @@ class ReadingOrderCreation(QDialog):
             self.close()
 
     @staticmethod
-    def show_error_message(message: str) -> QDialog:
+    def error_message(message: str) -> QDialog:
         error_dialog = QDialog()
         error_dialog.setWindowTitle("Error!")
         message_box = QLabel(message)

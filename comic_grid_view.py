@@ -1,3 +1,8 @@
+"""
+Models for arranging comic widgets and icons into grids with different functionalities
+and uses.
+"""
+
 from PySide6.QtCore import QEvent, QMimeData, QObject, QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QDrag, QDragEnterEvent, QDragMoveEvent, QDropEvent, QIcon
 from PySide6.QtWidgets import (
