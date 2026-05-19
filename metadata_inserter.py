@@ -1,3 +1,11 @@
+"""
+A class to create a XML formatted file and replace any missing data with
+certain flags depending on whether they are necessary or just optional.
+
+Also ensures that duplicate `ComicInfo.xml` files are not inserted into
+comic archives by extracting and re-packaging comic archive files.
+"""
+
 import os
 import xml.etree.ElementTree as ET  # nosec
 import zipfile
@@ -11,6 +19,19 @@ from classes.helper_classes import ComicInfo
 
 
 class XMLStruc(BaseModel):
+    """
+    A data structure for data inputted into the `ComicInfo.xml`.
+
+    All data are either strings or integers so they can be nicely
+    inputted into the file.
+
+    Everything execept the writer credits are neccessary because the
+    writer credits are added at a later time.
+
+    Empty entries are then inputted as empty strings "".
+    Integer entries must not be empty.
+    """
+
     Title: str
     Series: str
     Number: int
@@ -30,12 +51,49 @@ class XMLStruc(BaseModel):
 
 
 class MetadataInserter:
+    """
+    Manages the insertion of metadata into embedded XML file in the comic archive.
+
+    Attributes:
+
+        info (ComicInfo): A ComicInfo struct containing the metadata from scraping.
+            It has been cleaned ready for insertion but just needs to be formatted
+            slightly differently.
+
+        path (Path): The filepath of the comic so that the XML can be written to
+            it.
+
+        pending (bool): A boolean to track some fields which are mandatory are missing.
+            Edited in place to True if all the required entries are in place.
+
+        information (XMLStruc): The created data structure that is edited in place
+            as the process runs.
+    """
+
     def __init__(self, clean_info: ComicInfo, filepath: Path):
+        """
+        Initialises the instance variables.
+
+        Args:
+            clean_info (ComicInfo): The cleaned ComicInfo struct.
+            filepath (Path): The filepath of the comic.
+        """
         self.info = clean_info
         self.path = filepath
         self.pending = False
 
     def create_valid_struc(self) -> bool:
+        """
+        Attemps to create a :class`XMLStruc` with the information
+        in `self.info`.
+
+        Any gaps are then filled and the inverted pending status
+        returned.
+
+        Returns:
+            bool: True if there are no missing required fields.
+                False if there are.
+        """
         information = XMLStruc(
             Title=self.info.title or "",
             Series=self.info.series or "",
@@ -55,6 +113,13 @@ class MetadataInserter:
         return not self.pending
 
     def create_xml(self) -> bytes:
+        """
+        Takes the data in `self.information` and turns it into the root
+        element of an XML file.
+
+        Returns:
+            bytes: The bytes representation of the XML file.
+        """
         root = ET.Element("ComicInfo")
 
         for key, value in self.information.model_dump().items():
@@ -67,15 +132,47 @@ class MetadataInserter:
         return xml_bytes.getvalue()
 
     def insert_xml(self, xml_bytes: bytes) -> None:
+        """
+        Inserts the XML file into the comic archive.
+
+        Args:
+            xml_bytes (bytes): The bytes of the XML file to insert.
+        """
         with zipfile.ZipFile(self.path, "a") as cbz:
             cbz.writestr("ComicInfo.xml", xml_bytes)
 
     def already_has_xml(self) -> bool:
+        """
+        Checks if an instance of `ComicInfo.xml` already exists in
+        the archive.
+
+        This prevents duplicating the file and avoids errors for future
+        taggers not knowing which version to use.
+
+        Returns:
+            bool: True if there is already one, False otherwise.
+        """
         with zipfile.ZipFile(self.path, "r") as cbz:
             return "ComicInfo.xml" in cbz.namelist()
 
     @staticmethod
     def creators_parsing(creators: list[tuple[str, str]]) -> dict[str, str]:
+        """
+        Sorts the creators into their different jobs/roles.
+
+        Goes through a list of tuples, one for each creator-role pair and unpacks them
+        into each of the different roles. Also capitalises the role names so they are
+        uniform with XML structure.
+
+        Args:
+            creators (list[tuple[str, str]]): A list of tuples, each of which has the
+            format `(person, role)` where both a role and a person can appear multiple
+            times in the list.
+
+        Returns:
+            dict[str, str]: A dictionary where the keys are the role titles and the values
+            are strings of names separated by commas and then a space.
+        """
         mapping_ = {
             "penciler": "Penciller",
             "writer": "Writer",
@@ -114,6 +211,17 @@ class MetadataInserter:
         return creator_dict
 
     def fill_gaps(self, comic_info: XMLStruc) -> XMLStruc:
+        """
+        Fills the gaps in the :class`XMLStruc` with 'PENDING' for required
+        entries and 'MISSING' for entries that are missing but not essential.
+
+        Args:
+            comic_info (XMLStruc): The filled in :class`XMLStruc`.
+
+        Returns:
+            XMLStruc: The completed :class`XMLStruc` that has the empty fields
+            replaced with the relevant string marker.
+        """
         MANDATORY_FIELDS = {
             "Writer",
             "Penciller",
@@ -137,6 +245,16 @@ class MetadataInserter:
         return comic_info.model_copy(update=data)
 
     def replace_xml(self, xml_bytes: bytes) -> None:
+        """
+        Replaces the `ComicInfo.xml` file from a comic archive.
+
+        Extracts the archive into a temporary file, removes the old
+        files and adds the new one. Then re-packages the file back
+        into a comic archive.
+
+        Args:
+            xml_bytes (bytes): The bytes of the XML file to insert.
+        """
         temp_path = self.path.with_suffix(".tmp")
         try:
             with (
@@ -155,6 +273,7 @@ class MetadataInserter:
             raise
 
     def run_inserter(self) -> None:
+        """Basic flow for running the process of inserting `ComicInfo.xml"""
         xml = self.create_xml()
 
         if self.already_has_xml():

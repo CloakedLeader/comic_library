@@ -1,3 +1,8 @@
+"""
+A collection of classes for reading comics and preloading images so reading
+is snappy and responsive.
+"""
+
 import logging
 import zipfile
 from collections import OrderedDict
@@ -404,7 +409,6 @@ class PagePreloader(QObject):
 
         Notes:
         Failed pages are not automatically retried.
-
         """
         self.loading.discard(index)
         print(f"[ERROR] Failed to load page {index}: {message}")
@@ -414,23 +418,45 @@ class PagePreloader(QObject):
 
 
 class SimpleReader(QMainWindow):
+    """
+    The main reading window.
+
+    Combines image pre-loading with a couple of user-friendly menu
+    features such as the ability to add comments or see expanded metadata
+    for the comic.
+
+    Signals:
+        closed (str, int):
+    """
+
     closed = Signal(str, int)
     page_changed = Signal(str, int)
 
     def __init__(self, comic: Comic):
+        """
+        Creates the base window by opening the comic on the currenly read index
+        and loading a certain amount of images before and after.
+
+        Creates toolbars for comic navigation and commenting. These are not yet
+        plugged into any slots.
+
+        Args:
+            comic (Comic): An instance of the :class`Comic` that gives useful data
+                like unique identifier and current saved page from the database.
+        """
         super().__init__()
 
         self.comic = comic
         self.current_index: int = comic.current_index
 
-        self.preloader = PagePreloader(self.comic, buffer=2)
+        self.preloader = PagePreloader(self.comic, buffer=8)
         self.preloader.page_ready.connect(self.on_page_ready)
 
         self.setWindowTitle("Comic Reader")
 
         self.image_label = QLabel("Loading...", alignment=Qt.AlignmentFlag.AlignCenter)
         self.page_label = QLabel("Page 1", alignment=Qt.AlignmentFlag.AlignCenter)
-
+        # TODO: This needs to be dynamic so that the page number changes
         self.menu_bar_widget = QWidget()
         self.menu_bar_layout = QHBoxLayout()
         self.menu_bar_widget.setLayout(self.menu_bar_layout)
@@ -472,6 +498,13 @@ class SimpleReader(QMainWindow):
         self.display_current_page()
 
     def display_current_page(self) -> None:
+        """
+        Displays the page with index `self.current_index`.
+
+        If already in the image cache the image is loaded, otherwise
+        a blank grey image with 'Loading...' is displayed and a
+        task is scheduled which displays the image once completed.
+        """
         index = self.current_index
         logging.info(f"Changed page index to {index}")
         if index in self.preloader.image_cache:
@@ -490,6 +523,14 @@ class SimpleReader(QMainWindow):
         #     self.preload_page(index + 1)
 
     def render_pixmap(self, index: int, pixmap: QPixmap) -> None:
+        """
+        Scales the pixmap taken from the image file into the right size and then
+        displays it, finally updates the displayed page number.
+
+        Args:
+            index (int): The zero-indexed index of the page to scale and load around.
+            pixmap (QPixmap): The QPixmap of the image to be displayed.
+        """
         scaled = pixmap.scaledToHeight(
             self.image_label.height(), Qt.TransformationMode.SmoothTransformation
         )
@@ -499,12 +540,29 @@ class SimpleReader(QMainWindow):
         self.preloader.preload(index)
 
     def on_page_ready(self, index: int):
+        """
+        Activated when the preloader loads an image.
+
+        Sets the current index to the loaded image index and renders
+        the image.
+
+        Args:
+            index (int): The index of the page just loaded by the preloader.
+        """
         if index == self.current_index:
             pixmap = self.preloader.image_cache.get(index)
             if pixmap:
                 self.render_pixmap(index, pixmap)
 
     def add_menu_button(self, name: str, callback, *args):
+        """
+        A reuseable function to add buttons into the menu.
+
+        Args:
+            name (str): The text to display on the button.
+            callback (function): The function to call when the button
+                is clicked.
+        """
         button = QToolButton()
         button.setText(name)
         button.setAutoRaise(True)
@@ -512,6 +570,12 @@ class SimpleReader(QMainWindow):
         self.menu_bar_layout.addWidget(button)
 
     def switch_toolbar(self, toolbar: QToolBar):
+        """
+        Reuseable function for switching to a certain toolbar.
+
+        Args:
+            toolbar (QToolBar): The toolbar to display.
+        """
         if self.current_toolbar == toolbar:
             return
         self.current_toolbar.hide()
@@ -519,12 +583,15 @@ class SimpleReader(QMainWindow):
         self.current_toolbar = toolbar
 
     def show_navigation_toolbar(self):
+        """Switches to the navigation toolbar."""
         self.switch_toolbar(self.navigation_toolbar)
 
     def show_comments_toolbar(self):
+        """Switches to the commenting toolbar."""
         self.switch_toolbar(self.comments_toolbar)
 
     def open_metadata_panel(self):
+        """Opens the expanded metadata panel for the comic."""
         self.metadata_popup = MetadataDialog(self.comic.info)
         self.metadata_popup.show()
 
@@ -532,18 +599,34 @@ class SimpleReader(QMainWindow):
     #     self.preload_page(self.current_index)
 
     def next_page(self):
+        """
+        Moves the reader to the next page.
+
+        Increases the `self.current_index` by 1 and then calls the function to display
+        the current page.
+        """
         if self.current_index + 1 < self.comic.total_pages:
             self.current_index += 1
             self.display_current_page()
             self.page_changed.emit(self.comic.id, self.current_index)
 
     def prev_page(self):
+        """
+        Moves the reader to the previous page.
+
+        Decreases the `self.current_index` by 1 and then calls the function to display
+        the current page.
+        """
         if self.current_index > 0:
             self.current_index -= 1
             self.display_current_page()
             self.page_changed.emit(self.comic.id, self.current_index)
 
     def keyPressEvent(self, event):
+        """
+        Listens for key presses of the right or left arrow and connects them to
+        changing the page.
+        """
         key = event.key()
         if key == Qt.Key.Key_Right:
             self.next_page()
@@ -551,6 +634,14 @@ class SimpleReader(QMainWindow):
             self.prev_page()
 
     def mouseMoveEvent(self, event):
+        """
+        Listens for mouse movements while reading. If the mouse is moved near the very
+        top then a dropdown menu pops up with options for changing the toolbar or
+        opening the metadata panel.
+
+        The dropdown menu is only displayed for a certain amount of time and then is
+        hidden again to conserve reading space.
+        """
         mouse_y = event.position().y()
 
         if mouse_y <= 40:
@@ -564,5 +655,11 @@ class SimpleReader(QMainWindow):
         super().mouseMoveEvent(event)
 
     def closeEvent(self, event) -> None:
+        """
+        Emits the closed signal when the reader is closed.
+
+        This is used by the reading controller for memory and resource
+        management.
+        """
         self.closed.emit(self.comic.id, self.current_index)
         super().closeEvent(event)

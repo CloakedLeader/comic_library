@@ -1,3 +1,7 @@
+"""
+A collection of widgets for reading order creation, editing an viewing.
+"""
+
 import json
 from pathlib import Path
 from typing import Optional
@@ -83,6 +87,15 @@ class ReadingOrderCreation(QDialog):
 
     @staticmethod
     def error_message(message: str) -> QDialog:
+        """
+        Creates a :class`QDialog` popup which displays a given error message.
+
+        Args:
+            message (str): The error message to display to the user.
+
+        Returns:
+            QDialog: The popup window to communicate error to the user.
+        """
         error_dialog = QDialog()
         error_dialog.setWindowTitle("Error!")
         message_box = QLabel(message)
@@ -424,4 +437,13 @@ class ReadingOrderEditor(QWidget):
 
 
 class ReadingOrderView(QWidget):
+    """
+    Class not written but placeholder for a more nicely formatted
+    window to view comic reading orders rather than the previous classes
+    for editing them.
+
+    Args:
+        QWidget (_type_): The widget displaying the reading order
+    """
+
     pass

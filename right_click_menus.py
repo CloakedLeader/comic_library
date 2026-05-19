@@ -1,7 +1,12 @@
+"""
+Classes for general right click (context) menus across the app.
+"""
+
 import logging
 
 from PySide6.QtWidgets import QMenu
 
+from classes.helper_classes import GUIComicInfo
 from database.gui_repo_worker import RepoWorker
 
 logging.basicConfig(
@@ -12,10 +17,36 @@ logging.basicConfig(
 
 
 class GridViewContextMenuManager:
-    def __init__(self, collection_ids, collection_names):
+    """
+    A class that represents the right click menu for the library grid views.
+
+    Attributes:
+
+        collections (list[tuple[int, str]]): A list of the comic collections in the database.
+    """
+
+    def __init__(self, collection_ids: list[int], collection_names: list[str]):
+        """
+        Initialises the `self.collections` attribute by zipping together two lists.
+
+        Args:
+            collection_ids (list[int]): List of the comic collection ids.
+            collection_names (list[str]): List of the comic collection names.
+        """
         self.collections = list(zip(collection_ids, collection_names))
 
-    def show_menu(self, comic_info, global_pos):
+    def show_menu(self, comic_info: GUIComicInfo, global_pos):
+        """
+        Opens the context menu with the different options such as
+        `read`, `metadata` and `add to collection`.
+
+        TODO: Add more later.
+
+        Args:
+            comic_info (GUIComicInfo): The GUIComicInfo of the clicked comic widget.
+            global_pos (_type_): The position of the right click w.r.t the entire
+            app view.
+        """
         logging.debug(
             "Context menu requested for %s at %s", comic_info.title, global_pos
         )

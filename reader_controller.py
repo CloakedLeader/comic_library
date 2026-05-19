@@ -1,3 +1,9 @@
+"""
+A class for managing multiple different reading windows at once.
+
+Manages both memory useage and progress-saving.
+"""
+
 from classes.helper_classes import GUIComicInfo
 from database.gui_repo_worker import RepoWorker
 from reader import Comic, SimpleReader

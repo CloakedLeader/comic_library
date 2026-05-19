@@ -25,22 +25,38 @@ SERIES_OVERRIDES = [
 
 
 class PublisherNotKnown(KeyError):
+    """An error that is raised when the publisher is not in the database."""
+
     def __init__(self, publisher_name):
+        """Creates an error message that is human readable for debugging."""
         self.publisher_name = publisher_name
         super().__init__(f"Publisher: '{publisher_name}' not known.")
 
 
 class MetadataProcessing:
+    """
+    A class for processing and cleaning metadata received from ComicVine
+    into a constant formatting used across the entire application.
+    """
+
     def __init__(self, raw_dict: ComicInfo) -> None:
+        """
+        Initialises the instance variables.
+
+        Args:
+            raw_dict (ComicInfo): The raw information taken from the ComicVine resource.
+        """
         self.raw_info = raw_dict
         self.filepath = raw_dict.filepath
         self.title_info: dict[str, str | int] = {}
 
     def __enter__(self):
+        """Context manager entrance."""
         logging.info(f"Starting metadata processing for {self.filepath.name}")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit with messages for success or failure."""
         if exc_type:
             logging.error(f"Exception while processing {self.filepath.name}: {exc_val}")
             traceback.print_tb(exc_tb)
@@ -58,6 +74,18 @@ class MetadataProcessing:
 
     @staticmethod
     def title_case(title: str) -> str:
+        """
+        Capitalises the first letter of each word in a string.
+
+        Has special cases for comic specific names like X-Men so that they are not
+        formatted incorrectly.
+
+        Args:
+            title (str): The string to captialise.
+
+        Returns:
+            str: The formatted string with capital letters in the correct place.
+        """
         # Need to also make this capitalise things like X-Men not X-men.
         minor_words = {
             "a",
@@ -81,16 +109,18 @@ class MetadataProcessing:
         }
 
         def smart_cap(word: str) -> str:
+            """Capitalises a word separated by hyphens and no space."""
             parts = word.split("-")
             new_parts = []
             for i, part in enumerate(parts):
                 if part in minor_words and i != 0:
                     new_parts.append(part)
                 else:
-                    new_parts.append(cap_apostrophe(part))
+                    new_parts.append(cap_first_letter(part))
             return "-".join(new_parts)
 
-        def cap_apostrophe(word: str) -> str:
+        def cap_first_letter(word: str) -> str:
+            """Capitalises the first letter of a word."""
             if not word:
                 return word
             return word[0].upper() + word[1:]
@@ -194,18 +224,28 @@ class MetadataProcessing:
             return raw_series.strip(), raw_title.strip()
 
         def has_volume_signifier(term: str) -> bool:
+            """
+            Checks a string for a regex pattern which corresponds to a volume number.
+
+            Returns:
+                bool: True if there is one, False otherwise.
+            """
             volume_pattern = re.compile(r"\b(vol(?:ume)?|book)\b", re.I)
             return bool(volume_pattern.search(term))
 
         def normalise_collection_title(collection_title: str, series_name: str) -> str:
-            """Replace ambiguous titles like 'tpb' or 'hc"""
+            """Chooses whether to use series or title depening on ambiguous words in title."""
 
             if collection_title in {"tpb", "hc"}:
                 return series_name
             return collection_title
 
         def get_collection_type(collection_title: str, series_name: str) -> int:
-            """Determine collection type via SERIES_OVERRRIDES."""
+            """
+            Determine collection type via SERIES_OVERRRIDES.
+
+            If there is no match then 1 is returned as this signals tpb, the generic type.
+            """
 
             for keyword, type_id, _ in SERIES_OVERRIDES:
                 if (
@@ -278,6 +318,12 @@ class MetadataProcessing:
         return self.title_info
 
     def check_issue_numbers_match(self) -> bool:
+        """
+        Check that extracted volume number matches the volume number in the raw data.
+
+        Returns:
+            bool: True if they match, False otherwise.
+        """
         if self.title_info is None:
             self.title_parsing()
         if "volume_num" not in self.title_info:

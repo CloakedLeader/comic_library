@@ -1,3 +1,8 @@
+"""
+A user-oriented panel for displaying comic metadata and user interactions
+such as reviews, comments and rating.
+"""
+
 import os
 import re
 from pathlib import Path
@@ -30,16 +35,40 @@ ROOT_DIR = Path(root_folder if root_folder is not None else "")
 
 
 class DashboardBox(QGroupBox):
-    def __init__(self, title, wrap: bool = False):
+    """
+    A reusable vertical layout for adding elements inside to display.
+
+    Attributes:
+
+        box_layout (QVBoxLayout): The box layout to add sub-widgets.
+        wrap (bool): Whether to have the text in the boxes wrap.
+    """
+
+    def __init__(self, title: str, wrap: bool = False):
+        """
+        Creates the box with a title at the top and a vertical layout within.
+
+        Args:
+            title (_type_): The title for the display box.
+            wrap (bool, optional): Whether to have the text wrap around and under.
+            Defaults to False.
+        """
         super().__init__(title)
         self.wrap = wrap
         self.box_layout = QVBoxLayout()
         self.setLayout(self.box_layout)
 
     def add_role_box(self, role_box: QWidget):
+        """Adds a pre-existing widget to the layout."""
         self.box_layout.addWidget(role_box)
 
-    def add_content(self, content):
+    def add_content(self, content: str):
+        """
+        Creates a new text box widget and adds it to the layout.
+
+        Args:
+            content (str): The text to add into the box.
+        """
         label = QLabel(content)
         label.setWordWrap(self.wrap)
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -47,7 +76,18 @@ class DashboardBox(QGroupBox):
 
 
 class RoleBox(QGroupBox):
+    """
+    A reusable box for creating one box for each createor for the metadata panel.
+    """
+
     def __init__(self, role_title: str, people_list: list[str]):
+        """
+        Creates a box with the role name as the title and then the names underneath.
+
+        Args:
+            role_title (str): The role the box is for. Is the title of the box.
+            people_list (list[str]): The people to include in the box.
+        """
         super().__init__()
         layout = QVBoxLayout()
 
@@ -168,6 +208,12 @@ class MetadataDialog(QMainWindow):
         self.setCentralWidget(container)
 
     def make_star_rating(self, rating: float, max_stars=5) -> QLabel:
+        """
+        Displays the number of stars depending on the rating.
+
+        Returns:
+            QLabel: A widget with the text that are the correct number of stars.
+        """
         full_star = "★"
         empty_star = "☆"
         stars = ""
@@ -194,6 +240,7 @@ class MetadataDialog(QMainWindow):
         return label
 
     def save_current_review(self) -> None:
+        """Saves the currently written review to the database."""
         current_text = self.text_edit.toPlainText()
         with RepoWorker() as review_saver:
             review_saver.input_review_column(
@@ -203,7 +250,17 @@ class MetadataDialog(QMainWindow):
 
 
 class MetadataPanel(QWidget):
+    """
+    The metadata panel that appears on the right when a comic is clicked.
+    """
+
     def __init__(self, comic_metadata: MetadataInfo):
+        """
+        Creates the widget to be displayed with all the information and layout.
+
+        Args:
+            comic_metadata (MetadataInfo): The complete metadata for the comic.
+        """
         super().__init__()
         layout = QVBoxLayout()
         layout.setSpacing(10)
