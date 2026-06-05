@@ -1,3 +1,4 @@
+from enum import Enum
 from pathlib import Path
 from typing import Optional, Sequence
 
@@ -151,3 +152,8 @@ class APIIssueResults(BaseModel):
     number_of_total_results: int
     status_code: int
     results: list[ComicVineIssueStruct]
+
+
+class MainViewType(Enum):
+    GRID_VIEW = "grid_view"
+    HOME_VIEW = "home_view"

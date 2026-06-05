@@ -1,27 +1,24 @@
 import asyncio
-import inspect
 import logging
 import os
 import os.path
 import sys
 import threading
 from pathlib import Path
-from typing import Callable, Optional, Sequence
+from typing import Optional
 
 import uvicorn
 from dotenv import load_dotenv
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QPixmap
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QApplication,
+    QComboBox,
     QDialog,
     QFileSystemModel,
     QHBoxLayout,
-    QLabel,
     QLineEdit,
     QMainWindow,
     QProgressBar,
-    QScrollArea,
     QSizePolicy,
     QSplitter,
     QStackedWidget,
@@ -33,7 +30,7 @@ from PySide6.QtWidgets import (
 from qasync import QEventLoop  # type: ignore[import-untyped]
 
 from api.api_main import app
-from classes.helper_classes import GUIComicInfo, RSSComicInfo
+from classes.helper_classes import GUIComicInfo, MainViewType
 from cleanup import scan_and_clean
 from collections_widget import CollectionCreation
 from comic_grid_view import ComicCollectionGridView, ComicGridView
@@ -41,8 +38,7 @@ from comic_match_logic import ComicMatch
 from comic_match_ui import ComicMatcherUI
 from database.gui_repo_worker import RepoWorker
 from db_init import startup_checks
-from download_controller import DownloadControllerAsync
-from general_comic_widget import GeneralComicWidget
+from home_view import HomeView
 from left_widget_assets import ButtonDisplay
 from metadata_controller import run_tagger
 from metadata_gui_panel import MetadataDialog, MetadataPanel
@@ -51,8 +47,6 @@ from reading_order_widget import (
     ReadingOrderCreation,
     ReadingOrderEditor,
 )
-from rss.rss_controller import RSSController
-from rss.rss_repository import RSSRepository
 from search import collection_search, text_search
 from settings import Settings
 
@@ -99,7 +93,6 @@ class HomePage(QMainWindow):
 
         self.reader_controller = ReadingController()
         with RepoWorker() as repo_worker:
-            continue_list, progress_list, review_list = repo_worker.run()
             collection_names, collection_ids = repo_worker.get_collections()
             order_names, order_ids, order_descriptions = repo_worker.get_orders()
 
@@ -109,33 +102,42 @@ class HomePage(QMainWindow):
         menu_bar.addMenu("Settings")
         menu_bar.addMenu("Help")
 
-        toolbar = QToolBar("Metadata")
-        self.addToolBar(toolbar)
-        self.home_action = toolbar.addAction("Home")
+        self.toolbar = QToolBar("Metadata")
+        self.addToolBar(self.toolbar)
+        self.home_action = self.toolbar.addAction("Home")
         self.home_action.triggered.connect(self.go_home)
         self.home_action.setShortcut("Ctrl+H")
         self.home_action.setToolTip("Go back to Homescreen")
-        toolbar.addAction("Edit")
-        self.tag_action = toolbar.addAction("Tag")
+        self.toolbar.addAction("Edit")
+        self.tag_action = self.toolbar.addAction("Tag")
         self.tag_action.setShortcut("Ctrl + T")
         self.tag_action.triggered.connect(self.tag_comics)
-        self.toggle_action = toolbar.addAction("Toggle Sidebar")
+        self.toggle_action = self.toolbar.addAction("Toggle Sidebar")
         self.toggle_action.triggered.connect(self.toggle_sidebar)
         self.toggle_action.setShortcut("Ctrl+B")
         self.toggle_action.setToolTip("Toggle file tree sidebar")
-        self.refresh_action = toolbar.addAction("Update")
+        self.refresh_action = self.toolbar.addAction("Update")
         self.refresh_action.triggered.connect(scan_and_clean)
         self.refresh_action.setShortcut("Ctrl + U")
-        self.create_collection_button = toolbar.addAction("Create Collection")
+        self.create_collection_button = self.toolbar.addAction("Create Collection")
         self.create_collection_button.triggered.connect(self.create_collection)
-        self.create_reading_order_button = toolbar.addAction("Create Reading Order")
+        self.create_reading_order_button = self.toolbar.addAction(
+            "Create Reading Order"
+        )
         self.create_reading_order_button.triggered.connect(self.create_reading_order)
-        self.settings_action = toolbar.addAction("Settings")
+        self.settings_action = self.toolbar.addAction("Settings")
         self.settings_action.triggered.connect(self.open_settings)
 
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        toolbar.addWidget(spacer)
+        self.toolbar.addWidget(spacer)
+
+        self.sort_menu = QComboBox()
+        self.sort_menu.setPlaceholderText("Sort..")
+        self.sort_menu.addItem("Title Asc")
+        self.sort_menu.addItem("Title Desc")
+        self.sort_action = self.toolbar.addWidget(self.sort_menu)
+        self.sort_action.setVisible(True)
 
         self.search_bar = QLineEdit()
         self.search_bar.setPlaceholderText("Search comics..")
@@ -143,7 +145,7 @@ class HomePage(QMainWindow):
         self.search_bar.editingFinished.connect(
             lambda: self.search(self.search_bar.text())
         )
-        toolbar.addWidget(self.search_bar)
+        self.toolbar.addWidget(self.search_bar)
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setMaximum(100)
@@ -192,26 +194,15 @@ class HomePage(QMainWindow):
         self.splitter = QSplitter()
         self.splitter.addWidget(left_widget)
 
-        self.content_area = QWidget()
-        content_layout = QVBoxLayout(self.content_area)
-
-        # stats_bar = self.create_stats_bar()
-        # stats_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        # stats_bar.setMaximumHeight(60)
-        # left_layout.addWidget(stats_bar, stretch=2)
-        continue_reading = self.create_continue_reading_area(
-            continue_list, progress_list
-        )
-        # need_review = self.create_review_area(review_list)
-        rss = self.create_rss_area(10)
-
-        # content_layout.addWidget(stats_bar, stretch=1)
-        content_layout.addWidget(continue_reading, stretch=3)
-        # content_layout.addWidget(need_review, stretch=3)
-        content_layout.addWidget(rss, stretch=3)
+        self.home_page = HomeView(DB_PATH)
+        self.home_page.asyncError.connect(self.handle_async_exceptions)
+        self.home_page.openReader.connect(self.open_reader)
+        self.home_page.statusMessage.connect(self.update_status)
+        self.home_page.downloadProgress.connect(self.update_progress_bar)
 
         self.stack = QStackedWidget()
-        self.stack.addWidget(self.content_area)
+        self.stack.currentChanged.connect(self.on_view_changed)
+        self.stack.addWidget(self.home_page)
         self.splitter.addWidget(self.stack)
         container = QWidget()
         lay = QVBoxLayout(container)
@@ -237,76 +228,6 @@ class HomePage(QMainWindow):
 
         self.setCentralWidget(container)
 
-    def create_scroll_area(
-        self,
-        list_of_info: Sequence[GUIComicInfo | RSSComicInfo],
-        header: str,
-        left_clicked: Optional[Callable],
-        right_clicked: Optional[Callable],
-        double_left_clicked: Optional[Callable],
-        progresses: Optional[list[float]] = None,
-    ) -> QWidget:
-        """
-        Create a horizontal scroll area populated with comic widgets.
-
-        Args:
-            list_of_dicts: List of dictionaries containing comic
-        information.
-            header: Text for the scroll area section title.
-            upon_clicked: Callback function to execute when a
-        comic is clicked.
-
-        Returns:
-            A configured QScrollArea with clickable comic widgets.
-        """
-
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-
-        container = QWidget()
-        layout = QHBoxLayout()
-        layout.setSpacing(16)
-        container.setLayout(layout)
-
-        title = QLabel(header)
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet(
-            """font-size: 18px;
-                             font-weight: bold; padding: 10px;"""
-        )
-
-        def wrap_handler(func) -> Optional[Callable]:
-            if func is None:
-                return None
-            if inspect.iscoroutinefunction(func):
-
-                def wrapper(*args, **kwargs):
-                    task = asyncio.create_task(func(*args, **kwargs))
-                    task.add_done_callback(self.handle_async_exceptions)
-
-                return wrapper
-            return func
-
-        for pos, comic in enumerate(list_of_info):
-            progress = progresses[pos] if progresses else None
-            comic_widget = GeneralComicWidget(
-                comic,
-                wrap_handler(left_clicked),
-                right_clicked,
-                double_left_clicked,
-                progress=progress,
-            )
-
-            layout.addWidget(comic_widget)
-
-        scroll_area.setWidget(container)
-        wrapper_widget = QWidget()
-        wrapper_layout = QVBoxLayout(wrapper_widget)
-        wrapper_layout.addWidget(title)
-        wrapper_layout.addWidget(scroll_area)
-
-        return wrapper_widget
-
     def open_reader(self, comic: GUIComicInfo) -> None:
         """
         Open a comic reader for the specified comic.
@@ -316,169 +237,6 @@ class HomePage(QMainWindow):
             including filepath and database id.
         """
         self.reader_controller.read_comic(comic)
-
-    def print_hi(self, comic_info: GUIComicInfo) -> None:
-        print("Hi " + comic_info.title + "!")
-
-    def create_continue_reading_area(
-        self, list_of_comics_marked_as_read: list[GUIComicInfo], progress: list[float]
-    ) -> QWidget:
-        """
-        Creates a scroll area for comics marked as continue reading.
-
-        Args:
-            list_of_comics_marked_as_read: List of comics to display.
-        """
-        return self.create_scroll_area(
-            list_of_comics_marked_as_read,
-            header="Continue Reading",
-            left_clicked=self.open_reader,
-            right_clicked=None,
-            double_left_clicked=None,
-            progresses=progress,
-        )
-
-    def create_recommended_reading_area(
-        self, list_of_recommended_comics: list[GUIComicInfo]
-    ) -> QWidget:
-        """
-        Creates a scroll area for comics marked as recommended.
-
-        Args:
-            list_of_recommended_comics: List of recommended
-        comics to display.
-        """
-        return self.create_scroll_area(
-            list_of_recommended_comics,
-            header="Recommended Next Read",
-            left_clicked=self.open_reader,
-            right_clicked=None,
-            double_left_clicked=None,
-        )
-
-    def create_review_area(
-        self, list_of_unreviewed_comics: list[GUIComicInfo]
-    ) -> QWidget:
-        """
-        Creates a scroll area for comics marked as requiring
-        review.
-
-        Args:
-            list_of_unreviewed_comics: List of unreviewed comics
-        to display.
-        """
-        return self.create_scroll_area(
-            list_of_unreviewed_comics,
-            header="Write a review...",
-            left_clicked=self.open_review_panel,
-            right_clicked=None,
-            double_left_clicked=None,
-        )
-
-    def create_rss_area(self, num: int = 8) -> QWidget:
-        """
-        Creates a scroll area for RSS feed comics.
-
-        Fetches recent comics from the RSS controller and
-        creates a scroll area with download functionality
-        for each comic.
-        """
-        repository = RSSRepository(DB_PATH)
-        rss_cont = RSSController(repository)
-        recent_comics_list = rss_cont.run(num)
-        self.download_controller = DownloadControllerAsync(view=self)
-        return self.create_scroll_area(
-            recent_comics_list,
-            header="GetComics RSS Feed",
-            left_clicked=self.download_controller.handle_rss_comic_clicked,
-            right_clicked=None,
-            double_left_clicked=None,
-        )
-
-    def create_stats_bar(self) -> QWidget:
-        """
-        Create and return a statistics bar widget.
-
-        Returns:
-            A QWidget containing comic library statistics.
-        """
-        files_num, storage_val = count_files_and_storage(str(ROOT_DIR))
-
-        def create_stat_widget(title: str, image_path: str, value: str) -> QWidget:
-            """
-            Create a single statistic widget.
-
-            Args:
-                title: The statistic title.
-                image_path: Path to the icon image.
-                value: The statistic value to display.
-
-            Returns:
-                A QWidget displaying the statistic with title, icon
-            and value.
-            """
-            widget = QWidget()
-            layout = QVBoxLayout()
-            layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            widget.setLayout(layout)
-
-            title_label = QLabel(title)
-            title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-            pixmap = QPixmap(image_path)
-            image_label = QLabel()
-            image_label.setPixmap(
-                pixmap.scaled(
-                    30,
-                    30,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
-            )
-            image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-            value_label = QLabel(value)
-            value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-            layout.addWidget(title_label)
-            layout.addWidget(image_label)
-            layout.addWidget(value_label)
-
-            return widget
-
-        stats = QWidget()
-        layout = QHBoxLayout(stats)
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        layout.addWidget(
-            create_stat_widget(
-                "Number of Comics",
-                "D:\\comic_library\\comic_gui\\comicbook.png",
-                str(files_num),
-            )
-        )
-
-        layout.addWidget(
-            create_stat_widget(
-                "Storage",
-                "D:\\comic_library\\comic_gui\\storage.png",
-                f"{round(storage_val, 2)} GB",
-            )
-        )
-
-        final_widget = QWidget()
-        final_layout = QVBoxLayout()
-        final_widget.setLayout(final_layout)
-        title = QLabel("Your Statistics")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet(
-            """font-size: 12px;
-                             font-weight: bold; padding: 2px;"""
-        )
-        final_layout.addWidget(title)
-        final_layout.addWidget(stats)
-
-        return final_widget
 
     def on_folder_select(self, index):
         folder_path = self.file_model.fileName(index)
@@ -552,7 +310,7 @@ class HomePage(QMainWindow):
             return
 
     def go_home(self):
-        self.stack.setCurrentWidget(self.content_area)
+        self.stack.setCurrentWidget(self.home_page)
 
     def search(self, text: str):
         if text == "" or text is None:
@@ -659,6 +417,14 @@ class HomePage(QMainWindow):
     def delete_ord(self, identifier: int) -> None:
         with RepoWorker() as worker:
             worker.delete_order(identifier)
+
+    def on_view_changed(self, index: int) -> None:
+        widget = self.stack.widget(index)
+        if isinstance(widget, QSplitter) and widget.count() > 0:
+            widget = widget.widget(0)
+        view_type = getattr(widget, "VIEW_TYPE", None)
+
+        self.sort_action.setVisible(view_type == MainViewType.GRID_VIEW)
 
     def update_status(self, message: str) -> None:
         """

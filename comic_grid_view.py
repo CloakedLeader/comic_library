@@ -3,6 +3,8 @@ Models for arranging comic widgets and icons into grids with different functiona
 and uses.
 """
 
+from enum import Enum
+
 from PySide6.QtCore import QEvent, QMimeData, QObject, QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QDrag, QDragEnterEvent, QDragMoveEvent, QDropEvent, QIcon
 from PySide6.QtWidgets import (
@@ -17,11 +19,20 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from classes.helper_classes import GUIComicInfo
+from classes.helper_classes import GUIComicInfo, MainViewType
 from database.gui_repo_worker import RepoWorker
 from general_comic_widget import GeneralComicWidget
 from reader_controller import ReadingController
 from right_click_menus import GridViewContextMenuManager
+
+
+class SortMode(Enum):
+    TITLE_ASC = "title_asc"
+    TITLE_DESC = "title_desc"
+    DATE_ADDED = "data_added"
+    RELEASE_DATE = "release_date"
+    RATING = "rating"
+    ISSUE_NUMBER = "issue_number"
 
 
 class ComicGrid(QWidget):
@@ -56,6 +67,7 @@ class ComicGrid(QWidget):
             widgets into. Defaults to 5.
         """
         super().__init__()
+        # self.VIEW_TYPE = MainViewType.GRID_VIEW
         self.comics = comics
         self.cont = reading_controller
         self.context_menu = GridViewContextMenuManager(coll_ids, coll_names)
@@ -138,6 +150,22 @@ class ComicGrid(QWidget):
         self.clear_grid()
         self.comics = comics
         self.add_comics(self.comics)
+
+    def sort_comics(self, mode: SortMode) -> None:
+        """
+        Sorts the comics in `self.comics` and then updates the view with the new order.
+        This does not mutate the `self.comics` attribute as this is just data and should
+        have no effect on the view.
+
+        Args:
+            mode (SortMode): The sort mode for the view.
+        """
+        if mode == SortMode.TITLE_ASC:
+            arranged = sorted(self.comics, key=lambda c: c.title.lower())
+            self.reload_contents(arranged)
+        elif mode == SortMode.TITLE_DESC:
+            arranged = sorted(self.comics, key=lambda c: c.title.lower(), reverse=True)
+            self.reload_contents(arranged)
 
     def open_reader(self, comic_info: GUIComicInfo):
         """
@@ -355,6 +383,7 @@ class ComicGridView(QWidget):
     functionality. Has type QWidget.
     """
 
+    VIEW_TYPE = MainViewType.GRID_VIEW
     metadata_requested = Signal(GUIComicInfo)
 
     def __init__(

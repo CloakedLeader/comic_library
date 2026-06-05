@@ -84,14 +84,14 @@ class DownloadControllerAsync:
         self.comic_info = comic_info
         self.view.update_status(f"Starting download of: {comic_info.title}")
         logging.debug(f"comic_info.url: {comic_info.url}")
-        async with self.download_service as downloader:
+        async with self.download_service:
             download_links = await self.download_service.get_download_links(
                 comic_info.url
             )
             download_links = self.download_service.sort(download_links)
             download_now_link = download_links[0][1]
             try:
-                filepath = await self.download_service.download_comic(
+                _ = await self.download_service.download_comic(
                     download_now_link, self.progress_update
                 )
             except (requests.RequestException, aiohttp.ClientError, IOError) as e:
@@ -116,7 +116,7 @@ class DownloadControllerAsync:
         #         break
 
     def progress_update(self, percent: int):
-        self.view.update_progress_bar(percent)
+        self.view.update_download_progress(percent)
 
     # async def cleanup(self):
     #     if self.download_service:
