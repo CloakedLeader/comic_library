@@ -421,7 +421,9 @@ class RepoWorker:
 
         return MetadataInfo(
             primary_id=primary_id,
-            name=f"{title}: {series}",
+            title=title,
+            series=series,
+            # name=f"{title}: {series}",
             volume_num=volume_num,
             publisher=publiser_name,
             date=release_date,

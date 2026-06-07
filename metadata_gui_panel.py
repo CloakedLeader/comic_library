@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QMainWindow,
     QPushButton,
     QScrollArea,
@@ -32,6 +33,18 @@ from database.gui_repo_worker import RepoWorker
 load_dotenv()
 root_folder = os.getenv("ROOT_DIR")
 ROOT_DIR = Path(root_folder if root_folder is not None else "")
+
+TITLE_STYLE = """
+QLabel {
+    color: #888888;
+    font-size: 12px;
+}"""
+
+INFORMATION_STYLE = """
+QLabel {
+    color: #1a1a1a;
+    font-size: 14px;
+}"""
 
 
 class DashboardBox(QGroupBox):
@@ -62,17 +75,30 @@ class DashboardBox(QGroupBox):
         """Adds a pre-existing widget to the layout."""
         self.box_layout.addWidget(role_box)
 
-    def add_content(self, content: str):
+    def add_content(self, content):
         """
-        Creates a new text box widget and adds it to the layout.
+        Adds any type of content to the layout.
 
-        Args:
-            content (str): The text to add into the box.
+        Supports:
+            - QWidget -> added directly
+            - QLayout -> added as a sub-layout
+            - Other -> converted to QLabel
         """
+        if isinstance(content, QWidget):
+            self.box_layout.addWidget(content)
+            return
+
+        if isinstance(content, QLayout):
+            self.box_layout.addLayout(content)
+            return
+
         label = QLabel(content)
         label.setWordWrap(self.wrap)
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.box_layout.addWidget(label)
+
+    def addLayout(self, layout: QLayout):
+        self.box_layout.addLayout(layout)
 
 
 class RoleBox(QGroupBox):
@@ -91,13 +117,32 @@ class RoleBox(QGroupBox):
         super().__init__()
         layout = QVBoxLayout()
 
-        title_label = QLabel(role_title)
-        title_label.setStyleSheet("font-weight: bold; font-size: 14pt;")
-        layout.addWidget(title_label)
+        self.is_empty = len(people_list) == 0
+        if len(people_list) == 1 and people_list[0] == "MISSING":
+            self.is_empty = True
 
-        for person in people_list:
-            person_label = QLabel(person)
-            layout.addWidget(person_label)
+        title_label = QLabel(role_title)
+        title_label.setStyleSheet(TITLE_STYLE)
+        layout.addWidget(title_label)
+        if len(people_list) > 4:
+            grid = QGridLayout()
+            for i, person in enumerate(people_list):
+                if person == "MISSING":
+                    continue
+                row = i // 2
+                col = i % 2
+                person_label = QLabel(person)
+                person_label.setStyleSheet(INFORMATION_STYLE)
+                grid.addWidget(person_label, row, col)
+
+            layout.addLayout(grid)
+        else:
+            for person in people_list:
+                if person == "MISSING":
+                    continue
+                person_label = QLabel(person)
+                person_label.setStyleSheet(INFORMATION_STYLE)
+                layout.addWidget(person_label)
 
         self.setLayout(layout)
 
@@ -123,15 +168,20 @@ class MetadataDialog(QMainWindow):
         with RepoWorker() as info_getter:
             metadata = info_getter.get_complete_metadata(self.primary_id)
         super().__init__()
-        self.setWindowTitle(f"Metadata for {metadata.name}")
+        self.setWindowTitle(f"Metadata for {metadata.title}: {metadata.series}")
         self.setMinimumSize(800, 600)
+        self.name = f"{metadata.title}: {metadata.title}"
 
         main_layout = QVBoxLayout()
         content_layout = QGridLayout()
 
         creators_box = DashboardBox("Creators")
         for role, people in metadata.creators:
-            creators_box.add_role_box(RoleBox(role, people))
+            box = RoleBox(role, people)
+            if box.is_empty:
+                continue
+            else:
+                creators_box.add_role_box(box)
 
         description_box = DashboardBox("Description", True)
         clean_desc = re.sub(r"\n\s*\n", "<br><br>", metadata.description).strip()
@@ -149,6 +199,7 @@ class MetadataDialog(QMainWindow):
         current_review.setLayout(current_review_layout)
         self.text_edit = QTextEdit()
         review_area = QScrollArea()
+        review_area.setStyleSheet("QScrollArea { border: none; }")
         self.text_edit.setPlaceholderText("Write your review here...")
         if len(metadata.reviews) != 0:
             for review, date, iteration in metadata.reviews:
@@ -173,6 +224,8 @@ class MetadataDialog(QMainWindow):
         review_layout.addWidget(current_review)
         review_area.setWidget(review_container)
         review_area.setWidgetResizable(True)
+        review_panel = DashboardBox("Reviews", False)
+        review_panel.add_content(review_area)
 
         thumbnail_filename = f"{self.primary_id}_t.jpg"
         thumbnail_pix = QPixmap(ROOT_DIR / ".covers" / thumbnail_filename)
@@ -184,15 +237,18 @@ class MetadataDialog(QMainWindow):
         title_cover_widget = QWidget()
         title_cover_widget.setLayout(title_cover_box)
         title_cover_box.addWidget(thumbnail_label)
-        title_cover_box.addWidget(QLabel(metadata.name))
 
         stars = self.make_star_rating(rating=metadata.rating if metadata.rating else 0)
 
-        content_layout.addWidget(title_cover_widget, 0, 0, 1, 1)
-        content_layout.addWidget(creators_box, 1, 0, -1, 1)
-        content_layout.addWidget(description_box, 0, 1, 1, 2)
-        content_layout.addWidget(stars, 0, 3, 1, 1)
-        content_layout.addWidget(review_area, 1, 1, 1, 2)
+        title_cover_box.addWidget(self.create_overview_widget(metadata, stars))
+        overview_panel = DashboardBox("Overview", False)
+        overview_panel.add_content(title_cover_widget)
+
+        content_layout.addWidget(overview_panel, 0, 0, 3, 1)
+        content_layout.addWidget(creators_box, 2, 3, 2, 1)
+        content_layout.addWidget(description_box, 0, 1, 2, 2)
+        # content_layout.addWidget(stars, 0, 3, 1, 1)
+        content_layout.addWidget(review_panel, 2, 1, 2, 2)
 
         close_button = QPushButton("Close")
         close_button.clicked.connect(self.close)
@@ -248,6 +304,49 @@ class MetadataDialog(QMainWindow):
             )
         return None
 
+    def create_overview_widget(self, metadata: MetadataInfo, stars: QLabel) -> QWidget:
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        series_title = QLabel("Series")
+        series_title.setStyleSheet(TITLE_STYLE)
+        series_content = QLabel(metadata.series)
+        series_content.setStyleSheet(INFORMATION_STYLE)
+        layout.addWidget(series_title)
+        layout.addWidget(series_content)
+
+        title_title = QLabel("Title/Book")
+        title_title.setStyleSheet(TITLE_STYLE)
+        title_content = QLabel(metadata.title)
+        title_content.setStyleSheet(INFORMATION_STYLE)
+        layout.addWidget(title_title)
+        layout.addWidget(title_content)
+
+        volume_title = QLabel("Volume")
+        volume_title.setStyleSheet(TITLE_STYLE)
+        volume_content = QLabel(f"Volume {metadata.volume_num}")
+        volume_content.setStyleSheet(INFORMATION_STYLE)
+        layout.addWidget(volume_title)
+        layout.addWidget(volume_content)
+
+        publisher_title = QLabel("Publisher")
+        publisher_title.setStyleSheet(TITLE_STYLE)
+        publisher_content = QLabel(metadata.publisher)
+        publisher_content.setStyleSheet(INFORMATION_STYLE)
+        layout.addWidget(publisher_title)
+        layout.addWidget(publisher_content)
+
+        date_title = QLabel("Date")
+        date_title.setStyleSheet(TITLE_STYLE)
+        date_content = QLabel(metadata.date)
+        date_content.setStyleSheet(INFORMATION_STYLE)
+        layout.addWidget(date_title)
+        layout.addWidget(date_content)
+
+        layout.addWidget(stars)
+        layout.addWidget(QLabel("FAVOURITE BUTTON COMING SOON!"))
+        return widget
+
 
 class MetadataPanel(QWidget):
     """
@@ -262,6 +361,7 @@ class MetadataPanel(QWidget):
             comic_metadata (MetadataInfo): The complete metadata for the comic.
         """
         super().__init__()
+        self.name = f"{comic_metadata.title}: {comic_metadata.series}"
         layout = QVBoxLayout()
         layout.setSpacing(10)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -301,7 +401,7 @@ class MetadataPanel(QWidget):
 
         layout.addWidget(quick_icons)
 
-        display_text = f"#{comic_metadata.volume_num} - {comic_metadata.name}"
+        display_text = f"#{comic_metadata.volume_num} - {self.name}"
         title_widget = QLabel(display_text)
         title_widget.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
@@ -319,12 +419,22 @@ class MetadataPanel(QWidget):
 
         total_creator_info = ""
         for role, creators_list in comic_metadata.creators:
+            if len(creators_list) == 1 and (
+                creators_list[0] == "MISSING" or creators_list[0] == "<MISSING>"
+            ):
+                continue
+            creators_list = [
+                i for i in creators_list if (i != "MISSING" and i != "<MISSING>")
+            ][:5]
             if role not in ["Editor", "Letterer", "Inker"]:
+                if len(creators_list) == 0:
+                    continue
                 temp_string = f"{role}: "
                 temp_string += ", ".join(creators_list)
                 temp_string += "\n"
                 total_creator_info += temp_string
         creator_widget = QLabel(total_creator_info)
+        creator_widget.setWordWrap(True)
         layout.addWidget(creator_widget)
 
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
