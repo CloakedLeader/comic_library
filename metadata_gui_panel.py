@@ -118,27 +118,29 @@ class RoleBox(QGroupBox):
         layout = QVBoxLayout()
 
         self.is_empty = len(people_list) == 0
-        if len(people_list) == 1 and people_list[0] == "MISSING":
+        if len(people_list) == 1 and people_list[0] in ("MISSING", "<MISSING>"):
             self.is_empty = True
 
         title_label = QLabel(role_title)
         title_label.setStyleSheet(TITLE_STYLE)
         layout.addWidget(title_label)
-        if len(people_list) > 4:
+        if len(people_list) > 2:
             grid = QGridLayout()
-            for i, person in enumerate(people_list):
-                if person == "MISSING":
+            grid_index = 0
+            for _, person in enumerate(people_list):
+                if person in ("MISSING", "<MISSING>"):
                     continue
-                row = i // 2
-                col = i % 2
+                row = grid_index // 2
+                col = grid_index % 2
                 person_label = QLabel(person)
                 person_label.setStyleSheet(INFORMATION_STYLE)
                 grid.addWidget(person_label, row, col)
+                grid_index += 1
 
             layout.addLayout(grid)
         else:
             for person in people_list:
-                if person == "MISSING":
+                if person in ("MISSING", "<MISSING>"):
                     continue
                 person_label = QLabel(person)
                 person_label.setStyleSheet(INFORMATION_STYLE)
@@ -170,7 +172,7 @@ class MetadataDialog(QMainWindow):
         super().__init__()
         self.setWindowTitle(f"Metadata for {metadata.title}: {metadata.series}")
         self.setMinimumSize(800, 600)
-        self.name = f"{metadata.title}: {metadata.title}"
+        self.name = f"{metadata.series}: {metadata.title}"
 
         main_layout = QVBoxLayout()
         content_layout = QGridLayout()
@@ -180,8 +182,7 @@ class MetadataDialog(QMainWindow):
             box = RoleBox(role, people)
             if box.is_empty:
                 continue
-            else:
-                creators_box.add_role_box(box)
+            creators_box.add_role_box(box)
 
         description_box = DashboardBox("Description", True)
         clean_desc = re.sub(r"\n\s*\n", "<br><br>", metadata.description).strip()
@@ -224,7 +225,7 @@ class MetadataDialog(QMainWindow):
         review_layout.addWidget(current_review)
         review_area.setWidget(review_container)
         review_area.setWidgetResizable(True)
-        review_panel = DashboardBox("Reviews", False)
+        review_panel = DashboardBox("Reviews", wrap=False)
         review_panel.add_content(review_area)
 
         thumbnail_filename = f"{self.primary_id}_t.jpg"
@@ -241,7 +242,7 @@ class MetadataDialog(QMainWindow):
         stars = self.make_star_rating(rating=metadata.rating if metadata.rating else 0)
 
         title_cover_box.addWidget(self.create_overview_widget(metadata, stars))
-        overview_panel = DashboardBox("Overview", False)
+        overview_panel = DashboardBox("Overview", wrap=False)
         overview_panel.add_content(title_cover_widget)
 
         content_layout.addWidget(overview_panel, 0, 0, 3, 1)
@@ -419,18 +420,14 @@ class MetadataPanel(QWidget):
 
         total_creator_info = ""
         for role, creators_list in comic_metadata.creators:
-            if len(creators_list) == 1 and (
-                creators_list[0] == "MISSING" or creators_list[0] == "<MISSING>"
-            ):
-                continue
-            creators_list = [
-                i for i in creators_list if (i != "MISSING" and i != "<MISSING>")
+            filtered_creators = [
+                c for c in creators_list if c not in ("MISSING", "<MISSING>")
             ][:5]
             if role not in ["Editor", "Letterer", "Inker"]:
-                if len(creators_list) == 0:
+                if len(filtered_creators) == 0:
                     continue
                 temp_string = f"{role}: "
-                temp_string += ", ".join(creators_list)
+                temp_string += ", ".join(filtered_creators)
                 temp_string += "\n"
                 total_creator_info += temp_string
         creator_widget = QLabel(total_creator_info)

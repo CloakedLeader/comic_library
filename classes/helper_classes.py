@@ -42,7 +42,6 @@ class MetadataInfo(BaseModel):
     primary_id: str
     title: str
     series: str
-    # name: str
     volume_num: int
     publisher: str
     date: str
