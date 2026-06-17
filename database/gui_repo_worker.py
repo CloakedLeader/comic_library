@@ -371,6 +371,10 @@ class RepoWorker:
 
         title: str = comic_info[1]
         series: str = comic_info[2]
+        if not title or not series:
+            raise ValueError(
+                f"Comic {primary_id} has missing title or series in database"
+            )
         volume_num = comic_info[3]
         publisher_num = comic_info[4]
         release_date = comic_info[5]
@@ -421,7 +425,8 @@ class RepoWorker:
 
         return MetadataInfo(
             primary_id=primary_id,
-            name=f"{title}: {series}",
+            title=title,
+            series=series,
             volume_num=volume_num,
             publisher=publiser_name,
             date=release_date,

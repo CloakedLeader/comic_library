@@ -40,7 +40,8 @@ class RSSComicInfo(BaseModel):
 
 class MetadataInfo(BaseModel):
     primary_id: str
-    name: str
+    title: str
+    series: str
     volume_num: int
     publisher: str
     date: str
