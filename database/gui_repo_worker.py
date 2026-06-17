@@ -371,7 +371,7 @@ class RepoWorker:
 
         title: str = comic_info[1]
         series: str = comic_info[2]
-        if not (title or series):
+        if not title or not series:
             raise ValueError(
                 f"Comic {primary_id} has missing title or series in database"
             )

@@ -127,7 +127,7 @@ class RoleBox(QGroupBox):
         if len(people_list) > 2:
             grid = QGridLayout()
             grid_index = 0
-            for _, person in enumerate(people_list):
+            for person in people_list:
                 if person in ("MISSING", "<MISSING>"):
                     continue
                 row = grid_index // 2
