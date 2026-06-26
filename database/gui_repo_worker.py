@@ -363,11 +363,23 @@ class RepoWorker:
         )
         team_id_info: list[int] = [row[0] for row in self.cursor.fetchall()]
 
-        self.cursor.execute("SELECT * FROM reviews WHERE comic_id = ?", (primary_id,))
+        self.cursor.execute(
+            """
+            SELECT * FROM reviews
+            WHERE comic_id = ?
+            ORDER BY date_reviewed DESC, iteration DESC
+            """,
+            (primary_id,),
+        )
         review_info: list[tuple[int, int, str, str]] = [
             (row[1], row[2], row[3], row[4]) for row in self.cursor.fetchall()
         ]
         # iteration, rating, review_text, date
+
+        self.cursor.execute(
+            "SELECT * FROM favourites WHERE comic_id = ?", (primary_id,)
+        )
+        fav: bool = True if self.cursor.fetchone() else False
 
         title: str = comic_info[1]
         series: str = comic_info[2]
@@ -436,6 +448,7 @@ class RepoWorker:
             teams=teams,
             rating=rating,
             reviews=reviews,
+            favourite=fav,
         )
 
     def create_collection(self, title: str) -> int:

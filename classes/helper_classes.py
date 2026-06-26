@@ -51,6 +51,7 @@ class MetadataInfo(BaseModel):
     teams: list[str]
     rating: Optional[int]
     reviews: Sequence[tuple[Optional[str], Optional[str], Optional[int]]]
+    favourite: bool
 
 
 class ImageInfo(BaseModel):

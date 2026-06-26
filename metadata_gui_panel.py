@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 
 from classes.helper_classes import GUIComicInfo, MetadataInfo
 from database.gui_repo_worker import RepoWorker
+from fav_and_rating import HeartButton, StarRating
 
 load_dotenv()
 root_folder = os.getenv("ROOT_DIR")
@@ -239,9 +240,11 @@ class MetadataDialog(QMainWindow):
         title_cover_widget.setLayout(title_cover_box)
         title_cover_box.addWidget(thumbnail_label)
 
-        stars = self.make_star_rating(rating=metadata.rating if metadata.rating else 0)
-
-        title_cover_box.addWidget(self.create_overview_widget(metadata, stars))
+        # stars = self.make_star_rating(rating=metadata.rating if metadata.rating else 0)
+        stars = StarRating(metadata.rating if metadata.rating else 0.0)
+        print("StarRating Widget Size: ", stars.size())
+        heart = HeartButton(metadata.favourite)
+        title_cover_box.addWidget(self.create_overview_widget(metadata, stars, heart))
         overview_panel = DashboardBox("Overview", wrap=False)
         overview_panel.add_content(title_cover_widget)
 
@@ -305,7 +308,9 @@ class MetadataDialog(QMainWindow):
             )
         return None
 
-    def create_overview_widget(self, metadata: MetadataInfo, stars: QLabel) -> QWidget:
+    def create_overview_widget(
+        self, metadata: MetadataInfo, stars: StarRating, heart_button: HeartButton
+    ) -> QWidget:
         widget = QWidget()
         layout = QVBoxLayout(widget)
 
@@ -345,7 +350,7 @@ class MetadataDialog(QMainWindow):
         layout.addWidget(date_content)
 
         layout.addWidget(stars)
-        layout.addWidget(QLabel("FAVOURITE BUTTON COMING SOON!"))
+        layout.addWidget(heart_button)
         return widget
 
 
