@@ -679,3 +679,13 @@ class RepoWorker:
             """,
                 (parent_id,),
             )
+
+    def favourite_toggle(self, comic_id: str, toggle: bool) -> None:
+        if toggle:
+            self.cursor.execute(
+                "INSERT INTO favourites (comic_id) VALUES (?)", (comic_id,)
+            )
+        else:
+            self.cursor.execute(
+                "DELETE FROM favourites WHERE comic_id = ?", (comic_id,)
+            )

@@ -10,7 +10,7 @@ from textwrap import dedent
 
 from dotenv import load_dotenv
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QCloseEvent, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
     QGridLayout,
@@ -241,10 +241,11 @@ class MetadataDialog(QMainWindow):
         title_cover_box.addWidget(thumbnail_label)
 
         # stars = self.make_star_rating(rating=metadata.rating if metadata.rating else 0)
-        stars = StarRating(metadata.rating if metadata.rating else 0.0)
-        print("StarRating Widget Size: ", stars.size())
-        heart = HeartButton(metadata.favourite)
-        title_cover_box.addWidget(self.create_overview_widget(metadata, stars, heart))
+        self.stars = StarRating(metadata.rating if metadata.rating else 0.0)
+        self.heart = HeartButton(metadata.favourite)
+        title_cover_box.addWidget(
+            self.create_overview_widget(metadata, self.stars, self.heart)
+        )
         overview_panel = DashboardBox("Overview", wrap=False)
         overview_panel.add_content(title_cover_widget)
 
@@ -352,6 +353,16 @@ class MetadataDialog(QMainWindow):
         layout.addWidget(stars)
         layout.addWidget(heart_button)
         return widget
+
+    def close_process(self):
+        favourite_state = self.heart.isChecked()
+        # rating = self.stars.rating * 2
+        with RepoWorker() as worker:
+            worker.favourite_toggle(self.primary_id, favourite_state)
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        self.close_process()
+        return super().closeEvent(event)
 
 
 class MetadataPanel(QWidget):
