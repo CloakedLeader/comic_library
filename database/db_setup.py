@@ -156,11 +156,20 @@ def create_tables(db_path: Path | str) -> None:
         CREATE TABLE IF NOT EXISTS reviews (
         comic_id TEXT NOT NULL,
         iteration INTEGER NOT NULL,
-        rating INTEGER CHECK (rating BETWEEN 1 AND 10),
-        review TEXT,
+        review TEXT NOT NULL,
         date_reviewed TEXT DEFAULT CURRENT_DATE,
         PRIMARY KEY (comic_id, iteration),
         FOREIGN KEY (comic_id) REFERENCES comics(id)
+        )
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS ratings (
+        comic_id TEXT PRIMARY KEY,
+        rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 10),
+        FOREIGN KEY (comic_id) REFERENCES comics(id) ON DELETE CASCADE
         )
         """
     )

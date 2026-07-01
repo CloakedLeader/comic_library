@@ -6,7 +6,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 
-from classes.helper_classes import GUIComicInfo, MetadataInfo
+from classes.helper_classes import GUIComicInfo, MetadataInfo, ReviewData
 
 load_dotenv()
 ROOT_DIR = Path(os.getenv("ROOT_DIR") or "")
@@ -365,16 +365,22 @@ class RepoWorker:
 
         self.cursor.execute(
             """
-            SELECT * FROM reviews
+            SELECT iteration, review, date_reviwed FROM reviews
             WHERE comic_id = ?
             ORDER BY date_reviewed DESC, iteration DESC
             """,
             (primary_id,),
         )
-        review_info: list[tuple[int, int, str, str]] = [
-            (row[1], row[2], row[3], row[4]) for row in self.cursor.fetchall()
+        reviews: list[ReviewData] = [
+            ReviewData(iteration=row[0], review=row[1], date=row[2])
+            for row in self.cursor.fetchall()
         ]
-        # iteration, rating, review_text, date
+
+        self.cursor.execute(
+            "SELECT rating FROM ratings WHERE comic_id = ?", (primary_id,)
+        )
+        row = self.cursor.fetchone()
+        rating = row[0] if row else 0
 
         self.cursor.execute(
             "SELECT * FROM favourites WHERE comic_id = ?", (primary_id,)
@@ -422,14 +428,6 @@ class RepoWorker:
             team = self.cursor.fetchone()[0]
             teams.append(team)
 
-        if review_info:
-            rating = review_info[0][1]
-            reviews: list[tuple[str, str, int]] = [
-                (r[2] or "", r[3], r[0]) for r in review_info
-            ]
-        else:
-            rating = 0
-            reviews = []
         self.cursor.execute(
             "SELECT name FROM publishers where id = ?", (publisher_num,)
         )
