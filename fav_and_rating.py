@@ -15,7 +15,7 @@ class HeartButton(QPushButton):
             self.setIcon(self.empty_icon)
         else:
             self.setIcon(self.full_icon)
-        self.setFixedSize(28, 28)
+        self.setFixedSize(30, 30)
         self.setIconSize(self.size())
         self.toggled.connect(self.update_icon)
         self.setStyleSheet("QPushButton { border: none; }")
@@ -42,7 +42,7 @@ class StarRating(QWidget):
 
         for _ in range(5):
             label = QLabel()
-            label.setFixedSize(28, 28)
+            label.setFixedSize(30, 30)
             label.setScaledContents(True)
             self.stars.append(label)
             layout.addWidget(label)
@@ -50,8 +50,8 @@ class StarRating(QWidget):
         self.update_stars()
 
     def sizeHint(self):
-        width = 5 * 28 + 4 * self.spacing
-        return QSize(width, 28)
+        width = 5 * 30 + 4 * self.spacing
+        return QSize(width, 30)
 
     def minimumSizeHint(self):
         return self.sizeHint()
