@@ -156,7 +156,7 @@ def create_tables(db_path: Path | str) -> None:
         CREATE TABLE IF NOT EXISTS reviews (
         comic_id TEXT NOT NULL,
         iteration INTEGER NOT NULL,
-        review TEXT,
+        review TEXT NOT NULL,
         date_reviewed TEXT DEFAULT CURRENT_DATE,
         PRIMARY KEY (comic_id, iteration),
         FOREIGN KEY (comic_id) REFERENCES comics(id)

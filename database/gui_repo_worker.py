@@ -365,14 +365,14 @@ class RepoWorker:
 
         self.cursor.execute(
             """
-            SELECT * FROM reviews
+            SELECT iteration, review, date_reviwed FROM reviews
             WHERE comic_id = ?
             ORDER BY date_reviewed DESC, iteration DESC
             """,
             (primary_id,),
         )
         reviews: list[ReviewData] = [
-            ReviewData(iteration=row[1], review=row[2], date=row[3])
+            ReviewData(iteration=row[0], review=row[1], date=row[2])
             for row in self.cursor.fetchall()
         ]
 
@@ -380,7 +380,7 @@ class RepoWorker:
             "SELECT rating FROM ratings WHERE comic_id = ?", (primary_id,)
         )
         row = self.cursor.fetchone()
-        rating = 0 if not row else row
+        rating = row[0] if row else 0
 
         self.cursor.execute(
             "SELECT * FROM favourites WHERE comic_id = ?", (primary_id,)
