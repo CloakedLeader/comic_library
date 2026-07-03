@@ -169,7 +169,7 @@ def create_tables(db_path: Path | str) -> None:
         CREATE TABLE IF NOT EXISTS ratings (
         comic_id TEXT PRIMARY KEY,
         rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 10),
-        FOREIGN KEY (comic_id) REFERENCES comics(id) ON DELETE CASCADE
+        FOREIGN KEY (comic_id) REFERENCES comics(id)
         )
         """
     )

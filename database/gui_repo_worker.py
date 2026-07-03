@@ -716,7 +716,7 @@ class RepoWorker:
                 "DELETE FROM favourites WHERE comic_id = ?", (comic_id,)
             )
 
-    def save_rating(self, comid_id: str, rating: int) -> None:
+    def save_rating(self, comic_id: str, rating: int) -> None:
         """
         Adds the comic and the given rating into the ratings table.
 
@@ -724,10 +724,11 @@ class RepoWorker:
         created, but the rating is changed to the current value.
 
         Args:
-            comid_id (str): The unique id of the comic.
+            comic_id (str): The unique id of the comic.
             rating (int): The rating of the comic from 0 to 10.
         """
-
+        if rating == 0:
+            return
         self.cursor.execute(
             """
             INSERT INTO ratings (comic_id, rating)
@@ -735,5 +736,5 @@ class RepoWorker:
             ON CONFLICT(comic_id)
             DO UPDATE SET rating = excluded.rating
             """,
-            (comid_id, rating),
+            (comic_id, rating),
         )

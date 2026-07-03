@@ -203,13 +203,13 @@ class MetadataDialog(QMainWindow):
         review_area.setStyleSheet("QScrollArea { border: none; }")
         self.text_edit.setPlaceholderText("Write your review here...")
         if len(metadata.reviews) != 0:
-            for review, date, iteration in metadata.reviews:
-                if not review:
+            for r in metadata.reviews:
+                if not r.review:
                     continue
                 preset_text = dedent(
                     f"""
-                    <u>Review No. {iteration} Date: {date}</u><br>
-                    {review}<br><br>
+                    <u>Review No. {r.iteration} Date: {r.date}</u><br>
+                    {r.review}<br><br>
                 """
                 )
                 review_layout.addWidget(QLabel(preset_text))
