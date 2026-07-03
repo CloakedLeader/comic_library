@@ -14,7 +14,9 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSizePolicy, QWi
 
 load_dotenv()
 resources_path = os.getenv("FRONTEND_RESOURCES")
-IMAGES = Path((resources_path or ""))
+if not resources_path:
+    raise RuntimeError("FRONTEND_RESOURCES environment variable is not set.")
+IMAGES = Path(resources_path)
 
 
 class HeartButton(QPushButton):
