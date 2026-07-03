@@ -1,3 +1,8 @@
+"""
+Collection of scripts to ensure database integrity and all the key assests
+can be contacted and are working.
+"""
+
 import os
 from pathlib import Path
 

@@ -1,3 +1,7 @@
+"""
+The collection of all the functions which query, edit or save information to the database.
+"""
+
 import os
 import sqlite3
 from datetime import datetime
@@ -6,7 +10,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 
-from classes.helper_classes import GUIComicInfo, MetadataInfo
+from classes.helper_classes import GUIComicInfo, MetadataInfo, ReviewData
 
 load_dotenv()
 ROOT_DIR = Path(os.getenv("ROOT_DIR") or "")
@@ -14,15 +18,29 @@ DB_PATH = Path(os.getenv("DB_PATH") or "comics.db")
 
 
 class RepoWorker:
+    """
+    Class which is intended for use via a context manager so that changes to the database
+    are properly saved.
+    """
+
+    COVER_FOLDER = ROOT_DIR / ".covers"
+
     def __init__(self):
-        self.cover_folder = ROOT_DIR / ".covers"
+        """
+        Intiates the class instance.
+        """
 
     def __enter__(self):
+        """
+        Enters the context manager by connecting to the database and initialising the
+        context manager.
+        """
         self.conn = sqlite3.connect(DB_PATH)
         self.cursor = self.conn.cursor()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exits the context manager by saving the changes to the database and closing the connection"""
         self.conn.commit()
         self.conn.close()
         return
@@ -58,9 +76,9 @@ class RepoWorker:
             series, title, relative_filepath = row
             relative_filepath = Path(relative_filepath)
             if thumb:
-                cover_path = self.cover_folder / f"{id}_t.jpg"
+                cover_path = RepoWorker.COVER_FOLDER / f"{id}_t.jpg"
             else:
-                cover_path = self.cover_folder / f"{id}_b.jpg"
+                cover_path = RepoWorker.COVER_FOLDER / f"{id}_b.jpg"
 
             basemodel = GUIComicInfo(
                 primary_id=id,
@@ -277,7 +295,7 @@ class RepoWorker:
                 primary_id=row[0],
                 title=f"{row[1]}: {row[2]}",
                 filepath=ROOT_DIR / Path(row[3]),
-                cover_path=self.cover_folder / f"{row[0]}_b.jpg",
+                cover_path=RepoWorker.COVER_FOLDER / f"{row[0]}_b.jpg",
             )
             info.append(gui_info)
         return info
@@ -363,11 +381,29 @@ class RepoWorker:
         )
         team_id_info: list[int] = [row[0] for row in self.cursor.fetchall()]
 
-        self.cursor.execute("SELECT * FROM reviews WHERE comic_id = ?", (primary_id,))
-        review_info: list[tuple[int, int, str, str]] = [
-            (row[1], row[2], row[3], row[4]) for row in self.cursor.fetchall()
+        self.cursor.execute(
+            """
+            SELECT iteration, review, date_reviewed FROM reviews
+            WHERE comic_id = ?
+            ORDER BY date_reviewed DESC, iteration DESC
+            """,
+            (primary_id,),
+        )
+        reviews: list[ReviewData] = [
+            ReviewData(iteration=row[0], review=row[1], date=row[2])
+            for row in self.cursor.fetchall()
         ]
-        # iteration, rating, review_text, date
+
+        self.cursor.execute(
+            "SELECT rating FROM ratings WHERE comic_id = ?", (primary_id,)
+        )
+        row = self.cursor.fetchone()
+        rating = row[0] if row else 0
+
+        self.cursor.execute(
+            "SELECT * FROM favourites WHERE comic_id = ?", (primary_id,)
+        )
+        fav: bool = True if self.cursor.fetchone() else False
 
         title: str = comic_info[1]
         series: str = comic_info[2]
@@ -410,14 +446,6 @@ class RepoWorker:
             team = self.cursor.fetchone()[0]
             teams.append(team)
 
-        if review_info:
-            rating = review_info[0][1]
-            reviews: list[tuple[str, str, int]] = [
-                (r[2] or "", r[3], r[0]) for r in review_info
-            ]
-        else:
-            rating = 0
-            reviews = []
         self.cursor.execute(
             "SELECT name FROM publishers where id = ?", (publisher_num,)
         )
@@ -436,6 +464,7 @@ class RepoWorker:
             teams=teams,
             rating=rating,
             reviews=reviews,
+            favourite=fav,
         )
 
     def create_collection(self, title: str) -> int:
@@ -666,3 +695,46 @@ class RepoWorker:
             """,
                 (parent_id,),
             )
+
+    def favourite_toggle(self, comic_id: str, toggle: bool) -> None:
+        """
+        Adds a comic into the favourites table or removes it depending on `toggle`.
+
+        If the comic is already in the table before insertion, the database entry
+        is skipped.
+
+        Args:
+            comic_id (str): The unique id of the comic.
+            toggle (bool): True to insert in the table, False to remove.
+        """
+        if toggle:
+            self.cursor.execute(
+                "INSERT OR IGNORE INTO favourites (comic_id) VALUES (?)", (comic_id,)
+            )
+        else:
+            self.cursor.execute(
+                "DELETE FROM favourites WHERE comic_id = ?", (comic_id,)
+            )
+
+    def save_rating(self, comic_id: str, rating: int) -> None:
+        """
+        Adds the comic and the given rating into the ratings table.
+
+        If the comic is already in the database then a new row is not
+        created, but the rating is changed to the current value.
+
+        Args:
+            comic_id (str): The unique id of the comic.
+            rating (int): The rating of the comic from 0 to 10.
+        """
+        if rating == 0:
+            return
+        self.cursor.execute(
+            """
+            INSERT INTO ratings (comic_id, rating)
+            VALUES (?, ?)
+            ON CONFLICT(comic_id)
+            DO UPDATE SET rating = excluded.rating
+            """,
+            (comic_id, rating),
+        )

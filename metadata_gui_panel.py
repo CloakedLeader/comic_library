@@ -10,9 +10,8 @@ from textwrap import dedent
 
 from dotenv import load_dotenv
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QCloseEvent, QPixmap
 from PySide6.QtWidgets import (
-    QCheckBox,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -29,6 +28,7 @@ from PySide6.QtWidgets import (
 
 from classes.helper_classes import GUIComicInfo, MetadataInfo
 from database.gui_repo_worker import RepoWorker
+from fav_and_rating import HeartButton, StarRating
 
 load_dotenv()
 root_folder = os.getenv("ROOT_DIR")
@@ -98,6 +98,7 @@ class DashboardBox(QGroupBox):
         self.box_layout.addWidget(label)
 
     def addLayout(self, layout: QLayout):
+        """Adds a layout into the box."""
         self.box_layout.addLayout(layout)
 
 
@@ -186,7 +187,6 @@ class MetadataDialog(QMainWindow):
 
         description_box = DashboardBox("Description", True)
         clean_desc = re.sub(r"\n\s*\n", "<br><br>", metadata.description).strip()
-        # clean_desc = metadata.description.translate(str.maketrans("", "", "\n\t\r"))
         description_box.add_content(clean_desc)
 
         review_container = QWidget()
@@ -203,13 +203,13 @@ class MetadataDialog(QMainWindow):
         review_area.setStyleSheet("QScrollArea { border: none; }")
         self.text_edit.setPlaceholderText("Write your review here...")
         if len(metadata.reviews) != 0:
-            for review, date, iteration in metadata.reviews:
-                if not review:
+            for r in metadata.reviews:
+                if not r.review:
                     continue
                 preset_text = dedent(
                     f"""
-                    <u>Review No. {iteration} Date: {date}</u><br>
-                    {review}<br><br>
+                    <u>Review No. {r.iteration} Date: {r.date}</u><br>
+                    {r.review}<br><br>
                 """
                 )
                 review_layout.addWidget(QLabel(preset_text))
@@ -239,16 +239,13 @@ class MetadataDialog(QMainWindow):
         title_cover_widget.setLayout(title_cover_box)
         title_cover_box.addWidget(thumbnail_label)
 
-        stars = self.make_star_rating(rating=metadata.rating if metadata.rating else 0)
-
-        title_cover_box.addWidget(self.create_overview_widget(metadata, stars))
+        title_cover_box.addWidget(self.create_overview_widget(metadata))
         overview_panel = DashboardBox("Overview", wrap=False)
         overview_panel.add_content(title_cover_widget)
 
         content_layout.addWidget(overview_panel, 0, 0, 3, 1)
         content_layout.addWidget(creators_box, 2, 3, 2, 1)
         content_layout.addWidget(description_box, 0, 1, 2, 2)
-        # content_layout.addWidget(stars, 0, 3, 1, 1)
         content_layout.addWidget(review_panel, 2, 1, 2, 2)
 
         close_button = QPushButton("Close")
@@ -264,38 +261,6 @@ class MetadataDialog(QMainWindow):
         container.setLayout(main_layout)
         self.setCentralWidget(container)
 
-    def make_star_rating(self, rating: float, max_stars=5) -> QLabel:
-        """
-        Displays the number of stars depending on the rating.
-
-        Returns:
-            QLabel: A widget with the text that are the correct number of stars.
-        """
-        full_star = "★"
-        empty_star = "☆"
-        stars = ""
-
-        if not rating:
-            empty_star_str = f"""
-            <span style="color: lightgray; font-size: 20pt;">{empty_star}</span>"""
-            for _ in range(5):
-                stars += empty_star_str
-        else:
-            filled = int(rating / 2)
-            for i in range(max_stars):
-                if i < filled:
-                    stars += f"""
-                    <span style="color: gold; font-size: 20pt;">{full_star}</span>"""
-                else:
-                    stars += f"""
-                    <span style="color: lightgray; font-size: 20pt;">
-                    {empty_star}</span>"""
-
-        label = QLabel()
-        label.setText(stars)
-        label.setTextFormat(Qt.TextFormat.RichText)
-        return label
-
     def save_current_review(self) -> None:
         """Saves the currently written review to the database."""
         current_text = self.text_edit.toPlainText()
@@ -305,48 +270,78 @@ class MetadataDialog(QMainWindow):
             )
         return None
 
-    def create_overview_widget(self, metadata: MetadataInfo, stars: QLabel) -> QWidget:
+    def create_overview_widget(self, metadata_model: MetadataInfo) -> QWidget:
+        """
+        Creates a widget which contains overview information. This includes:
+           - Series
+           - Title
+           - Volume
+           - Publisher
+           - Rating
+
+        Args:
+            metadata (MetadataInfo): The information about the comic.
+
+        Returns:
+            QWidget: A widget containing boxes and sub-widgets which each contain different
+                information about the comic.
+        """
+        self.stars = StarRating(metadata_model.rating / 2, (30, 30))
+        self.heart = HeartButton(metadata_model.favourite, (30, 30))
         widget = QWidget()
         layout = QVBoxLayout(widget)
 
         series_title = QLabel("Series")
         series_title.setStyleSheet(TITLE_STYLE)
-        series_content = QLabel(metadata.series)
+        series_content = QLabel(metadata_model.series)
         series_content.setStyleSheet(INFORMATION_STYLE)
         layout.addWidget(series_title)
         layout.addWidget(series_content)
 
         title_title = QLabel("Title/Book")
         title_title.setStyleSheet(TITLE_STYLE)
-        title_content = QLabel(metadata.title)
+        title_content = QLabel(metadata_model.title)
         title_content.setStyleSheet(INFORMATION_STYLE)
         layout.addWidget(title_title)
         layout.addWidget(title_content)
 
         volume_title = QLabel("Volume")
         volume_title.setStyleSheet(TITLE_STYLE)
-        volume_content = QLabel(f"Volume {metadata.volume_num}")
+        volume_content = QLabel(f"Volume {metadata_model.volume_num}")
         volume_content.setStyleSheet(INFORMATION_STYLE)
         layout.addWidget(volume_title)
         layout.addWidget(volume_content)
 
         publisher_title = QLabel("Publisher")
         publisher_title.setStyleSheet(TITLE_STYLE)
-        publisher_content = QLabel(metadata.publisher)
+        publisher_content = QLabel(metadata_model.publisher)
         publisher_content.setStyleSheet(INFORMATION_STYLE)
         layout.addWidget(publisher_title)
         layout.addWidget(publisher_content)
 
         date_title = QLabel("Date")
         date_title.setStyleSheet(TITLE_STYLE)
-        date_content = QLabel(metadata.date)
+        date_content = QLabel(metadata_model.date)
         date_content.setStyleSheet(INFORMATION_STYLE)
         layout.addWidget(date_title)
         layout.addWidget(date_content)
 
-        layout.addWidget(stars)
-        layout.addWidget(QLabel("FAVOURITE BUTTON COMING SOON!"))
+        layout.addWidget(self.stars)
+        layout.addWidget(self.heart)
         return widget
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """
+        Triggered when the window is closed. This saves the current rating and
+        favourite status.
+        TODO: Add review saving here also - or ask the user.
+        """
+        favourite_state = self.heart.isChecked()
+        rating = int(self.stars.rating * 2)
+        with RepoWorker() as worker:
+            worker.favourite_toggle(self.primary_id, favourite_state)
+            worker.save_rating(self.primary_id, rating)
+        return super().closeEvent(event)
 
 
 class MetadataPanel(QWidget):
@@ -378,27 +373,12 @@ class MetadataPanel(QWidget):
         )
         quick_icons_layout.addWidget(read_status)
 
-        liked_box = QCheckBox("Liked")
-        liked_box.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        quick_icons_layout.addWidget(liked_box)
+        heart = HeartButton(comic_metadata.favourite, (26, 26))
+        quick_icons_layout.addWidget(heart)
 
-        rating = int(comic_metadata.rating / 2) if comic_metadata.rating else 0
-        full_star = "★"
-        empty_star = "☆"
-        stars = ""
-        for i in range(5):
-            if i < rating:
-                stars += f"""
-                <span style="color: gold; font-size: 20pt;">{full_star}</span>"""
-            else:
-                stars += f"""
-                <span style="color: lightgray; font-size: 20pt;">{empty_star}</span>"""
-        stars_label = QLabel(stars)
-        stars_label.setTextFormat(Qt.TextFormat.RichText)
-        stars_label.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
-        quick_icons_layout.addWidget(stars_label)
+        rating = comic_metadata.rating / 2
+        stars = StarRating(rating, (26, 26))
+        quick_icons_layout.addWidget(stars)
 
         layout.addWidget(quick_icons)
 

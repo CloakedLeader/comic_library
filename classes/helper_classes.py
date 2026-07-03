@@ -1,6 +1,6 @@
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -38,6 +38,12 @@ class RSSComicInfo(BaseModel):
     cover_url: str
 
 
+class ReviewData(BaseModel):
+    iteration: int
+    review: str
+    date: str
+
+
 class MetadataInfo(BaseModel):
     primary_id: str
     title: str
@@ -49,8 +55,9 @@ class MetadataInfo(BaseModel):
     creators: list[tuple[str, list[str]]]
     characters: list[str]
     teams: list[str]
-    rating: Optional[int]
-    reviews: Sequence[tuple[Optional[str], Optional[str], Optional[int]]]
+    rating: int
+    reviews: list[ReviewData]
+    favourite: bool
 
 
 class ImageInfo(BaseModel):
