@@ -35,9 +35,13 @@ from PySide6.QtGui import (
     QShortcut,
 )
 from PySide6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QToolBar,
+    QVBoxLayout,
 )
 
 from classes.helper_classes import GUIComicInfo
@@ -558,6 +562,29 @@ class PagePreloader(QObject):
         # or at the minimum flag error to the user.
 
 
+class Navigation(QDialog):
+    def __init__(self, max_pages: int):
+        super().__init__()
+
+        layout = QVBoxLayout(self)
+        instruct = QLabel(f"Enter page to navigate to. ({max_pages} pages)")
+        self.line_edit = QLineEdit()
+        self.line_edit.returnPressed.connect(self.accept)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(instruct)
+        layout.addWidget(self.line_edit)
+        layout.addWidget(buttons)
+
+    @property
+    def text(self) -> str:
+        return self.line_edit.text()
+
+
 class SimpleReader(QMainWindow):
     """
     The main reading window.
@@ -612,6 +639,9 @@ class SimpleReader(QMainWindow):
             QIcon(str(IMAGES / "arrow_right.svg")), "", self.next_page
         )
         self.next_action.setToolTip("Next Page")
+        self.toolbar.addAction(
+            QIcon(str(IMAGES / "search.svg")), "", self.page_navigation
+        )
         self.toolbar.addAction(QIcon(str(IMAGES / "zoom_in.svg")), "")
         self.toolbar.addAction(QIcon(str(IMAGES / "zoom_out.svg")), "")
         self.toolbar.addAction(QIcon(str(IMAGES / "bookmark_add.svg")), "")
@@ -815,3 +845,12 @@ class SimpleReader(QMainWindow):
         """
         self.closed.emit(self.comic.id, self.current_index)
         super().closeEvent(event)
+
+    def page_navigation(self) -> None:
+        dialog = Navigation(self.comic.total_pages)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.current_index = int(dialog.text)
+            self.sequence.update_position(self.current_index)
+            self.display_current_page()
+        else:
+            return
