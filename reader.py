@@ -535,22 +535,7 @@ class PagePreloader(QObject):
         """
         self.loading.discard(index)
         self.image_cache[index] = pixmap
-        page = self.comic.pages[index]
-        if not page.analysed:
-            if pixmap.width() / pixmap.height() > 1.3:
-                page.page_type = PageType.SPREAD
-
-            page.analysed = True
-
-        if not self.wait_for_spread:
-            self.page_ready.emit(index)
-            return
-
-        if self.pending_spread:
-            left, right = self.pending_spread
-            if left in self.image_cache and right in self.image_cache:
-                self.pending_spread = None
-                self.spread_ready.emit(left)
+        self.page_ready.emit(index)
 
     def on_error(self, index: int, message: str):
         """
