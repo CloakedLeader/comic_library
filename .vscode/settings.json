@@ -8,4 +8,5 @@
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
     "python-envs.defaultEnvManager": "ms-python.python:system",
+    "svg.preview.background": "custom",
 }

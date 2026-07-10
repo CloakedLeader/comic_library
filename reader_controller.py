@@ -42,7 +42,7 @@ class ReadingController:
         comic = Comic(comic_data, val if val is not None else 0)
         comic_reader = SimpleReader(comic)
         comic_reader.closed.connect(self.window_shutdown)
-        comic_reader.showMaximized()
+        comic_reader.showFullScreen()
 
         self.open_windows[comic_data.primary_id] = comic_reader
 
