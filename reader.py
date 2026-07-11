@@ -33,6 +33,7 @@ from PySide6.QtGui import (
     QPainter,
     QPixmap,
     QShortcut,
+    QWheelEvent,
 )
 from PySide6.QtWidgets import (
     QDialog,
@@ -89,7 +90,6 @@ class PageInfo:
     filename: str
     index: int
     page_type: PageType = PageType.UNKNOWN
-    analysed: bool = False
 
 
 @dataclass(slots=True)
@@ -202,7 +202,7 @@ class Comic:
         size = reader.size()
         return size.width(), size.height()
 
-    def analyse_page(self, page) -> PageInfo:
+    def analyse_page(self, page: PageInfo) -> PageInfo:
         if page.page_type != PageType.UNKNOWN:
             return page
 
@@ -824,6 +824,15 @@ class SimpleReader(QMainWindow):
         elif key == Qt.Key.Key_Left:
             self.prev_page()
 
+    def wheelEvent(self, event: QWheelEvent) -> None:
+        angle = event.angleDelta().y()
+        if angle > 0:
+            self.next_page()
+        elif angle < 0:
+            self.prev_page()
+        else:
+            return
+
     def set_one_page(self) -> None:
         self.read_mode = ReadMode.SINGLE_PAGE
         self.preloader.wait_for_spread = False
@@ -843,6 +852,7 @@ class SimpleReader(QMainWindow):
         This is used by the reading controller for memory and resource
         management.
         """
+        self.update_index()
         self.closed.emit(self.comic.id, self.current_index)
         super().closeEvent(event)
 
