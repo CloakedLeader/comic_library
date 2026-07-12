@@ -194,8 +194,10 @@ class Comic:
 
     def image_size(self, index: int) -> tuple[int, int]:
         page = self.pages[index]
-        image_bytes = self.zip.read(page.filename)
-
+        try:
+            image_bytes = self.zip.read(page.filename)
+        except Exception as e:
+            raise ImageLoadError(f"Failed to read image {page.filename}: {e}") from e
         buffer = QBuffer()
         buffer.setData(QByteArray(image_bytes))
         buffer.open(QIODevice.OpenModeFlag.ReadOnly)
@@ -208,12 +210,20 @@ class Comic:
         if page.page_type != PageType.UNKNOWN:
             return page
 
-        width, height = self.image_size(page.index)
-        page.page_type = PageType.SPREAD if width / height > 1.3 else PageType.NORMAL
+        try:
+            width, height = self.image_size(page.index)
+            page.page_type = (
+                PageType.SPREAD if width / height > 1.3 else PageType.NORMAL
+            )
+        except ImageLoadError:
+            page.page_type = PageType.NORMAL
         return page
 
 
-class ReadingSequence:
+class ReadingSequence(QObject):
+    front_cover_reached = Signal()
+    back_cover_reached = Signal()
+
     def __init__(self, comic: Comic):
         self.comic = comic
         self.mode = ReadMode.SINGLE_PAGE
@@ -255,9 +265,6 @@ class ReadingSequence:
         while i < self.comic.total_pages:
             display = self.build_display_page(i)
             pages.append(display)
-            pos = len(pages) - 1
-            for page in display.pages:
-                self.page_to_position[page] = pos
 
             if len(display.pages) == 2:
                 i += 2
@@ -305,10 +312,17 @@ class ReadingSequence:
         return display.pages[0]
 
     def next(self):
-        self.position += 1
+        if self.position < len(self.display_pages) - 1:
+            self.position += 1
+        else:
+            print("Comic finished :(")
+            self.back_cover_reached.emit()
 
     def prev(self):
-        self.position -= 1
+        if self.position > 0:
+            self.position -= 1
+        else:
+            self.front_cover_reached.emit()
 
     def current_display(self) -> tuple[int, ...]:
         return self.display_pages[self.position].pages
@@ -621,17 +635,36 @@ class Navigation(QDialog):
 
         layout = QVBoxLayout(self)
         instruct = QLabel(f"Enter page to navigate to. ({max_pages} pages)")
+        self.max_pages = max_pages
         self.line_edit = QLineEdit()
-        self.line_edit.returnPressed.connect(self.accept)
+        self.line_edit.returnPressed.connect(self.ok_pressed)
+        self.error_message = QLabel("")
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
 
-        buttons.accepted.connect(self.accept)
+        buttons.accepted.connect(self.ok_pressed)
         buttons.rejected.connect(self.reject)
         layout.addWidget(instruct)
         layout.addWidget(self.line_edit)
+        layout.addWidget(self.error_message)
         layout.addWidget(buttons)
+
+    def ok_pressed(self):
+        try:
+            page_num = int(self.text)
+        except ValueError:
+            self.error_message.setText("Please enter a number.")
+            return
+
+        page_num = int(self.text)
+        if 0 < page_num < self.max_pages:
+            self.accept()
+        else:
+            self.error_message.setText(
+                f"Please enter a number between 0 and {self.max_pages}."
+            )
+            return
 
     @property
     def text(self) -> str:
@@ -651,7 +684,6 @@ class SimpleReader(QMainWindow):
     """
 
     closed = Signal(str, int)
-    page_changed = Signal(str, int)
 
     def __init__(self, comic: Comic):
         """
@@ -668,8 +700,8 @@ class SimpleReader(QMainWindow):
         super().__init__()
 
         self.comic = comic
-        self.sequence = ReadingSequence(comic)
 
+        self.sequence = ReadingSequence(comic)
         self.preloader = PagePreloader(comic)
         self.preloader.page_ready.connect(self.on_page_ready)
         self.preloader.spread_ready.connect(self.on_page_ready)
