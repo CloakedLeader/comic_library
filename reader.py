@@ -75,6 +75,8 @@ class ImageLoadError(ComicError):
 class ReadMode(Enum):
     SINGLE_PAGE = auto()
     DOUBLE_PAGE = auto()
+    MANGA = auto()
+    INFINITY = auto()
 
 
 class PageType(Enum):
@@ -213,16 +215,47 @@ class Comic:
 
 class ReadingSequence:
     def __init__(self, comic: Comic):
-        super().__init__()
         self.comic = comic
-        self.current_pos = 0
+        self.mode = ReadMode.SINGLE_PAGE
+        self.position = 0
+
         self.display_pages: list[DisplayPage] = []
         self.page_to_position: dict[int, int] = {}
+
+        self.build_sequence()
+        self.position = self.archive_index_to_position(comic.current_index)
+
+    def set_mode(self, mode: ReadMode):
+        current_archive_page = self.current_display()[0]
+
+        self.mode = mode
+        self.build_sequence()
+
+        self.position = self.archive_index_to_position(current_archive_page)
+
+    def build_sequence(self):
+        self.page_to_position.clear()
+        match self.mode:
+            case ReadMode.SINGLE_PAGE:
+                self.display_pages = self.build_single()
+
+            case ReadMode.DOUBLE_PAGE:
+                self.display_pages = self.build_double()
+
+            case ReadMode.MANGA:
+                self.display_pages = self.build_manga()
+
+        for pos, display in enumerate(self.display_pages):
+            for page in display.pages:
+                self.page_to_position[page] = pos
+
+    def build_double(self) -> list[DisplayPage]:
+        pages = []
         i = 0
         while i < self.comic.total_pages:
             display = self.build_display_page(i)
-            self.display_pages.append(display)
-            pos = len(self.display_pages) - 1
+            pages.append(display)
+            pos = len(pages) - 1
             for page in display.pages:
                 self.page_to_position[page] = pos
 
@@ -231,7 +264,13 @@ class ReadingSequence:
             else:
                 i += 1
 
-        self.current_pos = self.index_to_page(comic.current_index)
+        return pages
+
+    def build_single(self) -> list[DisplayPage]:
+        return [DisplayPage((page.index,)) for page in self.comic.pages]
+
+    def build_manga(self) -> list[DisplayPage]:
+        return list(reversed(self.build_single()))
 
     def build_display_page(self, index: int) -> DisplayPage:
         page = self.comic.pages[index]
@@ -255,24 +294,24 @@ class ReadingSequence:
 
         return DisplayPage((index, index + 1))
 
-    def index_to_page(self, index: int) -> int:
+    def archive_index_to_position(self, index: int) -> int:
         return self.page_to_position[index]
 
     def update_position(self, index: int):
-        self.current_pos = self.index_to_page(index)
+        self.position = self.archive_index_to_position(index)
 
-    def get_index_from_pos(self) -> int:
-        display = self.display_pages[self.current_pos]
+    def position_to_archive_index(self) -> int:
+        display = self.display_pages[self.position]
         return display.pages[0]
 
     def next(self):
-        self.current_pos += 1
+        self.position += 1
 
     def prev(self):
-        self.current_pos -= 1
+        self.position -= 1
 
     def current_display(self) -> tuple[int, ...]:
-        return self.display_pages[self.current_pos].pages
+        return self.display_pages[self.position].pages
 
 
 class ImageLoadSignals(QObject):
@@ -376,7 +415,6 @@ class ImageLoadTask(QRunnable):
         """
         try:
             data = self.comic.get_image_data(self.index)
-
             image = Image.open(BytesIO(data))
             image.load()
             image = image.convert("RGBA")
@@ -445,7 +483,7 @@ class PagePreloader(QObject):
     page_ready = Signal(int)
     spread_ready = Signal(int)
 
-    def __init__(self, comic: Comic, buffer: int = 8):
+    def __init__(self, comic: Comic):
         """
         Intialise the page preloader.
 
@@ -456,17 +494,34 @@ class PagePreloader(QObject):
         """
         super().__init__()
         self.comic = comic
-        self.buffer = buffer
+
+        self.forward_buff = 16
+        self.backward_buff = 4
 
         self.image_cache: dict[int, QPixmap] = {}
         self.loading: set[int] = set()
         self.wait_for_spread: bool = False
-        self.pending_spread: tuple[int, int] | None = None
 
         self.pool = QThreadPool()
-        self.pool.setMaxThreadCount(5)
+        self.pool.setMaxThreadCount(6)
 
-    def preload(self, index: int):
+    def get_load_order(self, index: int) -> list[int]:
+        pages = []
+        pages.append(index)
+
+        for offset in range(1, self.forward_buff + 1):
+            page = index + offset
+            if page < self.comic.total_pages:
+                pages.append(page)
+
+        for offset in range(1, self.backward_buff + 1):
+            page = index - offset
+            if page >= 0:
+                pages.append(page)
+
+        return pages
+
+    def preload(self, index: int) -> None:
         """
         Preload pages surrounding the current reading position.
 
@@ -485,22 +540,20 @@ class PagePreloader(QObject):
             - Cache eviction occurs immediately for pages outside
             the preload window.
         """
-        start = max(0, index - self.buffer)
-        end = min(self.comic.total_pages - 1, index + self.buffer)
-        self.pending_spread = (index, index + 1) if self.wait_for_spread else None
+        load_order = self.get_load_order(index)
 
-        wanted = set(range(start, end + 1))
+        wanted = set(load_order)
 
         for idx in list(self.image_cache):
             if idx not in wanted:
                 del self.image_cache[idx]
 
-        for idx in wanted:
+        for priority, idx in enumerate(reversed(load_order)):
             if idx in self.image_cache or idx in self.loading:
                 continue
-            self.schedule_load(idx)
+            self.schedule_load(idx, priority)
 
-    def schedule_load(self, index: int):
+    def schedule_load(self, index: int, priority: int = 0):
         """
         Schedule asynchronous loading of a page image.
 
@@ -520,7 +573,7 @@ class PagePreloader(QObject):
         task.signals.finished.connect(self.on_loaded)
         task.signals.error.connect(self.on_error)
 
-        self.pool.start(task)
+        self.pool.start(task, priority)
 
     def on_loaded(self, index: int, pixmap: QPixmap):
         """
@@ -615,11 +668,9 @@ class SimpleReader(QMainWindow):
         super().__init__()
 
         self.comic = comic
-        self.sequence = ReadingSequence(self.comic)
-        self.current_index: int = comic.current_index
-        self.read_mode = ReadMode.SINGLE_PAGE  # default reading mode
+        self.sequence = ReadingSequence(comic)
 
-        self.preloader = PagePreloader(self.comic, buffer=8)
+        self.preloader = PagePreloader(comic)
         self.preloader.page_ready.connect(self.on_page_ready)
         self.preloader.spread_ready.connect(self.on_page_ready)
 
@@ -684,48 +735,32 @@ class SimpleReader(QMainWindow):
         a blank grey image with 'Loading...' is displayed and a
         task is scheduled which displays the image once completed.
         """
-        if self.read_mode == ReadMode.SINGLE_PAGE:
-            if self.current_index in self.preloader.image_cache:
-                self.render_pixmap(
-                    self.current_index, self.preloader.image_cache[self.current_index]
-                )
-            else:
-                self.image_label.setText("Loading...")
-                self.preloader.preload(self.current_index)
-            return
-
         display = self.sequence.current_display()
+        failed = False
+        for page_index in display:
+            if page_index not in self.preloader.image_cache:
+                self.image_label.setText("Loading...")
+                self.preloader.preload(page_index)
+                failed = True
+        if failed:
+            return
         if len(display) == 1:
-            index = display[0]
-            logging.info(f"Changed page index to {index}")
-            if index not in self.preloader.image_cache:
-                self.image_label.setText("Loading...")
-                self.preloader.preload(index)
-                return
-            self.render_pixmap(index, self.preloader.image_cache[index])
-
+            self.render_pixmap(self.preloader.image_cache[display[0]])
         else:
-            left, right = display
-            if (
-                left in self.preloader.image_cache
-                and right in self.preloader.image_cache
-            ):
-                left_img = self.preloader.image_cache[left]
-                right_img = self.preloader.image_cache[right]
-                self.render_pixmap(left, (left_img, right_img))
-            else:
-                self.image_label.setText("Loading...")
-                self.preloader.preload(left)
+            self.render_pixmap(
+                (
+                    self.preloader.image_cache[display[0]],
+                    self.preloader.image_cache[display[1]],
+                )
+            )
 
     @overload
-    def render_pixmap(self, index: int, pixmap: QPixmap) -> None: ...
+    def render_pixmap(self, pixmap: QPixmap) -> None: ...
 
     @overload
-    def render_pixmap(self, index: int, pixmap: tuple[QPixmap, QPixmap]) -> None: ...
+    def render_pixmap(self, pixmap: tuple[QPixmap, QPixmap]) -> None: ...
 
-    def render_pixmap(
-        self, index: int, pixmap: QPixmap | tuple[QPixmap, QPixmap]
-    ) -> None:
+    def render_pixmap(self, pixmap: QPixmap | tuple[QPixmap, QPixmap]) -> None:
         """
         Scales the pixmap taken from the image file into the right size and then
         displays it, finally updates the displayed page number.
@@ -754,7 +789,7 @@ class SimpleReader(QMainWindow):
             self.image_label.height(), Qt.TransformationMode.SmoothTransformation
         )
         self.image_label.setPixmap(scaled)
-        self.page_label.setText(f"Page {index + 1} / {self.comic.total_pages}")
+        # self.page_label.setText(f"Page {index + 1} / {self.comic.total_pages}")
 
     def on_page_ready(self, index: int):
         """
@@ -766,11 +801,6 @@ class SimpleReader(QMainWindow):
         Args:
             index (int): The index of the page just loaded by the preloader.
         """
-        if self.read_mode == ReadMode.SINGLE_PAGE:
-            if index == self.current_index:
-                self.display_current_page()
-            return
-
         display = self.sequence.current_display()
         if index in display:
             self.display_current_page()
@@ -780,9 +810,6 @@ class SimpleReader(QMainWindow):
         self.metadata_popup = MetadataDialog(self.comic.info)
         self.metadata_popup.show()
 
-    def update_index(self):
-        self.current_index = self.sequence.get_index_from_pos()
-
     def next_page(self):
         """
         Moves the reader to the next page.
@@ -790,13 +817,8 @@ class SimpleReader(QMainWindow):
         Increases the `self.current_index` by 1 and then calls the function to display
         the current page.
         """
-        if self.read_mode == ReadMode.SINGLE_PAGE:
-            if self.current_index + 1 < self.comic.total_pages:
-                self.current_index += 1
-                self.display_current_page()
-        else:
-            self.sequence.next()
-            self.display_current_page()
+        self.sequence.next()
+        self.display_current_page()
 
     def prev_page(self):
         """
@@ -805,13 +827,8 @@ class SimpleReader(QMainWindow):
         Decreases the `self.current_index` by 1 and then calls the function to display
         the current page.
         """
-        if self.read_mode == ReadMode.SINGLE_PAGE:
-            if self.current_index > 0:
-                self.current_index -= 1
-                self.display_current_page()
-        else:
-            self.sequence.prev()
-            self.display_current_page()
+        self.sequence.prev()
+        self.display_current_page()
 
     def keyPressEvent(self, event):
         """
@@ -834,15 +851,11 @@ class SimpleReader(QMainWindow):
             return
 
     def set_one_page(self) -> None:
-        self.read_mode = ReadMode.SINGLE_PAGE
-        self.preloader.wait_for_spread = False
-        self.update_index()
+        self.sequence.set_mode(ReadMode.SINGLE_PAGE)
         self.display_current_page()
 
     def set_double_page(self) -> None:
-        self.read_mode = ReadMode.DOUBLE_PAGE
-        self.preloader.wait_for_spread = True
-        self.sequence.update_position(self.current_index)
+        self.sequence.set_mode(ReadMode.DOUBLE_PAGE)
         self.display_current_page()
 
     def closeEvent(self, event) -> None:
@@ -852,15 +865,13 @@ class SimpleReader(QMainWindow):
         This is used by the reading controller for memory and resource
         management.
         """
-        self.update_index()
-        self.closed.emit(self.comic.id, self.current_index)
+        self.closed.emit(self.comic.id, self.sequence.position_to_archive_index())
         super().closeEvent(event)
 
     def page_navigation(self) -> None:
         dialog = Navigation(self.comic.total_pages)
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            self.current_index = int(dialog.text)
-            self.sequence.update_position(self.current_index)
+            self.sequence.update_position(int(dialog.text))
             self.display_current_page()
         else:
             return
