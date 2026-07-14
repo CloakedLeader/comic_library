@@ -657,12 +657,11 @@ class Navigation(QDialog):
             self.error_message.setText("Please enter a number.")
             return
 
-        page_num = int(self.text)
-        if 0 < page_num < self.max_pages:
+        if 0 <= page_num <= self.max_pages:
             self.accept()
         else:
             self.error_message.setText(
-                f"Please enter a number between 0 and {self.max_pages}."
+                f"Please enter a number between 1 and {self.max_pages - 1}."
             )
             return
 
