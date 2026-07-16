@@ -1002,8 +1002,30 @@ class SimpleReader(QMainWindow):
         """
         if isinstance(pixmap, QPixmap):
             final = pixmap
+            final = pixmap.scaled(
+                self.image_label.width(),
+                self.image_label.height(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
         else:
             left, right = pixmap
+            page_width = max(1, self.image_label.width() // 2)
+            page_height = self.image_label.height()
+
+            left = left.scaled(
+                page_width,
+                page_height,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+
+            right = right.scaled(
+                page_width,
+                page_height,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
 
             width = left.width() + right.width()
             height = max(left.height(), right.height())
@@ -1012,14 +1034,11 @@ class SimpleReader(QMainWindow):
             final.fill(Qt.GlobalColor.transparent)
 
             painter = QPainter(final)
-            painter.drawPixmap(0, 0, left)
-            painter.drawPixmap(left.width(), 0, right)
+            painter.drawPixmap(0, (height - left.height()) // 2, left)
+            painter.drawPixmap(left.width(), (height - right.height()) // 2, right)
             painter.end()
 
-        scaled = final.scaledToHeight(
-            self.image_label.height(), Qt.TransformationMode.SmoothTransformation
-        )
-        self.image_label.setPixmap(scaled)
+        self.image_label.setPixmap(final)
         # self.page_label.setText(f"Page {index + 1} / {self.comic.total_pages}")
 
     def on_page_ready(self, index: int):
