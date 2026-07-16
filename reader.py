@@ -1,6 +1,7 @@
 """
-A collection of classes for reading comics and preloading images so reading
-is snappy and responsive.
+A collection of classes for reading comics, preloading images, managing the order
+of the comic images, so reading is snappy, responsive and the code structure is
+expandable and future-proof.
 """
 
 import logging
@@ -73,6 +74,11 @@ class ImageLoadError(ComicError):
 
 
 class ReadMode(Enum):
+    """
+    Enum for the current mode of reading. This affects the layout of the pages,
+    and the behaviour of the forward and backward buttons.
+    """
+
     SINGLE_PAGE = auto()
     DOUBLE_PAGE = auto()
     MANGA = auto()
@@ -80,6 +86,11 @@ class ReadMode(Enum):
 
 
 class PageType(Enum):
+    """
+    An Enum containing the diferent kinds of pages that would exist within a
+    comic archive. These are used for the logic within the comic page sequence.
+    """
+
     UNKNOWN = auto()
     COVER = auto()
     BACK_COVER = auto()
@@ -89,6 +100,10 @@ class PageType(Enum):
 
 @dataclass(slots=True)
 class PageInfo:
+    """
+    A data class for storing key information on comic pages within an archive.
+    """
+
     filename: str
     index: int
     page_type: PageType = PageType.UNKNOWN
@@ -96,6 +111,11 @@ class PageInfo:
 
 @dataclass(slots=True)
 class DisplayPage:
+    """
+    A data class for storing the pages indices within a 'page'
+    displayed to the user.
+    """
+
     pages: tuple[int, ...]
 
 
@@ -193,6 +213,22 @@ class Comic:
         return self.get_image_data(self.current_index)
 
     def image_size(self, index: int) -> tuple[int, int]:
+        """
+        Gets the size of an image within the comic archive.
+
+        Reads the image data via QBuffer in read-only mode and then analyses
+        the header to get the size.
+
+        Args:
+            index (int): The index of the comic image to anaylse, the indices
+            are taken from the order of pages in the comic archive.
+
+        Raises:
+            ImageLoadError: Raised if the image bytes cannot be read.
+
+        Returns:
+            tuple[int, int]: The image size in (width, height) format.
+        """
         page = self.pages[index]
         try:
             image_bytes = self.zip.read(page.filename)
@@ -207,6 +243,18 @@ class Comic:
         return size.width(), size.height()
 
     def analyse_page(self, page: PageInfo) -> PageInfo:
+        """
+        Decides the kind of page that the image is by looking at the size.
+
+        Then edits the `page_type` attribute of the `PageInfo` in place depending
+        on the aspect ratio of the image.
+
+        Args:
+            page (PageInfo): The PageInfo object belong to the comic image to look at.
+
+        Returns:
+            PageInfo: The edited PageInfo object with its `page_type` updated.
+        """
         if page.page_type != PageType.UNKNOWN:
             return page
 
@@ -221,13 +269,29 @@ class Comic:
 
 
 class ReadingSequence(QObject):
+    """
+    A class to manage the order of comic display images.
+
+    The order depends on the reading type.
+    """
+
     front_cover_reached = Signal()
     back_cover_reached = Signal()
 
     def __init__(self, comic: Comic):
+        """
+        Creates the sequence in single page mode as default.
+
+        Creates the list `self.display_pages` the contains the order of the comic
+        images to display.
+        Creates the dictionary `self.page_to_position` to track the relationship between
+        index number and page number.
+
+        Args:
+            comic (Comic): The data of the Comic to be read.
+        """
         self.comic = comic
         self.mode = ReadMode.SINGLE_PAGE
-        self.position = 0
 
         self.display_pages: list[DisplayPage] = []
         self.page_to_position: dict[int, int] = {}
@@ -235,7 +299,16 @@ class ReadingSequence(QObject):
         self.build_sequence()
         self.position = self.archive_index_to_position(comic.current_index)
 
-    def set_mode(self, mode: ReadMode):
+    def set_mode(self, mode: ReadMode) -> None:
+        """
+        Rebuilds the reading sequence depending on the inputted reading mode.
+
+        The index number is recorded and then the new page number in the new sequence
+        is updated to match the last seen comic image.
+
+        Args:
+            mode (ReadMode): The reading mode that dictates the layout of the pages
+        """
         current_archive_page = self.current_display()[0]
 
         self.mode = mode
@@ -243,7 +316,14 @@ class ReadingSequence(QObject):
 
         self.position = self.archive_index_to_position(current_archive_page)
 
-    def build_sequence(self):
+    def build_sequence(self) -> None:
+        """
+        A helper function which decides the correct way to rebuild the sequence
+        by looking at the `self.mode` attribute.
+
+        Once the sequence is rebuilt, the `self.page_to_position` dictionary is also
+        rebuilt to match the new sequence.
+        """
         self.page_to_position.clear()
         match self.mode:
             case ReadMode.SINGLE_PAGE:
@@ -260,6 +340,14 @@ class ReadingSequence(QObject):
                 self.page_to_position[page] = pos
 
     def build_double(self) -> list[DisplayPage]:
+        """
+        Loops through the PageInfo's in self.comic and uses its `page_type`
+        to decide whether the image should be shown in double-page or single-page.
+
+        Returns:
+            list[DisplayPage]: The new display sequence containing an ordered list
+            of DisplayPage's.
+        """
         pages = []
         i = 0
         while i < self.comic.total_pages:
@@ -274,12 +362,47 @@ class ReadingSequence(QObject):
         return pages
 
     def build_single(self) -> list[DisplayPage]:
+        """
+        Creates the sequence for single-page reading mode.
+
+        This just creates a DisplayPage instance for each image in the comic
+        archive.
+
+        Returns:
+            list[DisplayPage]: Ordered list of display pages.
+        """
         return [DisplayPage((page.index,)) for page in self.comic.pages]
 
     def build_manga(self) -> list[DisplayPage]:
+        """
+        Creates the sequence for manga reading mode.
+
+        It builds the single-page mode and then reverses it so that the archive is
+        read right-to-left.
+
+        Returns:
+            list[DisplayPage]: Ordered list of display pages.
+        """
         return list(reversed(self.build_single()))
 
     def build_display_page(self, index: int) -> DisplayPage:
+        """
+        Creates a DisplayPage for a given image in the comic archive.
+
+        Uses the `page_type` attribute or the position within the archive to decide
+        how to display to the user.
+
+        This is only used when building the double-page sequence.
+
+        Args:
+            index (int): The position of the comic image within the comic archive.
+
+        Raises:
+            ValueError: If the PageInfo has its `page_type` as UNKNOWN.
+
+        Returns:
+            DisplayPage: The DisplayPage that has the correct comic image indices.
+        """
         page = self.comic.pages[index]
 
         if page.page_type in (PageType.COVER, PageType.BACK_COVER):
@@ -302,29 +425,66 @@ class ReadingSequence(QObject):
         return DisplayPage((index, index + 1))
 
     def archive_index_to_position(self, index: int) -> int:
+        """
+        Gets the position in the ordered list of DisplayPages from
+        the image index in the comic archive.
+
+        Args:
+            index (int): The index of the image in the archive.
+
+        Returns:
+            int: The position in the Display order.
+        """
         return self.page_to_position[index]
 
     def update_position(self, index: int):
+        """
+        Updates the current position of the sequence.
+
+        Args:
+            index (int): The index of the image in the archive.
+        """
         self.position = self.archive_index_to_position(index)
 
     def position_to_archive_index(self) -> int:
+        """
+        Gets the index of the image in the archive from the position in
+        the DisplayPage sequence.
+
+        Returns:
+            int: Index of the comic image in the archive.
+        """
         display = self.display_pages[self.position]
         return display.pages[0]
 
     def next(self):
+        """
+        Increases the position counter by one if there are more pages
+        to be read. Otherwise, emits the back cover signal.
+        """
         if self.position < len(self.display_pages) - 1:
             self.position += 1
         else:
-            print("Comic finished :(")
             self.back_cover_reached.emit()
 
     def prev(self):
+        """
+        Decreases the position counter by one if there are pages behind
+        the current one. Otherwise emits the front cover signal.
+        """
         if self.position > 0:
             self.position -= 1
         else:
             self.front_cover_reached.emit()
 
     def current_display(self) -> tuple[int, ...]:
+        """
+        Gets the current DisplayPage to send to the reader.
+
+        Returns:
+            tuple[int, ...]: A tuple of the comic image indices to include
+            in the view. Should have a maximum length of two.
+        """
         return self.display_pages[self.position].pages
 
 
@@ -469,9 +629,14 @@ class PagePreloader(QObject):
         comic (Comic):
             Comic source used to retrieve page image data.
 
-        buffer (int):
-            Number of pages before and after the current page that should
-            remain preloaded.
+        forward_buff (int):
+            Number of pages after the current page that should be
+            preloaded. This is larger since the chance is that people
+            would need to read forward than go back.
+
+        backward_buff (int):
+            Number of pages before the current page that should be
+            preloaded.
 
         image_cache (dict[int, QPixmap]):
             In-memory cache mapping page indices to loaded pixmaps.
@@ -491,11 +656,12 @@ class PagePreloader(QObject):
     Threading:
         Image loading occurs on worker threads managed by the internal
         thread pool, while cache updates and signal emissions occur
-        safely through Qt's signal-slot system.
+        safely through Qt's signal-slot system. There is a priority system
+        in place to ensure that the direct next pages are loaded first before
+        others for a smoother reading experience.
     """
 
     page_ready = Signal(int)
-    spread_ready = Signal(int)
 
     def __init__(self, comic: Comic):
         """
@@ -503,8 +669,6 @@ class PagePreloader(QObject):
 
         Args:
             comic (Comic): Comic source for page image retrieval.
-            buffer (int, optional): Number of pages before and after the
-            current page that should remain cached and preloaded. Defaults to 8.
         """
         super().__init__()
         self.comic = comic
@@ -514,12 +678,22 @@ class PagePreloader(QObject):
 
         self.image_cache: dict[int, QPixmap] = {}
         self.loading: set[int] = set()
-        self.wait_for_spread: bool = False
 
         self.pool = QThreadPool()
         self.pool.setMaxThreadCount(6)
 
     def get_load_order(self, index: int) -> list[int]:
+        """
+        Orders the list of pages to be loaded into the correct order,
+        so that the priority system loads the most important first.
+
+        Args:
+            index (int): The index of the next page to be read.
+
+        Returns:
+            list[int]: The ordered list of indices for the next pages to be read.
+            They are ordered with descending priority.
+        """
         pages = []
         pages.append(index)
 
@@ -539,10 +713,8 @@ class PagePreloader(QObject):
         """
         Preload pages surrounding the current reading position.
 
-        This method determines which pages should remain based on
-        the configured buffer size. Pages outside the desired range
-        are evicted, and missing pages inside the range are scheduled
-        for asynchronous loading.
+        Pages outside the desired range are evicted, and missing pages
+        inside the range are scheduled for asynchronous loading.
 
         Args:
             current_index (int): Current page index around which
@@ -576,6 +748,9 @@ class PagePreloader(QObject):
 
         Args:
             index (int): Page index to load.
+            priority (int): The priority with which to add the task
+            to the scheduler, higher priorities are loaded first. Defaults
+            to 0.
 
         Notes:
             The page index is added to ``loading`` immediately to prevent
@@ -630,7 +805,17 @@ class PagePreloader(QObject):
 
 
 class Navigation(QDialog):
+    """
+    A popup window for asking the user which page to navigate to.
+    """
+
     def __init__(self, max_pages: int):
+        """
+        Creates the instance variables like the line edit.
+
+        Args:
+            max_pages (int): The number of pages in the comic.
+        """
         super().__init__()
 
         layout = QVBoxLayout(self)
@@ -650,7 +835,13 @@ class Navigation(QDialog):
         layout.addWidget(self.error_message)
         layout.addWidget(buttons)
 
-    def ok_pressed(self):
+    def ok_pressed(self) -> None:
+        """
+        Checks that the entered value is first a number, and second within
+        the correct range.
+
+        If not, a suggestive error message is displayed to the user.
+        """
         try:
             page_num = int(self.text)
         except ValueError:
@@ -667,6 +858,9 @@ class Navigation(QDialog):
 
     @property
     def text(self) -> str:
+        """
+        Returns the text in the line edit.
+        """
         return self.line_edit.text()
 
 
@@ -689,8 +883,7 @@ class SimpleReader(QMainWindow):
         Creates the base window by opening the comic on the currenly read index
         and loading a certain amount of images before and after.
 
-        Creates toolbars for comic navigation and commenting. These are not yet
-        plugged into any slots.
+        Creates a toolbar for comic navigation and commenting.
 
         Args:
             comic (Comic): An instance of the :class`Comic` that gives useful data
@@ -703,7 +896,6 @@ class SimpleReader(QMainWindow):
         self.sequence = ReadingSequence(comic)
         self.preloader = PagePreloader(comic)
         self.preloader.page_ready.connect(self.on_page_ready)
-        self.preloader.spread_ready.connect(self.on_page_ready)
 
         self.setWindowTitle("Comic Reader")
 
@@ -753,6 +945,9 @@ class SimpleReader(QMainWindow):
         self.display_current_page()
 
     def toggle_fullscreen(self) -> None:
+        """
+        Toggles fullscreen mode.
+        """
         if self.isFullScreen():
             self.showMaximized()
         else:
@@ -760,7 +955,7 @@ class SimpleReader(QMainWindow):
 
     def display_current_page(self) -> None:
         """
-        Displays the page with index `self.current_index`.
+        Displays the current page by quering the sequence.
 
         If already in the image cache the image is loaded, otherwise
         a blank grey image with 'Loading...' is displayed and a
@@ -786,19 +981,24 @@ class SimpleReader(QMainWindow):
             )
 
     @overload
-    def render_pixmap(self, pixmap: QPixmap) -> None: ...
+    def render_pixmap(self, pixmap: QPixmap) -> None:
+        """
+        Renders a single image as the page for the reader.
+        """
+        ...
 
     @overload
-    def render_pixmap(self, pixmap: tuple[QPixmap, QPixmap]) -> None: ...
+    def render_pixmap(self, pixmap: tuple[QPixmap, QPixmap]) -> None:
+        """
+        Stiches together two images to display a double-page to the reader.
+        """
+        ...
 
     def render_pixmap(self, pixmap: QPixmap | tuple[QPixmap, QPixmap]) -> None:
         """
         Scales the pixmap taken from the image file into the right size and then
-        displays it, finally updates the displayed page number.
-
-        Args:
-            index (int): The zero-indexed index of the page to scale and load around.
-            pixmap (QPixmap): The QPixmap of the image to be displayed.
+        displays it, finally updates the displayed page number. Stitching together two
+        images if required.
         """
         if isinstance(pixmap, QPixmap):
             final = pixmap
@@ -826,8 +1026,8 @@ class SimpleReader(QMainWindow):
         """
         Activated when the preloader loads an image.
 
-        Sets the current index to the loaded image index and renders
-        the image.
+        Checks that the loaded page is still needed for the view, and then
+        calls the render function.
 
         Args:
             index (int): The index of the page just loaded by the preloader.
@@ -845,7 +1045,7 @@ class SimpleReader(QMainWindow):
         """
         Moves the reader to the next page.
 
-        Increases the `self.current_index` by 1 and then calls the function to display
+        Tells the sequence to advance by 1 and then calls the function to display
         the current page.
         """
         self.sequence.next()
@@ -855,7 +1055,7 @@ class SimpleReader(QMainWindow):
         """
         Moves the reader to the previous page.
 
-        Decreases the `self.current_index` by 1 and then calls the function to display
+        Tells the sequence to go back by 1 and then calls the function to display
         the current page.
         """
         self.sequence.prev()
@@ -873,6 +1073,10 @@ class SimpleReader(QMainWindow):
             self.prev_page()
 
     def wheelEvent(self, event: QWheelEvent) -> None:
+        """
+        Listens for scroll wheel events from the mouse and connects these to
+        the previous and next page functions.
+        """
         angle = event.angleDelta().y()
         if angle > 0:
             self.next_page()
@@ -882,10 +1086,12 @@ class SimpleReader(QMainWindow):
             return
 
     def set_one_page(self) -> None:
+        """Sets the reading mode to single-page and refreshes the display."""
         self.sequence.set_mode(ReadMode.SINGLE_PAGE)
         self.display_current_page()
 
     def set_double_page(self) -> None:
+        """Sets the reading mode to double-page and refreshes the display."""
         self.sequence.set_mode(ReadMode.DOUBLE_PAGE)
         self.display_current_page()
 
@@ -900,6 +1106,10 @@ class SimpleReader(QMainWindow):
         super().closeEvent(event)
 
     def page_navigation(self) -> None:
+        """
+        Opens the comic navigation window and then updates the sequence
+        with the new page, finally it refreshes the display.
+        """
         dialog = Navigation(self.comic.total_pages)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.sequence.update_position(int(dialog.text))
