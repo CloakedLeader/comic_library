@@ -335,6 +335,9 @@ class ReadingSequence(QObject):
             case ReadMode.MANGA:
                 self.display_pages = self.build_manga()
 
+            case ReadMode.INFINITY:
+                raise NotImplementedError("Infinity reading mode is not implemented.")
+
         for pos, display in enumerate(self.display_pages):
             for page in display.pages:
                 self.page_to_position[page] = pos
