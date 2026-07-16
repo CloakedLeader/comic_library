@@ -290,6 +290,7 @@ class ReadingSequence(QObject):
         Args:
             comic (Comic): The data of the Comic to be read.
         """
+        super().__init__()
         self.comic = comic
         self.mode = ReadMode.SINGLE_PAGE
 
