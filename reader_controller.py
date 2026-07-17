@@ -60,7 +60,7 @@ class ReadingController:
         try:
             with RepoWorker() as saver:
                 if page == 0:
-                    pass
+                    saver.remove_from_reading_progress(primary_id)
                 elif page >= reader.comic.total_pages - 1:
                     saver.mark_as_finished(primary_id, page)
                 else:
