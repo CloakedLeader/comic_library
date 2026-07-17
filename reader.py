@@ -666,6 +666,7 @@ class PagePreloader(QObject):
     """
 
     page_ready = Signal(int)
+    page_failed = Signal(int, str)
 
     def __init__(self, comic: Comic):
         """
@@ -684,6 +685,7 @@ class PagePreloader(QObject):
         self.pending: list[int] = []
         self.loading: set[int] = set()
         self.wanted: set[int] = set()
+        self.failed: set[int] = set()
 
         self.pool = QThreadPool()
         self.pool.setMaxThreadCount(6)
@@ -819,10 +821,18 @@ class PagePreloader(QObject):
         Failed pages are not automatically retried.
         """
         self.loading.discard(index)
-        print(f"[ERROR] Failed to load page {index}: {message}")
+        logging.error(
+            "Failed to load page %d (%s): %s",
+            index,
+            self.comic.pages[index].filename,
+            message,
+        )
+        self.failed.add(index)
+        self.page_failed.emit(index, message)
+        self.fill_workers()
+
         # TODO: Add retry method for pages that fail to load.
-        # Need to implement some kind of diagnostic,
-        # or at the minimum flag error to the user.
+        # Need to implement some kind of diagnostic
 
 
 class Navigation(QDialog):
