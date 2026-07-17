@@ -683,6 +683,7 @@ class PagePreloader(QObject):
         self.image_cache: dict[int, QPixmap] = {}
         self.pending: list[int] = []
         self.loading: set[int] = set()
+        self.wanted: set[int] = set()
 
         self.pool = QThreadPool()
         self.pool.setMaxThreadCount(6)
@@ -690,7 +691,7 @@ class PagePreloader(QObject):
     def get_load_order(self, index: int) -> list[int]:
         """
         Orders the list of pages to be loaded into the correct order,
-        so that the priority system loads the most important first.
+        with the highest priority loads first.
 
         Args:
             index (int): The index of the next page to be read.
@@ -719,7 +720,7 @@ class PagePreloader(QObject):
         Preload pages surrounding the current reading position.
 
         Pages outside the desired range are evicted, and missing pages
-        inside the range are scheduled for asynchronous loading.
+        inside the range are added to the pending list.
 
         Args:
             current_index (int): Current page index around which
@@ -727,12 +728,13 @@ class PagePreloader(QObject):
 
         Notes:
             - Already cached pages are reused.
-            - Pages currently loaded are not scheduled again.
+            - Pages currently loading are not scheduled again.
             - Cache eviction occurs immediately for pages outside
             the preload window.
         """
         load_order = self.get_load_order(index)
         wanted = set(load_order)
+        self.wanted = wanted
 
         for idx in list(self.image_cache):
             if idx not in wanted:
@@ -749,6 +751,10 @@ class PagePreloader(QObject):
         self.fill_workers()
 
     def fill_workers(self):
+        """
+        Ensures that all workers in the Pool have a task, provided there are tasks
+        to complete.
+        """
         while len(self.loading) < self.pool.maxThreadCount() and self.pending:
             page = self.pending.pop(0)
             self.schedule_load(page)
@@ -762,9 +768,6 @@ class PagePreloader(QObject):
 
         Args:
             index (int): Page index to load.
-            priority (int): The priority with which to add the task
-            to the scheduler, higher priorities are loaded first. Defaults
-            to 0.
 
         Notes:
             The page index is added to ``loading`` immediately to prevent
@@ -782,21 +785,23 @@ class PagePreloader(QObject):
         """
         Handle successful completion of an image loading task.
 
-        The loaded pixmap is inserted into the cache and the page is
-        marked as no longer loading.
+        The index of the loaded pixmap is checked to ensure it is
+        still wanted, then it's inserted into the cache and the page
+        is marked as no longer loading.
 
         Args:
             index (int): Index of the loaded page.
             pixmap (QPixmap): Loaded page image.
 
         Emits:
-            page_ready:
-                Emitted after the image has been stored in the cache.
+            page_ready: Emitted after the image has been stored
+            in the cache.
         """
         self.loading.discard(index)
 
-        self.image_cache[index] = pixmap
-        self.page_ready.emit(index)
+        if index in self.wanted:
+            self.image_cache[index] = pixmap
+            self.page_ready.emit(index)
         self.fill_workers()
 
     def on_error(self, index: int, message: str):
