@@ -681,6 +681,7 @@ class PagePreloader(QObject):
         self.backward_buff = 4
 
         self.image_cache: dict[int, QPixmap] = {}
+        self.pending: list[int] = []
         self.loading: set[int] = set()
 
         self.pool = QThreadPool()
@@ -731,19 +732,28 @@ class PagePreloader(QObject):
             the preload window.
         """
         load_order = self.get_load_order(index)
-
         wanted = set(load_order)
 
         for idx in list(self.image_cache):
             if idx not in wanted:
                 del self.image_cache[idx]
 
-        for priority, idx in enumerate(reversed(load_order)):
-            if idx in self.image_cache or idx in self.loading:
-                continue
-            self.schedule_load(idx, priority)
+        self.pending.clear()
 
-    def schedule_load(self, index: int, priority: int = 0):
+        self.pending = [
+            page
+            for page in load_order
+            if page not in self.loading and page not in self.image_cache
+        ]
+
+        self.fill_workers()
+
+    def fill_workers(self):
+        while len(self.loading) < self.pool.maxThreadCount() and self.pending:
+            page = self.pending.pop(0)
+            self.schedule_load(page)
+
+    def schedule_load(self, index: int):
         """
         Schedule asynchronous loading of a page image.
 
@@ -766,7 +776,7 @@ class PagePreloader(QObject):
         task.signals.finished.connect(self.on_loaded)
         task.signals.error.connect(self.on_error)
 
-        self.pool.start(task, priority)
+        self.pool.start(task)
 
     def on_loaded(self, index: int, pixmap: QPixmap):
         """
@@ -784,8 +794,10 @@ class PagePreloader(QObject):
                 Emitted after the image has been stored in the cache.
         """
         self.loading.discard(index)
+
         self.image_cache[index] = pixmap
         self.page_ready.emit(index)
+        self.fill_workers()
 
     def on_error(self, index: int, message: str):
         """
