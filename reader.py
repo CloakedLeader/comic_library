@@ -696,7 +696,7 @@ class PagePreloader(QObject):
         with the highest priority loads first.
 
         Args:
-            index (int): The index of the next page to be read.
+            indices (tuple[int, ...]): The indices of the current display pages.
 
         Returns:
             list[int]: The ordered list of indices for the next pages to be read.
@@ -724,7 +724,7 @@ class PagePreloader(QObject):
         inside the range are added to the pending list.
 
         Args:
-            current_index (int): Current page index around which
+            indices (tuple[int, ...]): Current display page indices around which
             preloading should occur.
 
         Notes:
@@ -740,8 +740,6 @@ class PagePreloader(QObject):
         for idx in list(self.image_cache):
             if idx not in wanted:
                 del self.image_cache[idx]
-
-        self.pending.clear()
 
         self.pending = [
             page
