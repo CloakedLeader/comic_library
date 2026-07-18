@@ -690,7 +690,7 @@ class PagePreloader(QObject):
         self.pool = QThreadPool()
         self.pool.setMaxThreadCount(6)
 
-    def get_load_order(self, index: int) -> list[int]:
+    def get_load_order(self, indices: tuple[int, ...]) -> list[int]:
         """
         Orders the list of pages to be loaded into the correct order,
         with the highest priority loads first.
@@ -702,22 +702,21 @@ class PagePreloader(QObject):
             list[int]: The ordered list of indices for the next pages to be read.
             They are ordered with descending priority.
         """
-        pages = []
-        pages.append(index)
+        pages = list(indices)
 
         for offset in range(1, self.forward_buff + 1):
-            page = index + offset
+            page = indices[-1] + offset
             if page < self.comic.total_pages:
                 pages.append(page)
 
         for offset in range(1, self.backward_buff + 1):
-            page = index - offset
+            page = indices[0] - offset
             if page >= 0:
                 pages.append(page)
 
         return pages
 
-    def preload(self, index: int) -> None:
+    def preload(self, indices: tuple[int, ...]) -> None:
         """
         Preload pages surrounding the current reading position.
 
@@ -734,7 +733,7 @@ class PagePreloader(QObject):
             - Cache eviction occurs immediately for pages outside
             the preload window.
         """
-        load_order = self.get_load_order(index)
+        load_order = self.get_load_order(indices)
         wanted = set(load_order)
         self.wanted = wanted
 
@@ -993,14 +992,12 @@ class SimpleReader(QMainWindow):
         task is scheduled which displays the image once completed.
         """
         display = self.sequence.current_display()
-        failed = False
-        for page_index in display:
-            if page_index not in self.preloader.image_cache:
-                self.image_label.setText("Loading...")
-                self.preloader.preload(page_index)
-                failed = True
-        if failed:
+        self.preloader.preload(display)
+        missing = [p for p in display if p not in self.preloader.image_cache]
+        if missing:
+            self.image_label.setText("Loading...")
             return
+
         if len(display) == 1:
             self.render_pixmap(self.preloader.image_cache[display[0]])
         else:
@@ -1135,6 +1132,11 @@ class SimpleReader(QMainWindow):
         else:
             return
 
+    def resizeEvent(self, event) -> None:
+        """Redraws pixmap upon window resize."""
+        super().resizeEvent(event)
+        self.display_current_page()
+
     def set_one_page(self) -> None:
         """Sets the reading mode to single-page and refreshes the display."""
         self.sequence.set_mode(ReadMode.SINGLE_PAGE)
@@ -1152,6 +1154,7 @@ class SimpleReader(QMainWindow):
         This is used by the reading controller for memory and resource
         management.
         """
+        self.preloader.pool.clear()
         self.closed.emit(self.comic.id, self.sequence.position_to_archive_index())
         super().closeEvent(event)
 
