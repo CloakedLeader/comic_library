@@ -42,7 +42,7 @@ class ReadingController:
         comic = Comic(comic_data, val if val is not None else 0)
         comic_reader = SimpleReader(comic)
         comic_reader.closed.connect(self.window_shutdown)
-        comic_reader.showMaximized()
+        comic_reader.showFullScreen()
 
         self.open_windows[comic_data.primary_id] = comic_reader
 
@@ -60,7 +60,7 @@ class ReadingController:
         try:
             with RepoWorker() as saver:
                 if page == 0:
-                    pass
+                    saver.remove_from_reading_progress(primary_id)
                 elif page >= reader.comic.total_pages - 1:
                     saver.mark_as_finished(primary_id, page)
                 else:

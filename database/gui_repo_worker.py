@@ -233,6 +233,12 @@ class RepoWorker:
                 (primary_key, last_page, 0),
             )
 
+    def remove_from_reading_progress(self, primary_key: str) -> None:
+        """Removes the comic from reading progress table."""
+        self.cursor.execute(
+            "DELETE FROM reading_progress WHERE comic_id = ?", (primary_key,)
+        )
+
     def mark_as_finished(self, primary_key: str, last_page: int) -> None:
         """
         Changes the status of a comic from not finished to finished.
