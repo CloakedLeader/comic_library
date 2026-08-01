@@ -1,0 +1,517 @@
+import asyncio
+import logging
+import os
+import os.path
+import sys
+import threading
+from pathlib import Path
+from typing import Optional
+
+import uvicorn
+from dotenv import load_dotenv
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QDialog,
+    QFileSystemModel,
+    QHBoxLayout,
+    QLineEdit,
+    QMainWindow,
+    QProgressBar,
+    QSizePolicy,
+    QSplitter,
+    QStackedWidget,
+    QToolBar,
+    QTreeView,
+    QVBoxLayout,
+    QWidget,
+)
+from qasync import QEventLoop  # type: ignore[import-untyped]
+
+from my_project.api.api_main import app
+from my_project.classes.helper_classes import GUIComicInfo, MainViewType
+from my_project.database.db_init import startup_checks
+from my_project.database.gui_repo_worker import RepoWorker
+from my_project.database.search import collection_search, text_search
+from my_project.tagging.comic_match_logic import ComicMatch
+from my_project.tagging.metadata_controller import run_tagger
+from my_project.ui.home_view import HomeView
+from my_project.ui.reader.reader_controller import ReadingController
+from my_project.ui.widgets.collections_widget import CollectionCreation
+from my_project.ui.widgets.comic_grid_view import ComicCollectionGridView, ComicGridView
+from my_project.ui.widgets.comic_match_ui import ComicMatcherUI
+from my_project.ui.widgets.left_widget_assets import ButtonDisplay
+from my_project.ui.widgets.metadata_gui_panel import MetadataDialog, MetadataPanel
+from my_project.ui.widgets.reading_order_widget import (
+    ReadingOrderCreation,
+    ReadingOrderEditor,
+)
+from my_project.ui.widgets.settings_widget import Settings
+from my_project.utils.cleanup import scan_and_clean
+
+load_dotenv()
+root_string = os.getenv("ROOT_DIR")
+ROOT_DIR = Path(root_string if root_string is not None else "")
+DB_PATH = Path(os.getenv("DB_PATH") or "comics.db")
+log_file = open("debug.log", "w", encoding="utf-8")
+sys.stdout = log_file
+sys.stderr = log_file
+
+logging.getLogger("asyncio").setLevel(logging.WARNING)
+logging.getLogger("qasync").setLevel(logging.WARNING)
+logging.basicConfig(
+    filename="debug.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
+
+class HomePage(QMainWindow):
+    """
+    Main window for the Comic Library application.
+
+    This class provides the primary user interface for browsing comics,
+    including file system navigation, RSS feed integration, reading
+    recommendations and download management.
+    Features include:
+        - File system tree view for comic browsing
+        - Multiple scrollable sections for different comic categories
+        - RSS feed integration for new comic discovery
+    """
+
+    def __init__(self) -> None:
+        """
+        Initalise the homepage main window.
+
+        Sets up a complete UI including menu bar, toolbar, status bar, file
+        system view, content area and RSS feed integration.
+        """
+        super().__init__()
+        self.metadata_panel: Optional[MetadataPanel] = None
+        self.setWindowTitle("Comic Library Homepage")
+
+        self.reader_controller = ReadingController()
+        with RepoWorker() as repo_worker:
+            collection_names, collection_ids = repo_worker.get_collections()
+            order_names, order_ids, order_descriptions = repo_worker.get_orders()
+
+        menu_bar = self.menuBar()
+        file_menu = menu_bar.addMenu("File")
+        file_menu.addAction("Browse..")
+        menu_bar.addMenu("Settings")
+        menu_bar.addMenu("Help")
+
+        self.toolbar = QToolBar("Metadata")
+        self.addToolBar(self.toolbar)
+        self.home_action = self.toolbar.addAction("Home")
+        self.home_action.triggered.connect(self.go_home)
+        self.home_action.setShortcut("Ctrl+H")
+        self.home_action.setToolTip("Go back to Homescreen")
+        self.toolbar.addAction("Edit")
+        self.tag_action = self.toolbar.addAction("Tag")
+        self.tag_action.setShortcut("Ctrl + T")
+        self.tag_action.triggered.connect(self.tag_comics)
+        self.toggle_action = self.toolbar.addAction("Toggle Sidebar")
+        self.toggle_action.triggered.connect(self.toggle_sidebar)
+        self.toggle_action.setShortcut("Ctrl+B")
+        self.toggle_action.setToolTip("Toggle file tree sidebar")
+        self.refresh_action = self.toolbar.addAction("Update")
+        self.refresh_action.triggered.connect(scan_and_clean)
+        self.refresh_action.setShortcut("Ctrl + U")
+        self.create_collection_button = self.toolbar.addAction("Create Collection")
+        self.create_collection_button.triggered.connect(self.create_collection)
+        self.create_reading_order_button = self.toolbar.addAction(
+            "Create Reading Order"
+        )
+        self.create_reading_order_button.triggered.connect(self.create_reading_order)
+        self.settings_action = self.toolbar.addAction("Settings")
+        self.settings_action.triggered.connect(self.open_settings)
+
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.toolbar.addWidget(spacer)
+
+        self.sort_menu = QComboBox()
+        self.sort_menu.setPlaceholderText("Sort..")
+        self.sort_menu.addItem("Title Asc")
+        self.sort_menu.addItem("Title Desc")
+        self.sort_action = self.toolbar.addWidget(self.sort_menu)
+        self.sort_action.setVisible(True)
+
+        self.search_bar = QLineEdit()
+        self.search_bar.setPlaceholderText("Search comics..")
+        self.search_bar.setFixedWidth(200)
+        self.search_bar.editingFinished.connect(
+            lambda: self.search(self.search_bar.text())
+        )
+        self.toolbar.addWidget(self.search_bar)
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setMaximum(100)
+        self.progress_bar.setValue(0)
+        self.statusBar().addPermanentWidget(self.progress_bar)
+        self.progress_bar.hide()
+
+        body_layout = QHBoxLayout()
+        body_widget = QWidget()
+        body_widget.setLayout(body_layout)
+
+        self.file_model = QFileSystemModel()
+        self.file_model.setRootPath(os.path.expanduser(str(ROOT_DIR)))
+        self.file_tree = QTreeView()
+        self.file_tree.setModel(self.file_model)
+        self.file_tree.setRootIndex(
+            self.file_model.index(os.path.expanduser(str(ROOT_DIR)))
+        )
+        self.file_tree.clicked.connect(self.on_folder_select)
+        self.file_tree.setHeaderHidden(True)
+
+        for i in range(1, self.file_model.columnCount()):
+            self.file_tree.hideColumn(i)
+
+        left_widget = QWidget()
+        left_layout = QVBoxLayout()
+        left_widget.setLayout(left_layout)
+        left_layout.addWidget(self.file_tree, stretch=1)
+        self.collection_display = ButtonDisplay(
+            "Collections",
+            collection_names,
+            collection_ids,
+            left_clicked=self.clicked_collection,
+            delete=self.delete_col,
+        )
+        left_layout.addWidget(self.collection_display, stretch=1)
+
+        self.order_display = ButtonDisplay(
+            "Reading Orders",
+            order_names,
+            order_ids,
+            left_clicked=self.clicked_reading_order,
+            delete=self.delete_ord,
+        )
+        left_layout.addWidget(self.order_display, stretch=1)
+        self.splitter = QSplitter()
+        self.splitter.addWidget(left_widget)
+
+        self.home_page = HomeView(DB_PATH)
+        self.home_page.asyncError.connect(self.handle_async_exceptions)
+        self.home_page.openReader.connect(self.open_reader)
+        self.home_page.statusMessage.connect(self.update_status)
+        self.home_page.downloadProgress.connect(self.update_progress_bar)
+
+        self.stack = QStackedWidget()
+        self.stack.currentChanged.connect(self.on_view_changed)
+        self.stack.addWidget(self.home_page)
+        self.splitter.addWidget(self.stack)
+        container = QWidget()
+        lay = QVBoxLayout(container)
+        lay.addWidget(self.splitter)
+        lay.setContentsMargins(0, 0, 0, 0)
+        self.splitter.setSizes([100, 900])
+
+        self.browse_splitter = QSplitter()
+        self.stack.addWidget(self.browse_splitter)
+
+        self.search_layout = QVBoxLayout()
+        self.search_display = QWidget()
+        self.search_display.setLayout(self.search_layout)
+        self.stack.addWidget(self.search_display)
+
+        self.collections_widget = QWidget()
+        self.coll_display = QVBoxLayout(self.collections_widget)
+        self.stack.addWidget(self.collections_widget)
+
+        self.order_widget = QWidget()
+        self.order_display_ = QVBoxLayout(self.order_widget)
+        self.stack.addWidget(self.order_widget)
+
+        self.setCentralWidget(container)
+
+    def open_reader(self, comic: GUIComicInfo) -> None:
+        """
+        Open a comic reader for the specified comic.
+
+        Args:
+            Dictionary containing information about the comic
+            including filepath and database id.
+        """
+        self.reader_controller.read_comic(comic)
+
+    def on_folder_select(self, index):
+        folder_path = self.file_model.fileName(index)
+        pub_id = folder_path[0]
+
+        if pub_id.isdigit():
+            pub_id = int(pub_id)
+            if pub_id != 0:
+                with RepoWorker() as folder_info_getter:
+                    grid_view_data = folder_info_getter.get_folder_info(pub_id)
+
+                    if hasattr(self, "grid_view") and self.grid_view is not None:
+                        space = self.browse_splitter.indexOf(self.grid_view)
+                        if space != -1:
+                            widget = self.browse_splitter.widget(space)
+                            widget.setParent(None)
+                            widget.deleteLater()
+
+                    self.grid_view = ComicGridView(
+                        grid_view_data, self.reader_controller
+                    )
+                    self.grid_view.metadata_requested.connect(self.show_metadata_panel)
+
+                    if self.browse_splitter.count() == 0:
+                        self.browse_splitter.addWidget(self.grid_view)
+                    else:
+                        self.browse_splitter.insertWidget(0, self.grid_view)
+                    self.stack.setCurrentWidget(self.browse_splitter)
+
+    def show_metadata_panel(self, comic_info: GUIComicInfo):
+        with RepoWorker() as info_getter:
+            comic_metadata = info_getter.get_complete_metadata(comic_info.primary_id)
+
+        if hasattr(self, "metadata_panel") and self.metadata_panel is not None:
+            index = self.browse_splitter.indexOf(self.metadata_panel)
+            if index != -1:
+                old = self.browse_splitter.widget(index)
+                old.setParent(None)
+                old.deleteLater()
+
+        self.metadata_panel = MetadataPanel(comic_metadata)
+
+        if self.browse_splitter.count() == 1:
+            self.browse_splitter.addWidget(self.metadata_panel)
+        elif self.browse_splitter.count() == 2:
+            self.browse_splitter.insertWidget(1, self.metadata_panel)
+
+        total = sum(self.browse_splitter.sizes())
+        self.browse_splitter.setSizes([int(total * 0.8), int(total * 0.2)])
+
+        file_tree_sizes = self.splitter.sizes()
+        if len(file_tree_sizes) == 2:
+            total = file_tree_sizes[0] + file_tree_sizes[1]
+            self.splitter.setSizes([0, total])
+
+    def toggle_sidebar(self):
+        sizes = self.splitter.sizes()
+        if sizes[0] > 0:
+            self.sidebar_width = sizes[0]
+            self.splitter.setSizes([0, sizes[1] + sizes[0]])
+        else:
+            previous = getattr(self, "sidebar_width", 150)
+            self.splitter.setSizes([previous, sizes[1]])
+
+    def collapse_sidebar(self):
+        sizes = self.splitter.sizes()
+        if sizes[0] > 0:
+            self.sidebar_width = sizes[0]
+            self.splitter.setSizes([0, sizes[1] + sizes[0]])
+        else:
+            return
+
+    def go_home(self):
+        self.stack.setCurrentWidget(self.home_page)
+
+    def search(self, text: str):
+        if text == "" or text is None:
+            return
+        current = self.stack.currentWidget()
+        if current == self.collections_widget:
+            self.collection_search(text)
+        elif current == self.order_widget:
+            self.order_search(text)
+        else:
+            self.library_search(text)
+
+    def library_search(self, text: str):
+        display_info = text_search(text)
+        if display_info is None:
+            # TODO: Need to add logic here.
+            raise ValueError("Incorrect type passed!")
+        search_view = ComicGridView(display_info, self.reader_controller)
+        for i in reversed(range(self.search_layout.count())):
+            widget_to_remove = self.search_layout.itemAt(i).widget()
+            if widget_to_remove:
+                widget_to_remove.setParent(None)
+
+        self.search_layout.addWidget(search_view)
+        self.stack.setCurrentWidget(self.search_display)
+
+    def collection_search(self, text: str):
+        if self.collection_grid.explore:
+            display_info = text_search(text)
+            self.collection_grid.all_comics.set_comics(display_info or [])
+        else:
+            display_info = collection_search(text, self.collection_grid.coll_id)
+            self.collection_grid.grid.reload_contents(display_info or [])
+
+    def open_review_panel(self, comic_info: GUIComicInfo):
+        self.metadata_popup = MetadataDialog(comic_info)
+        self.metadata_popup.show()
+
+    def tag_comics(self):
+        run_tagger(self)
+
+    def get_user_match(
+        self,
+        query_results: list[tuple[ComicMatch, int]],
+        actual_comic,
+        all_results,
+        filepath: Path,
+    ):
+        dialog = ComicMatcherUI(actual_comic, query_results, all_results, filepath)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            selected = dialog.get_selected_result()
+            if selected:
+                return selected
+
+        logging.info("User cancelled or no selection made.")
+        return None
+
+    def create_collection(self):
+        dialog = CollectionCreation()
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            logging.info(dialog.textbox.text())
+
+    def clicked_collection(self, id: int, name: str):
+        self.clear_layout(self.coll_display)
+        with RepoWorker() as worker:
+            try:
+                comic_ids = worker.get_collection_contents(id)
+            except ValueError as e:
+                logging.error(str(e))
+                return
+            # TODO: Add method to communicate errors to user.
+            comic_infos = worker.create_basemodel(comic_ids)
+        self.collection_grid = ComicCollectionGridView(
+            comic_infos, self.reader_controller, id
+        )
+        self.coll_display.addWidget(self.collection_grid)
+        self.stack.setCurrentWidget(self.collections_widget)
+
+    def create_reading_order(self):
+        dialog = ReadingOrderCreation()
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            logging.info(dialog.textbox.text())
+
+    def clicked_reading_order(self, id: int, name: str):
+        self.collapse_sidebar()
+        self.clear_layout(self.order_display_)
+        self.order_editor = ReadingOrderEditor(id, name)
+        self.order_display_.addWidget(self.order_editor)
+        self.stack.setCurrentWidget(self.order_widget)
+
+    def order_search(self, text: str):
+        display_info = text_search(text)
+        self.order_editor.library_panel.set_comics(display_info or [])
+
+    def open_settings(self):
+        dialog = Settings()
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            return
+
+    def delete_col(self, identifier: int) -> None:
+        with RepoWorker() as worker:
+            worker.delete_collection(identifier)
+
+    def delete_ord(self, identifier: int) -> None:
+        with RepoWorker() as worker:
+            worker.delete_order(identifier)
+
+    def on_view_changed(self, index: int) -> None:
+        widget = self.stack.widget(index)
+        if isinstance(widget, QSplitter) and widget.count() > 0:
+            widget = widget.widget(0)
+        view_type = getattr(widget, "VIEW_TYPE", None)
+
+        self.sort_action.setVisible(view_type == MainViewType.GRID_VIEW)
+
+    def update_status(self, message: str) -> None:
+        """
+        Update the status bar with a message.
+
+        Args:
+            message: The message to display in the status bar.
+        """
+        self.statusBar().showMessage(message, 4000)
+
+    def update_progress_bar(self, value: int):
+        self.progress_bar.show()
+        self.progress_bar.setValue(value)
+        if value >= 100:
+            QTimer.singleShot(1500, self.progress_bar.hide)
+            self.progress_bar.setValue(0)
+
+    def handle_async_exceptions(self, task: asyncio.Task):
+        try:
+            task.result()
+        except Exception as e:
+            logging.error(f"[Async callback exception] {e}")
+
+    def clear_layout(self, layout: QHBoxLayout | QVBoxLayout) -> None:
+        """
+        Remove and safely delete all widgets from a layout.
+
+        Iterates through all items in the layout, removes each item from
+        the layout and schedules its associated widgets for deletion using
+        'deleteLater()'.
+
+        Args:
+            layout (QHBoxLayout | QVBoxLayout): The layout to delete
+            the widgets from.
+        """
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.setParent(None)
+                widget.deleteLater()
+
+
+def count_files_and_storage(directory: str) -> tuple[int, float]:
+    """
+    Count files and calculate total storage usage in a directory.
+
+    Args:
+        directory: Path to the parent directory containing the comics.
+
+    Returns:
+        A tuple containing (file_count, size_in_gb).
+
+    Recursively walks through the directory structure, counting all files
+    (excluding symbolic links) and calculating the total size in bytes. This
+    is then converted to gigabytes.
+    """
+    total_size = 0.0
+    file_count = 0
+    for dirpath, _, filenames in os.walk(directory):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            if not os.path.islink(fp):
+                file_count += 1
+                total_size += os.path.getsize(fp)
+    total_size = total_size / (1024**3)
+    return file_count, total_size
+
+
+def start_api():
+    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
+
+
+if __name__ == "__main__":
+    # scan_and_clean()
+    startup_checks()
+    api_thread = threading.Thread(target=start_api, daemon=True)
+    api_thread.start()
+
+    qt_app = QApplication(sys.argv)
+
+    loop = QEventLoop(qt_app)
+    asyncio.set_event_loop(loop)
+    asyncio.get_event_loop().set_debug(False)
+
+    window = HomePage()
+    window.show()
+
+    with loop:
+        loop.run_forever()

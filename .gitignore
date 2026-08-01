@@ -19,3 +19,4 @@ quick.py
 missing_stubs
 .mypy_cache/
 *.svg
+*.egg-info

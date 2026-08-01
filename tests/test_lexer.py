@@ -1,5 +1,5 @@
-from tagging.itemtypes import LexerType
-from tagging.lexer import Lexer
+from my_project.tagging.itemtypes import LexerType
+from my_project.tagging.lexer import Lexer
 
 
 def lex_all(text):

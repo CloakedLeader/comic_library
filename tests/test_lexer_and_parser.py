@@ -1,5 +1,5 @@
-from tagging.lexer import Lexer
-from tagging.parser import Parser
+from my_project.tagging.lexer import Lexer
+from my_project.tagging.parser import Parser
 
 
 def lex_and_parse(filename: str):

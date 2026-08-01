@@ -1,9 +1,9 @@
 from pathlib import Path
-import pytest
 
-from classes.helper_classes import ComicVineIssueStruct
-from tagging.requester import RequestData
-from tagging_controller import TaggingPipeline
+import pytest
+from my_project.classes.helper_classes import ComicVineIssueStruct
+from my_project.tagging.requester import RequestData
+from my_project.tagging.tagging_controller import TaggingPipeline
 
 API_KEY = "61d8fd6e7cc37cc177cd09f795e9c585999903ed"
 size = 20
@@ -28,6 +28,7 @@ def check_id(id: int, data: list[ComicVineIssueStruct]) -> bool:
                 break
         return matched
 
+
 @pytest.mark.local
 def test_1():
     result = tag(
@@ -35,6 +36,7 @@ def test_1():
         r"G:\Comics\Marvel\Strange Academy\Strange Academy Year One TPB (January 2023).cbz",
     )
     assert check_id(985028, result)
+
 
 @pytest.mark.local
 def test_2():

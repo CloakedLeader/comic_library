@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from metadata_cleaning import MetadataProcessing
+from my_project.tagging.metadata_cleaning import MetadataProcessing
 
 
 class MockParser:
