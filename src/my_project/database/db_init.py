@@ -16,25 +16,29 @@ def ensure_env_and_db() -> Path:
     Makes sure the environment variable file contains the database filepath.
     Then calls a function to make sure the database exists.
     """
-    base_dir = Path(__file__).resolve().parent
-    env_path = base_dir / ".env"
+    project_root = Path(__file__).resolve().parents[3]
+    # base_dir = Path(__file__).resolve().parent
+    env_path = project_root / ".env"
 
     if not env_path.exists():
-        default_db = base_dir / "comics.db"
+        default_db = project_root / "comics.db"
         env_path.write_text(f"DB_PATH={default_db}\n")
         return ensure_db_exists(default_db)
 
     load_dotenv(env_path, override=True)
-    db_path = Path(os.getenv("DB_PATH") or "")
+
     raw_db_path = os.getenv("DB_PATH")
+
     if not raw_db_path:
-        default_db = base_dir / "comics.db"
+        default_db = project_root / "comics.db"
+
         with env_path.open("a") as f:
             f.write(f"DB_PATH={default_db}\n")
+
         return ensure_db_exists(default_db)
-    else:
-        db_path = Path(raw_db_path).expanduser()
-        return ensure_db_exists(db_path)
+
+    db_path = Path(raw_db_path).expanduser()
+    return ensure_db_exists(db_path)
 
 
 def ensure_db_exists(db_path: Path | str) -> Path:

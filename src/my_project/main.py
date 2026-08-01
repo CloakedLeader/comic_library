@@ -54,6 +54,8 @@ load_dotenv()
 root_string = os.getenv("ROOT_DIR")
 ROOT_DIR = Path(root_string if root_string is not None else "")
 DB_PATH = Path(os.getenv("DB_PATH") or "comics.db")
+print(ROOT_DIR)
+print(DB_PATH)
 log_file = open("debug.log", "w", encoding="utf-8")
 sys.stdout = log_file
 sys.stderr = log_file
