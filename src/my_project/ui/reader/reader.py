@@ -5,16 +5,13 @@ expandable and future-proof.
 """
 
 import logging
-import os
 import zipfile
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum, auto
 from io import BytesIO
-from pathlib import Path
 from typing import overload
 
-from dotenv import load_dotenv
 from PIL import Image
 from PySide6.QtCore import (
     QBuffer,
@@ -49,11 +46,6 @@ from PySide6.QtWidgets import (
 from my_project.classes.helper_classes import GUIComicInfo
 from my_project.ui.widgets.metadata_gui_panel import MetadataDialog
 
-load_dotenv()
-resources_path = os.getenv("FRONTEND_RESOURCES")
-if not resources_path:
-    raise RuntimeError("FRONTEND_RESOURCES environment variable is not set.")
-IMAGES = Path(resources_path)
 logging.basicConfig(
     filename="debug.log",
     level=logging.INFO,
@@ -140,6 +132,7 @@ class Comic:
             ComicError: This error is raised when no images are found in the comic archive folder.
         """
         self.path = comic_info.filepath
+        logging.info(f"Exposed comic filepath: {str(self.path)}")
         self.filename = comic_info.filepath.stem
         self.zip = zipfile.ZipFile(comic_info.filepath, "r")
         self.image_names = sorted(
@@ -934,28 +927,27 @@ class SimpleReader(QMainWindow):
 
         self.toolbar = QToolBar("Navigation Tools")
         self.prev_action = self.toolbar.addAction(
-            QIcon(str(IMAGES / "arrow_left.svg")), "", self.prev_page
+            QIcon(":/icons/arrow_left.svg"), "", self.prev_page
         )
         self.prev_action.setToolTip("Previous Page")
+
         self.next_action = self.toolbar.addAction(
-            QIcon(str(IMAGES / "arrow_right.svg")), "", self.next_page
+            QIcon(":/icons/arrow_right.svg"), "", self.next_page
         )
         self.next_action.setToolTip("Next Page")
-        self.toolbar.addAction(
-            QIcon(str(IMAGES / "search.svg")), "", self.page_navigation
-        )
-        self.toolbar.addAction(QIcon(str(IMAGES / "zoom_in.svg")), "")
-        self.toolbar.addAction(QIcon(str(IMAGES / "zoom_out.svg")), "")
-        self.toolbar.addAction(QIcon(str(IMAGES / "bookmark_add.svg")), "")
-        self.toolbar.addAction(QIcon(str(IMAGES / "comment_add.svg")), "")
-        self.toolbar.addAction(
-            QIcon(str(IMAGES / "one_page.svg")), "", self.set_one_page
-        )
-        self.toolbar.addAction(
-            QIcon(str(IMAGES / "two_pages.svg")), "", self.set_double_page
-        )
+
+        self.toolbar.addAction(QIcon(":/icons/search.svg"), "", self.page_navigation)
+
+        self.toolbar.addAction(QIcon(":/icons/zoom_in.svg"), "")
+        self.toolbar.addAction(QIcon(":/icons/zoom_out.svg"), "")
+        self.toolbar.addAction(QIcon(":/icons/bookmark_add.svg"), "")
+        self.toolbar.addAction(QIcon(":/icons/comment_add.svg"), "")
+        self.toolbar.addAction(QIcon(":/icons/one_page.svg"), "", self.set_one_page)
+
+        self.toolbar.addAction(QIcon(":/icons/two_pages.svg"), "", self.set_double_page)
+
         self.analytics_action = self.toolbar.addAction(
-            QIcon(str(IMAGES / "analytics.svg")), "", self.open_metadata_panel
+            QIcon(":/icons/analytics.svg"), "", self.open_metadata_panel
         )
         self.analytics_action.setToolTip("Open Metadata Panel")
 

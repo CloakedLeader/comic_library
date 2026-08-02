@@ -11,10 +11,11 @@ from typing import Optional
 from dotenv import load_dotenv
 
 from my_project.classes.helper_classes import GUIComicInfo, MetadataInfo, ReviewData
+from my_project.utils.paths import DB_PATH
 
 load_dotenv()
 ROOT_DIR = Path(os.getenv("ROOT_DIR") or "")
-DB_PATH = Path(os.getenv("DB_PATH") or "comics.db")
+# DB_PATH = Path(os.getenv("DB_PATH") or "comics.db")
 
 
 class RepoWorker:

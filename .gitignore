@@ -20,3 +20,5 @@ missing_stubs
 .mypy_cache/
 *.svg
 *.egg-info
+build/
+dist/
