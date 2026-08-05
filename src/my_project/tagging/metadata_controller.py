@@ -150,6 +150,7 @@ class MetadataController:
             "Penciller",
             "Summary",
         ]
+        logging.info("Checking present metadata.")
         if self.filepath is None:
             logging.error("Filename must not be None")
             return False
@@ -179,7 +180,7 @@ class MetadataController:
                                 )
                                 return False
                             else:
-                                logging.debug("ComicInfo.xml is valid and complete")
+                                logging.info("ComicInfo.xml is valid and complete")
                                 return True
                         else:
                             logging.warning("No content in XML")
@@ -204,11 +205,15 @@ class MetadataController:
         if has_metadata:
             raw_comic_metadata: ComicInfo = self.get_embedded_metadata()
         else:
+            logging.info("Starting search for comic in ComicVine database.")
             tag_applier = self.get_one_result()
             if tag_applier:
+                logging.info("Search results lead to one result.")
                 raw_comic_metadata = tag_applier.create_metadata_dict()
             else:
-                raise RuntimeError("No comic with which to match.")
+                logging.error("No comic with which to match.")
+                return
+                # raise RuntimeError("No comic with which to match.")
         clean_comic_metadata: ComicInfo = self.clean_embedded_metadata(
             raw_comic_metadata
         )
@@ -347,7 +352,7 @@ class MetadataController:
         Raises:
             ValueError: If in the process of inputting there is an error, this is raised.
         """
-        print("[INFO] Starting inputting data to the database")
+        logging.info("Starting inputting data to the database")
         self.page_count = (
             self.get_pagecount() if self.page_count is None else self.page_count
         )
@@ -414,7 +419,7 @@ class MetadataController:
         return None
 
 
-VALID_EXTENSIONS = {".cbz", ".cbr", ".zip"}
+VALID_EXTENSIONS = {".cbz", ".cbr"}
 EXCLUDE = {
     "0 - Downloads",
     "1 - Marvel Comics",

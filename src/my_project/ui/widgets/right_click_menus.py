@@ -47,7 +47,7 @@ class GridViewContextMenuManager:
             global_pos (_type_): The position of the right click w.r.t the entire
             app view.
         """
-        logging.debug(
+        logging.info(
             "Context menu requested for %s at %s", comic_info.title, global_pos
         )
         menu = QMenu()
@@ -67,13 +67,13 @@ class GridViewContextMenuManager:
         chosen_menu = menu.exec(global_pos)
 
         if chosen_menu == open_action:
-            logging.debug(f"Read clicked for {comic_info.title}")
+            logging.info(f"Read clicked for {comic_info.title}")
         elif chosen_menu == info_action:
-            logging.debug(f"Metadata clicked for {comic_info.title}")
+            logging.info(f"Metadata clicked for {comic_info.title}")
         elif chosen_menu in action_map:
             coll_id = action_map[chosen_menu]
-            logging.debug(f"Add {comic_info.title} to collection {coll_id}")
+            logging.info(f"Add {comic_info.title} to collection {coll_id}")
             with RepoWorker() as worker:
                 worker.add_to_collection(coll_id, comic_info.primary_id)
         else:
-            logging.debug("Menu dismissed")
+            logging.info("Menu dismissed")

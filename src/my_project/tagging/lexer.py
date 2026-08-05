@@ -84,6 +84,14 @@ class Lexer:
         self.sbrace_depth: int = 0
         self.items: list[Item] = []
 
+    def format_items(self) -> str:
+        """Returns all lexer items in a readable format for debugging."""
+        lines = [f"Lexer items ({len(self.items)}):"]
+        for item in self.items:
+            lines.append(item.__repr__())
+
+        return "\n".join(lines)
+
     def get(self) -> str:
         """
         Advance the lexer's position by one and return the character at the new position.

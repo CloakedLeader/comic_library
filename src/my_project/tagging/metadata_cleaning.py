@@ -259,7 +259,6 @@ class MetadataProcessing:
             """
             Parses volume numbers like 'Vol. 2', 'Book One', etc.
 
-
             Args:
                 raw_title (str): The title to be cleaned of unhelpful terms.
 

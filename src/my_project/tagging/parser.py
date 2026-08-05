@@ -360,6 +360,9 @@ class Parser:
                     if maybe_author:
                         possible_metadata["author"] = maybe_author
                         continue
+                    else:
+                        self.next()
+                        continue
                 else:
                     if dashes > 0:
                         if dash_count >= dashes:

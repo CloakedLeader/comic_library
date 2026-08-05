@@ -346,7 +346,7 @@ class IssueResponseValidator:
     #     hash1 = known_image_hash
     #     hash2 = imagehash.phash(unsure_image)
     #     hash_diff = hash1 - hash2
-    #     logging.debug(
+    #     logging.info(
     #         f"Hashing distance = \
     #           {hash_diff}, threshold = {threshold}"
     #     )
@@ -374,7 +374,7 @@ class IssueResponseValidator:
             float: Weighted similarity where higher values represent greater
                 similarity.
         """
-        weights = {"phash": 0.6, "dhash": 0.2, "ahash": 0.2}
+        weights = {"phash": 0.7, "dhash": 0.2, "ahash": 0.1}
         with Image.open(unsure_image_bytes) as img:
             unsure_hashes = {
                 "phash": imagehash.phash(img),

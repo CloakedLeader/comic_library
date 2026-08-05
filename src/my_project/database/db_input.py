@@ -242,7 +242,7 @@ class MetadataInputting:
         self.conn.commit()
 
     def insert_filepath(self, filepath: Path):
-        logging.debug(f"Updating comic ID {self.comic_id} with path {filepath.name}")
+        logging.info(f"Updating comic ID {self.comic_id} with path {filepath.name}")
         self.cursor.execute(
             """
             UPDATE comics
@@ -252,7 +252,7 @@ class MetadataInputting:
             (str(filepath), self.comic_id),
         )
         logging.info("SQL executed successfully.")
-        logging.debug(f"Rows updated: {self.cursor.rowcount}")
+        logging.info(f"Rows updated: {self.cursor.rowcount}")
         self.conn.commit()
 
 

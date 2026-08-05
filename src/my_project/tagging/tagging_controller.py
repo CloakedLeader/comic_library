@@ -5,7 +5,6 @@ from concurrent.futures import ThreadPoolExecutor
 from enum import IntEnum
 from io import BytesIO
 from pathlib import Path
-from typing import Optional
 
 import imagehash
 import requests
@@ -14,7 +13,7 @@ from imagehash import ImageHash
 from PIL import Image
 
 from my_project.classes.helper_classes import ComicVineIssueStruct
-from my_project.tagging.lexer import Lexer, LexerFunc, run_lexer
+from my_project.tagging.lexer import Lexer
 from my_project.tagging.parser import Parser
 from my_project.tagging.requester import HttpRequest, RequestData
 from my_project.tagging.validator import IssueResponseValidator, SearchResponseValidator
@@ -66,7 +65,7 @@ class TaggingPipeline:
                 if f.lower().endswith((".jpg", ".jpeg", ".png"))
             ]
             if not image_files:
-                logging.debug(f"Empty archive in {self.path}")
+                logging.info(f"Empty archive in {self.path}")
                 raise ValueError("Empty archive.")
 
             image_files.sort()
@@ -82,23 +81,30 @@ class TaggingPipeline:
         }
 
     def run(self) -> MatchCode:
-        queries: list[str] = [
-            f"{self.data.series} {self.data.title or ''}".strip(),
-            self.data.series,
-            self.data.title,
-        ]
+        queries: set[str] = set(
+            [
+                f"{self.data.series} {self.data.title or ''}".strip(),
+                self.data.series,
+                self.data.title,
+            ]
+        )
         self.potential_results: list = []
 
         skipped_vols = []
         good_matches = []
         for q in queries:
+            if q == "":
+                continue
+            logging.info(f"Query: {q}")
             self.http.build_url_search(q)
             results = self.http.search_get_request()
             self.search_validator = SearchResponseValidator(results.results, self.data)
 
-            print(f"There are {len(results.results)} results returned.")
+            logging.info(f"There are {len(results.results)} results returned.")
             filtered_results = self.search_validator.filter_search_results()
-            print(
+            for filtered in filtered_results:
+                logging.info(filtered)
+            logging.info(
                 "After filtering for title, publisher and issue "
                 + f"there are {len(filtered_results)} remaining results."
             )
@@ -115,13 +121,13 @@ class TaggingPipeline:
                 self.issue_validator = IssueResponseValidator(
                     issue_results.results, self.data
                 )
-                logging.debug(
+                logging.info(
                     f"There are {len(self.issue_validator.results)}"
                     + f" issues in the matching volume: '{k}' for query {q}."
                 )
                 temp_results = self.issue_validator.filter_issue_results()
 
-                logging.debug(
+                logging.info(
                     "After filtering for title and year "
                     + f"there are {len(temp_results)} results remaining for query {q}"
                 )
@@ -130,7 +136,7 @@ class TaggingPipeline:
                     continue
 
                 if len(temp_results) > 25:
-                    logging.debug(
+                    logging.info(
                         "Too many issues to compare covers, "
                         + f"skipping volume '{k}'."
                     )
@@ -150,7 +156,7 @@ class TaggingPipeline:
                         score = self.issue_validator.cover_img_comp_w_weight(
                             self.coverhashes, i
                         )
-                        logging.debug(f"Index {index}: similarity score = {score:.2f}")
+                        logging.info(f"Index {index}: similarity score = {score:.2f}")
                         if score > 0.85:
                             final_results.append(temp_results[index])
                     except Exception as e:
@@ -164,11 +170,11 @@ class TaggingPipeline:
                 self.results.extend(final_results)
                 break
             elif len(final_results) == 0:
-                logging.warning(f"There are no matches using query {q}.")
+                logging.warning(f"There are no matches for query {q}.")
                 continue
             elif len(final_results) > 1:
                 for res in good_matches:
-                    logging.debug(res.volume.name)
+                    logging.info(res.volume.name)
                 self.results.extend(final_results)
                 continue
                 # Need to use scoring or sorting or closest title match etc.
@@ -186,13 +192,17 @@ class TaggingPipeline:
 
 def run_tagging_process(filepath: Path, api_key: str) -> TaggingPipeline:
     filename = filepath.stem
+
     lexer_instance = Lexer(filename)
-    state: Optional[LexerFunc] = run_lexer
-    while state is not None:
-        state = state(lexer_instance)
+    logging.info("Starting lexing the filename.")
+    lexer_instance.run()
+    logging.info(lexer_instance.format_items())
+
     parser_instance = Parser(lexer_instance.items)
+    logging.info("Starting parsing lexed items.")
     comic_info = parser_instance.parse()
-    logging.debug(f"The filename {filename} gives the following info:\n", comic_info)
+    logging.info(f"The filename {filename} gives the following info:\n {comic_info}")
+
     series = comic_info.series
     num = comic_info.volume_number
     year = comic_info.year

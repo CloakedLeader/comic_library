@@ -46,7 +46,7 @@ class ResultsFilter:
         if exc_type:
             logging.error(f"Exception occured: {exc_type.__name__}: {exc_value}")
         else:
-            logging.debug("Exiting ResultsFilter context cleanly.")
+            logging.info("Exiting ResultsFilter context cleanly.")
         return False
 
     # @staticmethod

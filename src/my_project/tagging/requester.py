@@ -162,7 +162,7 @@ class HttpRequest:
         data = response.json()
         if data["error"] != "OK":
             logging.warning("Error, please investigate")
-            raise RuntimeError("Error, please investigate")
+            # raise RuntimeError("Error, please investigate")
         return APISearchResults.model_validate(data)
 
     def issue_get_request(self) -> APIIssueResults:
@@ -193,7 +193,7 @@ class HttpRequest:
         data = response.json()
         if data["error"] != "OK":
             logging.warning("Error, please investigate")
-            raise RuntimeError("Error, please investigate")
+            # raise RuntimeError("Error, please investigate")
         items = data["results"]
         validated: list[ComicVineIssueStruct] = []
         for item in items:

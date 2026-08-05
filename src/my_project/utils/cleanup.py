@@ -67,7 +67,7 @@ def scan_and_clean() -> None:
         logging.info("Comic database is up to date.")
         return None
     for _, file_path in missing:
-        logging.debug(f"Removing missing comic: {file_path}")
+        logging.info(f"Removing missing comic: {file_path}")
         delete_comic(file_path)
 
     logging.info(f"Scan complete. Removed {len(missing)} missing comics.")

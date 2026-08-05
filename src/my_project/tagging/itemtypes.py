@@ -94,4 +94,4 @@ class Item:
         Returns:
             str: String formatted version of the token.
         """
-        return f"{self.val}: index: {self.pos}: {self.typ}"
+        return f"   [{self.pos}] {self.typ!s:<15} {self.val!r}"

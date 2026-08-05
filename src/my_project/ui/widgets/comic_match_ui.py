@@ -134,7 +134,7 @@ class ComicMatcherUI(QDialog):
     def confirm_match(self):
         row = self.table_widget.currentRow()
         if row != -1:
-            logging.debug(f"Selected row: {row}")
+            logging.info(f"Selected row: {row}")
             overall_index = self.matches[row][1]
             self.selected_match = self.all_matches[overall_index]
             self.accept()
@@ -142,7 +142,7 @@ class ComicMatcherUI(QDialog):
             logging.warning("No row selected")
 
     def get_selected_result(self):
-        logging.debug(self.selected_match)
+        logging.info(self.selected_match)
         return self.selected_match if hasattr(self, "selected_match") else None
 
     @staticmethod

@@ -83,7 +83,7 @@ class DownloadControllerAsync:
             self.download_service = DownloadServiceAsync(self.download_folder)
         self.comic_info = comic_info
         self.view.update_status(f"Starting download of: {comic_info.title}")
-        logging.debug(f"comic_info.url: {comic_info.url}")
+        logging.info(f"comic_info.url: {comic_info.url}")
         async with self.download_service:
             download_links = await self.download_service.get_download_links(
                 comic_info.url
@@ -273,13 +273,13 @@ class DownloadServiceAsync:
     ):
         async with aiohttp.ClientSession() as session:
             async with session.get(url, allow_redirects=True) as response:
-                logging.debug("\n=== Redirect history ===")
+                logging.info("\n=== Redirect history ===")
                 for i, r in enumerate(response.history, start=1):
-                    logging.debug(f"\nHop {i}: {r.url}")
-                    logging.debug(r.headers)
+                    logging.info(f"\nHop {i}: {r.url}")
+                    logging.info(r.headers)
 
-                logging.debug("\n=== Final response ===")
-                logging.debug(response.url.human_repr())
+                logging.info("\n=== Final response ===")
+                logging.info(response.url.human_repr())
                 logging.info(dict(response.headers))
 
                 if response.status != 200:
