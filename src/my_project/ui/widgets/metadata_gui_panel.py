@@ -3,12 +3,9 @@ A user-oriented panel for displaying comic metadata and user interactions
 such as reviews, comments and rating.
 """
 
-import os
 import re
-from pathlib import Path
 from textwrap import dedent
 
-from dotenv import load_dotenv
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QCloseEvent, QPixmap
 from PySide6.QtWidgets import (
@@ -27,12 +24,9 @@ from PySide6.QtWidgets import (
 )
 
 from my_project.classes.helper_classes import GUIComicInfo, MetadataInfo
+from my_project.config.config_manager import ConfigManager
 from my_project.database.gui_repo_worker import RepoWorker
 from my_project.ui.widgets.fav_and_rating import HeartButton, StarRating
-
-load_dotenv()
-root_folder = os.getenv("ROOT_DIR")
-ROOT_DIR = Path(root_folder if root_folder is not None else "")
 
 TITLE_STYLE = """
 QLabel {
@@ -155,7 +149,7 @@ class MetadataDialog(QMainWindow):
     A dialog window for displaying comic metadata information.
     """
 
-    def __init__(self, comic_data: GUIComicInfo) -> None:
+    def __init__(self, comic_data: GUIComicInfo, config_manager: ConfigManager) -> None:
         """
         Initialise the metadata dialog.
 
@@ -165,10 +159,11 @@ class MetadataDialog(QMainWindow):
         This dialog shows metadata fields for a given comic reader instance
         and provides a close button for user interaction.
         """
+        self.config_manager = config_manager
         self.primary_id = comic_data.primary_id
         self.coverpath = comic_data.cover_path
         self.filepath = comic_data.filepath
-        with RepoWorker() as info_getter:
+        with RepoWorker(self.config_manager) as info_getter:
             metadata = info_getter.get_complete_metadata(self.primary_id)
         super().__init__()
         self.setWindowTitle(f"Metadata for {metadata.title}: {metadata.series}")
@@ -229,7 +224,9 @@ class MetadataDialog(QMainWindow):
         review_panel.add_content(review_area)
 
         thumbnail_filename = f"{self.primary_id}_t.jpg"
-        thumbnail_pix = QPixmap(ROOT_DIR / ".covers" / thumbnail_filename)
+        thumbnail_pix = QPixmap(
+            self.config_manager.config.comicsroot.path / ".covers" / thumbnail_filename
+        )
         thumbnail_label = QLabel()
         thumbnail_label.setPixmap(thumbnail_pix)
         thumbnail_label.setScaledContents(False)
@@ -264,7 +261,7 @@ class MetadataDialog(QMainWindow):
     def save_current_review(self) -> None:
         """Saves the currently written review to the database."""
         current_text = self.text_edit.toPlainText()
-        with RepoWorker() as review_saver:
+        with RepoWorker(self.config_manager) as review_saver:
             review_saver.input_review_column(
                 primary_key=self.primary_id, review_text=current_text
             )
@@ -338,7 +335,7 @@ class MetadataDialog(QMainWindow):
         """
         favourite_state = self.heart.isChecked()
         rating = int(self.stars.rating * 2)
-        with RepoWorker() as worker:
+        with RepoWorker(self.config_manager) as worker:
             worker.favourite_toggle(self.primary_id, favourite_state)
             worker.save_rating(self.primary_id, rating)
         return super().closeEvent(event)

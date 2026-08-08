@@ -5,23 +5,19 @@ from pathlib import Path
 from my_project.classes.helper_classes import (
     CharacterInfo,
     ComicInfo,
-    ComicVineIssueStruct,
+    ComicVineDetailStruct,
     PersonInfo,
     Publisher,
     TeamInfo,
 )
 
-logging.basicConfig(
-    filename="debug.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+logger = logging.getLogger(__name__)
 
 
 class TagApplication:
     def __init__(
         self,
-        comicvine_info: ComicVineIssueStruct,
+        comicvine_info: ComicVineDetailStruct,
         publisher_info: Publisher,
         api_key: str,
         filename: str,
@@ -34,8 +30,6 @@ class TagApplication:
             comicvine_dict (dict | list): A ComicVine-style entry or list thereof.
             api_key (str): API key to append to subsequent API requests.
             filename (str): The comic filename, later used to embed metadata.
-            session (_type_): HTTP session or client used for network requests; kept
-            for use by instance methods.
         """
 
         self.publisher_info = publisher_info
@@ -105,7 +99,12 @@ class TagApplication:
         }
         creator_list: list[tuple[str, str]] = []
         for creator in list_of_creator_info:
-            creator_list.append((creator.name, mapping[creator.role]))
+            for role in creator.role.split(","):
+                role = role.strip().lower()
+
+                mapped = mapping.get(role)
+                if mapped is not None:
+                    creator_list.append((creator.name, mapped))
         return creator_list
 
     @staticmethod

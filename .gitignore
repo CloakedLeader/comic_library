@@ -11,6 +11,7 @@ thumbnails/
 *.png
 ipad_app/
 *.json
+!test_config.json
 log.txt
 *.toml
 *.log

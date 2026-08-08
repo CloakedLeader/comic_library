@@ -2,9 +2,8 @@
 A settings popup window for user interaction and editing.
 """
 
-import os
+from pathlib import Path
 
-from dotenv import load_dotenv, set_key
 from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
@@ -16,7 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-ENV_PATH = ".env"
+from my_project.config.config_manager import ConfigManager
 
 
 class Settings(QDialog):
@@ -25,7 +24,7 @@ class Settings(QDialog):
     ComicVine API key.
     """
 
-    def __init__(self):
+    def __init__(self, config_manager: ConfigManager):
         """
         Creates the popup window with 2 QLineEdit's for user input.
         Gets the current values for the fields and adds them to the
@@ -34,6 +33,7 @@ class Settings(QDialog):
         super().__init__()
 
         self.setWindowTitle("Settings")
+        self.config_manager = config_manager
         self.main_display = QWidget()
         self.main_layout = QVBoxLayout(self.main_display)
 
@@ -57,7 +57,7 @@ class Settings(QDialog):
         self.exit = QPushButton("Cancel")
         self.exit.clicked.connect(self.reject)
         self.apply = QPushButton("Apply")
-        self.apply.clicked.connect(self.save_env_vars)
+        self.apply.clicked.connect(self.save_user_inputs)
         self.okay_button = QPushButton("Ok")
         self.okay_button.clicked.connect(self.okay_pressed)
         button_holder.addWidget(self.exit, 1)
@@ -72,7 +72,9 @@ class Settings(QDialog):
         self.main_layout.addWidget(button_display)
         self.setLayout(self.main_layout)
 
-        self.key, self.dir = self.load_vars()
+        self.load_vars()
+        self.original_key = self.api_input.text()
+        self.original_path = self.path_input.text()
 
     def browse_folder(self):
         """
@@ -84,7 +86,7 @@ class Settings(QDialog):
         if folder:
             self.path_input.setText(folder)
 
-    def load_vars(self) -> tuple[str, str]:
+    def load_vars(self) -> None:
         """
         Gets the current entries in the .env file and adds them as the default
         in the QLineEdits.
@@ -92,34 +94,20 @@ class Settings(QDialog):
         Returns:
             tuple[str, str]: A tuple of the API key and comic directory.
         """
-        if os.path.exists(ENV_PATH):
-            load_dotenv(ENV_PATH)
-            current_key = os.getenv("API_KEY", "")
-            current_dir = os.getenv("ROOT_DIR", "")
-            if current_key != "":
-                self.api_input.setText(current_key)
-            if current_dir != "":
-                self.path_input.setText(current_dir)
-        else:
-            current_dir = ""
-            current_key = ""
 
-        return current_key, current_dir
+        self.api_input.setText(self.config_manager.config.comicvine.api_key)
 
-    def save_env_vars(self):
+        self.path_input.setText(str(self.config_manager.config.comicsroot.path))
+
+    def save_user_inputs(self):
         """
         Saves the current entries in the QLineEdits into the .env
         file.
         """
         api_key = self.api_input.text().strip()
         folder = self.path_input.text().strip()
-        if not os.path.exists(ENV_PATH):
-            with open(ENV_PATH, "w") as f:
-                f.write("")
 
-        set_key(ENV_PATH, "API_KEY", api_key)
-        set_key(ENV_PATH, "ROOT_DIR", folder)
-        load_dotenv(ENV_PATH, override=True)
+        self.config_manager.update_settings(Path(folder), api_key)
 
     def okay_pressed(self):
         """
@@ -128,19 +116,19 @@ class Settings(QDialog):
         what to do.
         """
         if (
-            self.api_input.text().strip() != self.key
-            or self.path_input.text().strip() != self.dir
+            self.api_input.text().strip() != self.original_key
+            or self.path_input.text().strip() != self.original_path
         ):
             self.unsaved_changes = SaveChanges()
             result = self.unsaved_changes.exec()
 
             if result == QDialog.DialogCode.Accepted:
-                self.save_env_vars()
+                self.save_user_inputs()
                 self.accept()
 
             elif result == QDialog.DialogCode.Rejected:
-                self.api_input.setText(self.key)
-                self.path_input.setText(self.dir)
+                self.api_input.setText(self.original_key)
+                self.path_input.setText(self.original_path)
                 self.accept()
 
 

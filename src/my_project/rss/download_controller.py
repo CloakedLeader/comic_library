@@ -10,20 +10,12 @@ import aiofiles
 import aiohttp
 import requests
 from bs4 import BeautifulSoup
-from dotenv import load_dotenv
 from playwright.async_api import async_playwright
 
 from my_project.classes.helper_classes import RSSComicInfo
+from my_project.config.config_manager import ConfigManager
 
-load_dotenv()
-root_folder = os.getenv("ROOT_DIR") or ""
-ROOT_DIR = Path(root_folder)
-
-logging.basicConfig(
-    filename="debug.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+logger = logging.getLogger(__name__)
 
 
 class DownloadControllerAsync:
@@ -35,7 +27,7 @@ class DownloadControllerAsync:
     download workflow including status updates and error handling.
     """
 
-    def __init__(self, view, download_folder: Path = ROOT_DIR / "0 - Downloads"):
+    def __init__(self, view, config_manager: ConfigManager, download_folder: Path):
         """
         Initialise the download controller.
 
@@ -43,9 +35,10 @@ class DownloadControllerAsync:
             view: The view object for updating UI status.
             service: The download servie for handling actual file downloads.
         """
+        self.config_manager = config_manager
         self.view = view
         self.download_service: DownloadServiceAsync = DownloadServiceAsync(
-            download_folder
+            self.config_manager, download_folder
         )
         self.download_folder = download_folder
         self.comic_dict: dict[str, str] = {}
@@ -80,10 +73,12 @@ class DownloadControllerAsync:
 
         """
         if self.download_service is None:
-            self.download_service = DownloadServiceAsync(self.download_folder)
+            self.download_service = DownloadServiceAsync(
+                self.config_manager, self.download_folder
+            )
         self.comic_info = comic_info
         self.view.update_status(f"Starting download of: {comic_info.title}")
-        logging.info(f"comic_info.url: {comic_info.url}")
+        logger.info(f"comic_info.url: {comic_info.url}")
         async with self.download_service:
             download_links = await self.download_service.get_download_links(
                 comic_info.url
@@ -95,7 +90,7 @@ class DownloadControllerAsync:
                     download_now_link, self.progress_update
                 )
             except (requests.RequestException, aiohttp.ClientError, IOError) as e:
-                logging.error(e)
+                logger.error(e)
                 return
         # for service, link in download_links:
         #     if service != "Read Online":
@@ -133,7 +128,7 @@ class DownloadServiceAsync:
     It provides robust error handling and supports various comic file formats.
     """
 
-    def __init__(self, download_folder: Path = ROOT_DIR / "0 - Downloads") -> None:
+    def __init__(self, config_manager: ConfigManager, download_folder: Path) -> None:
         """
         Initialise the download service.
 
@@ -273,14 +268,14 @@ class DownloadServiceAsync:
     ):
         async with aiohttp.ClientSession() as session:
             async with session.get(url, allow_redirects=True) as response:
-                logging.info("\n=== Redirect history ===")
+                logger.info("\n=== Redirect history ===")
                 for i, r in enumerate(response.history, start=1):
-                    logging.info(f"\nHop {i}: {r.url}")
-                    logging.info(r.headers)
+                    logger.info(f"\nHop {i}: {r.url}")
+                    logger.info(r.headers)
 
-                logging.info("\n=== Final response ===")
-                logging.info(response.url.human_repr())
-                logging.info(dict(response.headers))
+                logger.info("\n=== Final response ===")
+                logger.info(response.url.human_repr())
+                logger.info(dict(response.headers))
 
                 if response.status != 200:
                     raise Exception(
@@ -333,7 +328,7 @@ class DownloadServiceAsync:
             return download.url, download.suggested_filename
         except Exception as e:
             if "Download is starting" in str(e):
-                logging.error("Detected download-start navigation error")
+                logger.error("Detected download-start navigation error")
             final_url = str(self.page.url)
             return final_url, None
 
@@ -366,7 +361,7 @@ class DownloadServiceAsync:
                         percent = int(downloaded * 100 / file_size)
                         progress_callback(percent)
 
-        logging.info(f"Downloaded: {filename}")
+        logger.info(f"Downloaded: {filename}")
         return filepath
 
     async def download_from_service(self, service: str, link: str, progress_callback):
@@ -379,7 +374,7 @@ class DownloadServiceAsync:
             filepath = await handler(link, progress_callback)
             return filepath
         else:
-            logging.warning(f"No handler for service: {service}")
+            logger.warning(f"No handler for service: {service}")
             return None
 
     @staticmethod

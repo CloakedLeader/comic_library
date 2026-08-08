@@ -19,11 +19,7 @@ from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from my_project.classes.helper_classes import GUIComicInfo, RSSComicInfo
 
-logging.basicConfig(
-    filename="debug.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+logger = logging.getLogger(__name__)
 
 
 class GeneralComicWidget(QWidget):
@@ -198,5 +194,5 @@ class ImageWorker(QRunnable):
             pixmap.loadFromData(image_data.read())
             self.result.finished.emit(self.url, pixmap)
         except Exception as e:
-            logging.error(f"Failed to load image from {self.url}: {e}")
+            logger.error(f"Failed to load image from {self.url}: {e}")
         return None

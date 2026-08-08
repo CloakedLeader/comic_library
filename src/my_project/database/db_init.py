@@ -3,33 +3,14 @@ Collection of scripts to ensure database integrity and all the key assests
 can be contacted and are working.
 """
 
-import os
 from pathlib import Path
 
-from dotenv import load_dotenv
-
+from my_project.config.config_manager import ConfigManager
 from my_project.database.db_setup import create_tables, insert_roles
-from my_project.utils.paths import DB_PATH, ENV_PATH
 
 
-def ensure_env_and_db() -> Path:
-    """
-    Makes sure the environment variable file contains the database filepath.
-    Then calls a function to make sure the database exists.
-    """
-    if not ENV_PATH.exists():
-        ENV_PATH.write_text(f"DB_PATH={DB_PATH}\n")
-
-    load_dotenv(ENV_PATH, override=True)
-
-    raw_db_path = os.getenv("DB_PATH")
-
-    if raw_db_path:
-        db_path = Path(raw_db_path).expanduser()
-    else:
-        db_path = DB_PATH
-
-    return ensure_db_exists(db_path)
+def ensure_database(config_manager: ConfigManager) -> Path:
+    return ensure_db_exists(config_manager.config.database.path)
 
 
 def ensure_db_exists(db_path: Path | str) -> Path:
@@ -50,10 +31,10 @@ def ensure_db_exists(db_path: Path | str) -> Path:
     return db_path
 
 
-def startup_checks() -> None:
+def startup_checks(config_manager: ConfigManager) -> None:
     """
     Accumulates all the database health checks into one function.
     """
-    db_path = ensure_env_and_db()
+    db_path = config_manager.config.database.path
     create_tables(db_path)
     insert_roles(db_path)

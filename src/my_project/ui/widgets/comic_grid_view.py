@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from my_project.classes.helper_classes import GUIComicInfo, MainViewType
+from my_project.config.config_manager import ConfigManager
 from my_project.database.gui_repo_worker import RepoWorker
 from my_project.ui.reader.reader_controller import ReadingController
 from my_project.ui.widgets.general_comic_widget import GeneralComicWidget
@@ -48,6 +49,7 @@ class ComicGrid(QWidget):
         reading_controller: ReadingController,
         coll_names: list[str],
         coll_ids: list[int],
+        config_manager: ConfigManager,
         colums: int = 5,
     ):
         """
@@ -68,9 +70,12 @@ class ComicGrid(QWidget):
         """
         super().__init__()
         # self.VIEW_TYPE = MainViewType.GRID_VIEW
+        self.config_manager = config_manager
         self.comics = comics
         self.cont = reading_controller
-        self.context_menu = GridViewContextMenuManager(coll_ids, coll_names)
+        self.context_menu = GridViewContextMenuManager(
+            coll_ids, coll_names, self.config_manager
+        )
         self.comic_widgets: list[GeneralComicWidget] = []
 
         self.columns = colums
@@ -224,6 +229,7 @@ class ComicCollectionGridView(QWidget):
         comics: list[GUIComicInfo],
         reading_controller: ReadingController,
         collection_id: int,
+        config_manager: ConfigManager,
         columns: int = 5,
     ):
         """
@@ -240,20 +246,24 @@ class ComicCollectionGridView(QWidget):
             comic widgets with. Defaults to 5.
         """
         super().__init__()
+        self.config_manager = config_manager
         self.coll_id = collection_id
         self.col = columns
         self.comics = comics
         self.cont = reading_controller
         self.explore = False
-        with RepoWorker() as repo_worker:
+        with RepoWorker(self.config_manager) as repo_worker:
             collection_names, collection_ids = repo_worker.get_collections()
-        self.context_menu = GridViewContextMenuManager(collection_ids, collection_names)
+        self.context_menu = GridViewContextMenuManager(
+            collection_ids, collection_names, self.config_manager
+        )
 
         self.grid = ComicGrid(
             self.comics,
             self.cont,
             collection_names,
             collection_ids,
+            self.config_manager,
             self.col,
         )
 
@@ -285,7 +295,7 @@ class ComicCollectionGridView(QWidget):
         vice-versa.
         """
         if not self.explore:
-            with RepoWorker() as repo_worker:
+            with RepoWorker(self.config_manager) as repo_worker:
                 comics = repo_worker.get_all_comics(thumb=True)
             self.all_comics = DraggableComicGridView(comics)
             self.splitter.addWidget(self.all_comics)
@@ -368,7 +378,7 @@ class ComicCollectionGridView(QWidget):
         if not ids_to_add:
             return
 
-        with RepoWorker() as worker:
+        with RepoWorker(self.config_manager) as worker:
             for i in ids_to_add:
                 worker.add_to_collection(self.coll_id, i)
             updated = worker.create_basemodel(ids_to_add)
@@ -390,6 +400,7 @@ class ComicGridView(QWidget):
         self,
         comics: list[GUIComicInfo],
         reading_controller: ReadingController,
+        config_manager: ConfigManager,
         colums: int = 5,
     ):
         """
@@ -404,14 +415,22 @@ class ComicGridView(QWidget):
             comic widgets into. Defaults to 5.
         """
         super().__init__()
+        self.config_manager = config_manager
         self.comics = comics
         self.cont = reading_controller
-        with RepoWorker() as repo_worker:
+        with RepoWorker(self.config_manager) as repo_worker:
             collection_names, collection_ids = repo_worker.get_collections()
-        self.context_menu = GridViewContextMenuManager(collection_ids, collection_names)
+        self.context_menu = GridViewContextMenuManager(
+            collection_ids, collection_names, self.config_manager
+        )
 
         self.grid = ComicGrid(
-            self.comics, self.cont, collection_names, collection_ids, colums
+            self.comics,
+            self.cont,
+            collection_names,
+            collection_ids,
+            self.config_manager,
+            colums,
         )
         self.grid.metadata_requested.connect(self.metadata_requested.emit)
 

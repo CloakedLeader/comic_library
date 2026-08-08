@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Optional
 
 import uvicorn
-from dotenv import load_dotenv
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QApplication,
@@ -31,9 +30,10 @@ from qasync import QEventLoop  # type: ignore[import-untyped]
 
 from my_project.api.api_main import app
 from my_project.classes.helper_classes import GUIComicInfo, MainViewType
+from my_project.config.config_manager import ConfigManager
 from my_project.database.db_init import startup_checks
 from my_project.database.gui_repo_worker import RepoWorker
-from my_project.database.search import collection_search, text_search
+from my_project.database.search import FTS5Searcher
 from my_project.tagging.comic_match_logic import ComicMatch
 from my_project.tagging.metadata_controller import run_tagger
 from my_project.ui.home_view import HomeView
@@ -48,23 +48,8 @@ from my_project.ui.widgets.reading_order_widget import (
     ReadingOrderEditor,
 )
 from my_project.ui.widgets.settings_widget import Settings
-from my_project.utils.cleanup import scan_and_clean
-from my_project.utils.paths import DB_PATH
-
-load_dotenv()
-root_string = os.getenv("ROOT_DIR")
-ROOT_DIR = Path(root_string if root_string is not None else "")
-log_file = open("debug.log", "w", encoding="utf-8")
-sys.stdout = log_file
-sys.stderr = log_file
-
-logging.getLogger("asyncio").setLevel(logging.WARNING)
-logging.getLogger("qasync").setLevel(logging.WARNING)
-logging.basicConfig(
-    filename="debug.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+from my_project.utils.cleanup import Cleanup
+from my_project.utils.paths import LOG_DIR
 
 
 class HomePage(QMainWindow):
@@ -91,8 +76,8 @@ class HomePage(QMainWindow):
         self.metadata_panel: Optional[MetadataPanel] = None
         self.setWindowTitle("Comic Library Homepage")
 
-        self.reader_controller = ReadingController()
-        with RepoWorker() as repo_worker:
+        self.reader_controller = ReadingController(config_manager)
+        with RepoWorker(config_manager) as repo_worker:
             collection_names, collection_ids = repo_worker.get_collections()
             order_names, order_ids, order_descriptions = repo_worker.get_orders()
 
@@ -117,7 +102,7 @@ class HomePage(QMainWindow):
         self.toggle_action.setShortcut("Ctrl+B")
         self.toggle_action.setToolTip("Toggle file tree sidebar")
         self.refresh_action = self.toolbar.addAction("Update")
-        self.refresh_action.triggered.connect(scan_and_clean)
+        # self.refresh_action.triggered.connect(scan_and_clean)
         self.refresh_action.setShortcut("Ctrl + U")
         self.create_collection_button = self.toolbar.addAction("Create Collection")
         self.create_collection_button.triggered.connect(self.create_collection)
@@ -158,11 +143,15 @@ class HomePage(QMainWindow):
         body_widget.setLayout(body_layout)
 
         self.file_model = QFileSystemModel()
-        self.file_model.setRootPath(os.path.expanduser(str(ROOT_DIR)))
+        self.file_model.setRootPath(
+            os.path.expanduser(str(config_manager.config.comicsroot.path))
+        )
         self.file_tree = QTreeView()
         self.file_tree.setModel(self.file_model)
         self.file_tree.setRootIndex(
-            self.file_model.index(os.path.expanduser(str(ROOT_DIR)))
+            self.file_model.index(
+                os.path.expanduser(str(config_manager.config.comicsroot.path))
+            )
         )
         self.file_tree.clicked.connect(self.on_folder_select)
         self.file_tree.setHeaderHidden(True)
@@ -194,7 +183,7 @@ class HomePage(QMainWindow):
         self.splitter = QSplitter()
         self.splitter.addWidget(left_widget)
 
-        self.home_page = HomeView(DB_PATH)
+        self.home_page = HomeView(config_manager)
         self.home_page.asyncError.connect(self.handle_async_exceptions)
         self.home_page.openReader.connect(self.open_reader)
         self.home_page.statusMessage.connect(self.update_status)
@@ -245,7 +234,7 @@ class HomePage(QMainWindow):
         if pub_id.isdigit():
             pub_id = int(pub_id)
             if pub_id != 0:
-                with RepoWorker() as folder_info_getter:
+                with RepoWorker(config_manager) as folder_info_getter:
                     grid_view_data = folder_info_getter.get_folder_info(pub_id)
 
                     if hasattr(self, "grid_view") and self.grid_view is not None:
@@ -256,7 +245,7 @@ class HomePage(QMainWindow):
                             widget.deleteLater()
 
                     self.grid_view = ComicGridView(
-                        grid_view_data, self.reader_controller
+                        grid_view_data, self.reader_controller, config_manager
                     )
                     self.grid_view.metadata_requested.connect(self.show_metadata_panel)
 
@@ -267,7 +256,7 @@ class HomePage(QMainWindow):
                     self.stack.setCurrentWidget(self.browse_splitter)
 
     def show_metadata_panel(self, comic_info: GUIComicInfo):
-        with RepoWorker() as info_getter:
+        with RepoWorker(config_manager) as info_getter:
             comic_metadata = info_getter.get_complete_metadata(comic_info.primary_id)
 
         if hasattr(self, "metadata_panel") and self.metadata_panel is not None:
@@ -324,11 +313,14 @@ class HomePage(QMainWindow):
             self.library_search(text)
 
     def library_search(self, text: str):
-        display_info = text_search(text)
+        with FTS5Searcher(config_manager) as searcher:
+            display_info = searcher.text_search(text)
         if display_info is None:
             # TODO: Need to add logic here.
             raise ValueError("Incorrect type passed!")
-        search_view = ComicGridView(display_info, self.reader_controller)
+        search_view = ComicGridView(
+            display_info, self.reader_controller, config_manager
+        )
         for i in reversed(range(self.search_layout.count())):
             widget_to_remove = self.search_layout.itemAt(i).widget()
             if widget_to_remove:
@@ -339,18 +331,22 @@ class HomePage(QMainWindow):
 
     def collection_search(self, text: str):
         if self.collection_grid.explore:
-            display_info = text_search(text)
+            with FTS5Searcher(config_manager) as searcher:
+                display_info = searcher.text_search(text)
             self.collection_grid.all_comics.set_comics(display_info or [])
         else:
-            display_info = collection_search(text, self.collection_grid.coll_id)
+            with FTS5Searcher(config_manager) as searcher:
+                display_info = searcher.collection_search(
+                    text, self.collection_grid.coll_id
+                )
             self.collection_grid.grid.reload_contents(display_info or [])
 
     def open_review_panel(self, comic_info: GUIComicInfo):
-        self.metadata_popup = MetadataDialog(comic_info)
+        self.metadata_popup = MetadataDialog(comic_info, config_manager)
         self.metadata_popup.show()
 
     def tag_comics(self):
-        run_tagger(self)
+        run_tagger(self, config_manager)
 
     def get_user_match(
         self,
@@ -369,13 +365,13 @@ class HomePage(QMainWindow):
         return None
 
     def create_collection(self):
-        dialog = CollectionCreation()
+        dialog = CollectionCreation(config_manager)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             logging.info(dialog.textbox.text())
 
     def clicked_collection(self, id: int, name: str):
         self.clear_layout(self.coll_display)
-        with RepoWorker() as worker:
+        with RepoWorker(config_manager) as worker:
             try:
                 comic_ids = worker.get_collection_contents(id)
             except ValueError as e:
@@ -384,38 +380,39 @@ class HomePage(QMainWindow):
             # TODO: Add method to communicate errors to user.
             comic_infos = worker.create_basemodel(comic_ids)
         self.collection_grid = ComicCollectionGridView(
-            comic_infos, self.reader_controller, id
+            comic_infos, self.reader_controller, id, config_manager
         )
         self.coll_display.addWidget(self.collection_grid)
         self.stack.setCurrentWidget(self.collections_widget)
 
     def create_reading_order(self):
-        dialog = ReadingOrderCreation()
+        dialog = ReadingOrderCreation(config_manager)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             logging.info(dialog.textbox.text())
 
     def clicked_reading_order(self, id: int, name: str):
         self.collapse_sidebar()
         self.clear_layout(self.order_display_)
-        self.order_editor = ReadingOrderEditor(id, name)
+        self.order_editor = ReadingOrderEditor(id, name, config_manager)
         self.order_display_.addWidget(self.order_editor)
         self.stack.setCurrentWidget(self.order_widget)
 
     def order_search(self, text: str):
-        display_info = text_search(text)
+        with FTS5Searcher(config_manager) as searcher:
+            display_info = searcher.text_search(text)
         self.order_editor.library_panel.set_comics(display_info or [])
 
     def open_settings(self):
-        dialog = Settings()
+        dialog = Settings(config_manager)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             return
 
     def delete_col(self, identifier: int) -> None:
-        with RepoWorker() as worker:
+        with RepoWorker(config_manager) as worker:
             worker.delete_collection(identifier)
 
     def delete_ord(self, identifier: int) -> None:
-        with RepoWorker() as worker:
+        with RepoWorker(config_manager) as worker:
             worker.delete_order(identifier)
 
     def on_view_changed(self, index: int) -> None:
@@ -498,9 +495,42 @@ def start_api():
     uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
 
 
+def configure_logging(log_dir: Path) -> None:
+    """Configure application-wide logging."""
+
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    log_file = log_dir / "debug.log"
+
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler(
+                log_file,
+                mode="w",
+                encoding="utf-8",
+            ),
+            # logging.StreamHandler(sys.stdout),
+        ],
+        force=True,
+    )
+
+    # Reduce noise from libraries we don't control.
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("asyncio").setLevel(logging.WARNING)
+    logging.getLogger("qasync").setLevel(logging.WARNING)
+
+
 if __name__ == "__main__":
-    # scan_and_clean()
-    startup_checks()
+    configure_logging(LOG_DIR)
+    config_manager = ConfigManager()
+    config_manager.load()
+
+    with Cleanup(config_manager) as cleaner:
+        cleaner.scan_and_clean()
+    startup_checks(config_manager)
+
     api_thread = threading.Thread(target=start_api, daemon=True)
     api_thread.start()
 

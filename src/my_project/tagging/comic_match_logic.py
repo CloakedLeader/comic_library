@@ -6,11 +6,7 @@ from typing import TypedDict, cast
 from my_project.classes.helper_classes import ComicVineIssueStruct
 from my_project.tagging.requester import RequestData
 
-logging.basicConfig(
-    filename="debug.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+logger = logging.getLogger(__name__)
 
 
 class ComicMatch(TypedDict):
@@ -30,30 +26,21 @@ class ResultsFilter:
         expected_info: RequestData,
         filepath: Path,
     ):
-        # temp = self.unwrap_data(query_results)
-        # if not isinstance(temp, list):
-        #     raise ValueError("Expected list of dictionaries after unwrapping")
         self.query_results = query_results
         self.expected_info = expected_info
         self.filepath = filepath
 
     def __enter__(self):
         self.filepath.parent.mkdir(parents=True, exist_ok=True)
-        logging.info(f"Entering ResultsFilter context for: {self.filepath.name}")
+        logger.info(f"Entering ResultsFilter context for: {self.filepath.name}")
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type:
-            logging.error(f"Exception occured: {exc_type.__name__}: {exc_value}")
+            logger.error(f"Exception occured: {exc_type.__name__}: {exc_value}")
         else:
-            logging.info("Exiting ResultsFilter context cleanly.")
+            logger.info("Exiting ResultsFilter context cleanly.")
         return False
-
-    # @staticmethod
-    # def unwrap_data(data):
-    #     while isinstance(data, list) and len(data) == 1:
-    #         data = data[0]
-    #     return data
 
     def title_similarity(self, candidate_title: str) -> float:
         return SequenceMatcher(
@@ -89,7 +76,7 @@ class ResultsFilter:
         return score
 
     def filter_results(self, top_n: int = 5) -> list[tuple[ComicVineIssueStruct, int]]:
-        logging.info(f"Adam here you go:\n{self.query_results}")
+        logger.info(f"Adam here you go:\n{self.query_results}")
         ids: set[int] = set()
         scored: list[tuple[float, ComicVineIssueStruct, int]] = []
         # Each tuple has (score, result, position)
@@ -102,6 +89,8 @@ class ResultsFilter:
             scored.append((self.score_results(result), result, index))
 
         scored.sort(key=lambda x: x[0], reverse=True)
+        for i in scored:
+            logger.info(f"Name: {i[1].name}    Position: {i[2]}     Score: {i[0]}")
         return [(r, position) for _, r, position in scored[:top_n]]
 
     def present_choices(self) -> list[tuple[ComicMatch, int]]:

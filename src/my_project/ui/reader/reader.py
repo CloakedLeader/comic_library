@@ -44,13 +44,10 @@ from PySide6.QtWidgets import (
 )
 
 from my_project.classes.helper_classes import GUIComicInfo
+from my_project.config.config_manager import ConfigManager
 from my_project.ui.widgets.metadata_gui_panel import MetadataDialog
 
-logging.basicConfig(
-    filename="debug.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+logger = logging.getLogger(__name__)
 
 
 class ComicError(Exception):
@@ -132,7 +129,7 @@ class Comic:
             ComicError: This error is raised when no images are found in the comic archive folder.
         """
         self.path = comic_info.filepath
-        logging.info(f"Exposed comic filepath: {str(self.path)}")
+        logger.info(f"Exposed comic filepath: {str(self.path)}")
         self.filename = comic_info.filepath.stem
         self.zip = zipfile.ZipFile(comic_info.filepath, "r")
         self.image_names = sorted(
@@ -811,7 +808,7 @@ class PagePreloader(QObject):
         Failed pages are not automatically retried.
         """
         self.loading.discard(index)
-        logging.error(
+        logger.error(
             "Failed to load page %d (%s): %s",
             index,
             self.comic.pages[index].filename,
@@ -899,7 +896,7 @@ class SimpleReader(QMainWindow):
 
     closed = Signal(str, int)
 
-    def __init__(self, comic: Comic):
+    def __init__(self, comic: Comic, config_manager: ConfigManager):
         """
         Creates the base window by opening the comic on the currenly read index
         and loading a certain amount of images before and after.
@@ -911,7 +908,7 @@ class SimpleReader(QMainWindow):
                 like unique identifier and current saved page from the database.
         """
         super().__init__()
-
+        self.config_manager = config_manager
         self.comic = comic
 
         self.sequence = ReadingSequence(comic)
@@ -1075,7 +1072,7 @@ class SimpleReader(QMainWindow):
 
     def open_metadata_panel(self):
         """Opens the expanded metadata panel for the comic."""
-        self.metadata_popup = MetadataDialog(self.comic.info)
+        self.metadata_popup = MetadataDialog(self.comic.info, self.config_manager)
         self.metadata_popup.show()
 
     def next_page(self):

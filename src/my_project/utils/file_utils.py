@@ -5,11 +5,7 @@ import uuid
 import zipfile
 from pathlib import Path
 
-logging.basicConfig(
-    filename="debug.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+logger = logging.getLogger(__name__)
 
 
 def convert_cbz(cbr_path: Path, *, delete_original: bool = True) -> Path:
@@ -61,7 +57,7 @@ def convert_cbz(cbr_path: Path, *, delete_original: bool = True) -> Path:
     if delete_original:
         cbr_path.unlink()
 
-    logging.info(f"Converted: {cbr_path.name} --> {cbz_path.name}")
+    logger.info(f"Converted: {cbr_path.name} --> {cbz_path.name}")
     return cbz_path
 
 
