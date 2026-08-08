@@ -1,6 +1,10 @@
+from pathlib import Path
 from types import SimpleNamespace
 
+from my_project.config.config_manager import ConfigManager
 from my_project.tagging.metadata_cleaning import MetadataProcessing
+
+config_man = ConfigManager(Path("test_config.json"))
 
 
 class MockParser:
@@ -12,7 +16,7 @@ class MockParser:
 
 def test_real_example():
     parser = MockParser(title="Vol. 1: No Good Deed", series="Harley Quinn")
-    proc = MetadataProcessing(parser.raw_info)  # type: ignore[arg-type]
+    proc = MetadataProcessing(parser.raw_info, config_man)  # type: ignore[arg-type]
     result = proc.title_parsing()
 
     assert result["series"] == "Harley Quinn"
@@ -24,7 +28,7 @@ def test_ambig_title():
     parser = MockParser(
         title="Volume 2", series="Fantastic Four by Ryan North: Four Stories About Hope"
     )
-    proc = MetadataProcessing(parser.raw_info)  # type: ignore[arg-type]
+    proc = MetadataProcessing(parser.raw_info, config_man)  # type: ignore[arg-type]
     result = proc.title_parsing()
 
     assert result["series"] == "Fantastic Four by Ryan North"
@@ -36,7 +40,7 @@ def test_basic_colon_in_title():
     parser = MockParser(
         title="Vol. 2: Children of the Atom", series="Ultimate X-Men by Peach Momoko"
     )
-    proc = MetadataProcessing(parser.raw_info)  # type: ignore[arg-type]
+    proc = MetadataProcessing(parser.raw_info, config_man)  # type: ignore[arg-type]
     result = proc.title_parsing()
 
     assert result["series"] == "Ultimate X-Men by Peach Momoko"
@@ -47,7 +51,7 @@ def test_basic_colon_in_title():
 # ! Change logic in metadata_cleaning so that comics with no numbers are given issue #1.
 # def test_hc_in_title():
 #     parser = MockParser(title="HC", series="Plastic Man No More!")
-#     proc = MetadataProcessing(parser.raw_info)  # type: ignore[arg-type]
+#     proc = MetadataProcessing(parser.raw_info, config_man)  # type: ignore[arg-type]
 #     result = proc.title_parsing()
 
 #     assert result["series"] == "Plastic Man No More!"
@@ -57,7 +61,7 @@ def test_basic_colon_in_title():
 
 def test_basic_colon_in_series():
     parser = MockParser(title="", series="Daredevil: Born Again")
-    proc = MetadataProcessing(parser.raw_info)  # type: ignore[arg-type]
+    proc = MetadataProcessing(parser.raw_info, config_man)  # type: ignore[arg-type]
     result = proc.title_parsing()
 
     assert result["series"] == "Daredevil"
@@ -66,7 +70,7 @@ def test_basic_colon_in_series():
 
 def test_colon_in_title():
     parser = MockParser(title="Batman: The Court of Owls", series="Batman")
-    proc = MetadataProcessing(parser.raw_info)  # type: ignore[arg-type]
+    proc = MetadataProcessing(parser.raw_info, config_man)  # type: ignore[arg-type]
     result = proc.title_parsing()
 
     assert result["series"] == "Batman"
@@ -75,7 +79,7 @@ def test_colon_in_title():
 
 def test_ambiguous_title_tpb():
     parser = MockParser(title="TPB", series="Captain America")
-    proc = MetadataProcessing(parser.raw_info)  # type: ignore[arg-type]
+    proc = MetadataProcessing(parser.raw_info, config_man)  # type: ignore[arg-type]
     result = proc.title_parsing()
 
     assert result["title"] == "Captain America"
@@ -84,7 +88,7 @@ def test_ambiguous_title_tpb():
 
 def test_series_override_keyword():
     parser = MockParser(title="X-Men Vol. 2", series="X-Men Omnibus")
-    proc = MetadataProcessing(parser.raw_info)  # type: ignore[arg-type]
+    proc = MetadataProcessing(parser.raw_info, config_man)  # type: ignore[arg-type]
     result = proc.title_parsing()
 
     assert result["collection_type"] == 2
@@ -102,7 +106,7 @@ def test_series_override_keyword():
 
 def test_volume_number_word():
     parser = MockParser(title="Book Three", series="Justice League")
-    proc = MetadataProcessing(parser.raw_info)  # type: ignore[arg-type]
+    proc = MetadataProcessing(parser.raw_info, config_man)  # type: ignore[arg-type]
     result = proc.title_parsing()
 
     assert result["volume_num"] == 3
@@ -110,7 +114,7 @@ def test_volume_number_word():
 
 def test_volume_with_subtitle():
     parser = MockParser(title="Vol. 3: Born Again", series="Daredevil")
-    proc = MetadataProcessing(parser.raw_info)  # type: ignore[arg-type]
+    proc = MetadataProcessing(parser.raw_info, config_man)  # type: ignore[arg-type]
     result = proc.title_parsing()
 
     assert result["volume_num"] == 3
@@ -119,7 +123,7 @@ def test_volume_with_subtitle():
 
 def test_no_volume_falls_back_to_raw():
     parser = MockParser(title="The Killing Joke", series="Batman", volume_num=None)
-    proc = MetadataProcessing(parser.raw_info)  # type: ignore[arg-type]
+    proc = MetadataProcessing(parser.raw_info, config_man)  # type: ignore[arg-type]
     result = proc.title_parsing()
 
     assert result["title"] == "The Killing Joke"
@@ -132,7 +136,7 @@ def test_volume_error_returns_zero():
         title="Book Thirteen",  # unsupported word-number
         series="Spawn",
     )
-    proc = MetadataProcessing(parser.raw_info)  # type: ignore[arg-type]
+    proc = MetadataProcessing(parser.raw_info, config_man)  # type: ignore[arg-type]
     result = proc.title_parsing()
 
     assert result["volume_num"] == 0
@@ -140,7 +144,7 @@ def test_volume_error_returns_zero():
 
 def test_title_case_applied():
     parser = MockParser(title="vol. 2: the dark phoenix saga", series="uncanny x-men")
-    proc = MetadataProcessing(parser.raw_info)  # type: ignore[arg-type]
+    proc = MetadataProcessing(parser.raw_info, config_man)  # type: ignore[arg-type]
     result = proc.title_parsing()
 
     assert result["title"] == "The Dark Phoenix Saga"

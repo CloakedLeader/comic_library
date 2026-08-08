@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from my_project.classes.helper_classes import GUIComicInfo
+from my_project.config.config_manager import ConfigManager
 from my_project.database.gui_repo_worker import RepoWorker
 from my_project.ui.widgets.comic_grid_view import DraggableComicGridView
 
@@ -33,12 +34,13 @@ class ReadingOrderCreation(QDialog):
     Subclasses QDialog.
     """
 
-    def __init__(self):
+    def __init__(self, config_manager: ConfigManager):
         """
         Creates the standard dialog window with two text boxes, one for the
         reading order name and the other for the description.
         """
         super().__init__()
+        self.config_manager = config_manager
         self.setWindowTitle("Reading order creation")
         self.main_display = QWidget()
         self.main_layout = QVBoxLayout(self.main_display)
@@ -78,7 +80,7 @@ class ReadingOrderCreation(QDialog):
         if name == "":
             self.error_message("Cannot have empty name.").exec()
         else:
-            with RepoWorker() as worker:
+            with RepoWorker(self.config_manager) as worker:
                 if description == "":
                     description = None
                 worker.create_reading_order(name, description)
@@ -115,7 +117,7 @@ class ReadingOrderList(QListWidget):
 
     MIME_TYPE = "application/x-comic-order-id"
 
-    def __init__(self, order_id: int, order_name: str):
+    def __init__(self, order_id: int, order_name: str, config_manager: ConfigManager):
         """
         Creates the original reading order just from information
         collected from the database. Adds the widgets in the order
@@ -127,6 +129,7 @@ class ReadingOrderList(QListWidget):
             purposes.
         """
         super().__init__()
+        self.config_manager = config_manager
         self.order_id = order_id
         self.order_name = order_name
 
@@ -150,7 +153,7 @@ class ReadingOrderList(QListWidget):
             or the database does not exist.
         """
         # ? Perhaps this can be removed and just called directly?
-        with RepoWorker() as worker:
+        with RepoWorker(self.config_manager) as worker:
             return worker.get_order_contents(self.order_id)
 
     def create_list_items(self) -> None:
@@ -164,7 +167,7 @@ class ReadingOrderList(QListWidget):
             ids_in_order = []
         else:
             ids_in_order = [c[0] for c in order]
-        with RepoWorker() as worker:
+        with RepoWorker(self.config_manager) as worker:
             comic_info = worker.create_basemodel(ids_in_order, thumb=True)
         for comic in comic_info:
             self.addItem(self.build_item(comic))
@@ -249,7 +252,7 @@ class ReadingOrderList(QListWidget):
         if self.contains_comic(comic_id):
             return
 
-        with RepoWorker() as worker:
+        with RepoWorker(self.config_manager) as worker:
             comic = worker.create_basemodel([comic_id], thumb=True)[0]
         self.insertItem(row, self.build_item(comic))
 
@@ -397,7 +400,7 @@ class ReadingOrderEditor(QWidget):
     It is of QWidget type.
     """
 
-    def __init__(self, order_id: int, order_title: str):
+    def __init__(self, order_id: int, order_title: str, config_manager: ConfigManager):
         """
         Creates the main widget. Containing a splitter so that the
         proportions of the different components can be adjusted.
@@ -407,16 +410,17 @@ class ReadingOrderEditor(QWidget):
             order_title (str): The display name of the reading order.
         """
         super().__init__()
+        self.config_manager = config_manager
         self.order_id = order_id
         self.order_title = order_title
 
         main_layout = QHBoxLayout()
         self.splitter = QSplitter()
-        with RepoWorker() as worker:
+        with RepoWorker(self.config_manager) as worker:
             all_comics = worker.get_all_comics()
 
         self.library_panel = DraggableComicGridView(all_comics)
-        self.order_panel = ReadingOrderList(order_id, order_title)
+        self.order_panel = ReadingOrderList(order_id, order_title, self.config_manager)
         self.save_button = QPushButton("Save Current Order")
         self.left_widget = QWidget()
         self.left_layout = QVBoxLayout(self.left_widget)
@@ -432,7 +436,7 @@ class ReadingOrderEditor(QWidget):
     def save_order(self):
         """Saves the currently displayed reading order to the database."""
         order = self.order_panel.get_current_order()
-        with RepoWorker() as repo:
+        with RepoWorker(self.config_manager) as repo:
             repo.add_to_order(self.order_id, order)
 
 

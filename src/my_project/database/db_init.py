@@ -3,42 +3,14 @@ Collection of scripts to ensure database integrity and all the key assests
 can be contacted and are working.
 """
 
-import os
 from pathlib import Path
 
-from dotenv import load_dotenv
-
+from my_project.config.config_manager import ConfigManager
 from my_project.database.db_setup import create_tables, insert_roles
 
 
-def ensure_env_and_db() -> Path:
-    """
-    Makes sure the environment variable file contains the database filepath.
-    Then calls a function to make sure the database exists.
-    """
-    project_root = Path(__file__).resolve().parents[3]
-    # base_dir = Path(__file__).resolve().parent
-    env_path = project_root / ".env"
-
-    if not env_path.exists():
-        default_db = project_root / "comics.db"
-        env_path.write_text(f"DB_PATH={default_db}\n")
-        return ensure_db_exists(default_db)
-
-    load_dotenv(env_path, override=True)
-
-    raw_db_path = os.getenv("DB_PATH")
-
-    if not raw_db_path:
-        default_db = project_root / "comics.db"
-
-        with env_path.open("a") as f:
-            f.write(f"DB_PATH={default_db}\n")
-
-        return ensure_db_exists(default_db)
-
-    db_path = Path(raw_db_path).expanduser()
-    return ensure_db_exists(db_path)
+def ensure_database(config_manager: ConfigManager) -> Path:
+    return ensure_db_exists(config_manager.config.database.path)
 
 
 def ensure_db_exists(db_path: Path | str) -> Path:
@@ -59,10 +31,10 @@ def ensure_db_exists(db_path: Path | str) -> Path:
     return db_path
 
 
-def startup_checks() -> None:
+def startup_checks(config_manager: ConfigManager) -> None:
     """
     Accumulates all the database health checks into one function.
     """
-    db_path = ensure_env_and_db()
+    db_path = config_manager.config.database.path
     create_tables(db_path)
     insert_roles(db_path)

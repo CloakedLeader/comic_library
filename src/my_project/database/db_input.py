@@ -4,13 +4,10 @@ from pathlib import Path
 from typing import Optional
 
 from my_project.classes.helper_classes import ComicInfo
+from my_project.config.config_manager import ConfigManager
 from my_project.utils.file_utils import normalise_publisher_name
 
-logging.basicConfig(
-    filename="debug.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+logger = logging.getLogger(__name__)
 
 SHARED_ALIASES = [
     "Robin",
@@ -44,12 +41,14 @@ SHARED_ALIASES = [
 
 
 class MetadataInputting:
-    def __init__(self, comicinfo: ComicInfo, page_count: int) -> None:
+    def __init__(
+        self, comicinfo: ComicInfo, page_count: int, config_man: ConfigManager
+    ) -> None:
         self.clean_info = comicinfo
         self.clean_dict = comicinfo.model_dump()
         self.clean_dict["pages"] = page_count
         self.comic_id = comicinfo.primary_key
-        self.conn = sqlite3.connect("comics.db")
+        self.conn = sqlite3.connect(config_man.config.database.path)
         self.cursor = self.conn.cursor()
 
     def dict_into_main_db_table(self) -> None:
@@ -242,7 +241,7 @@ class MetadataInputting:
         self.conn.commit()
 
     def insert_filepath(self, filepath: Path):
-        logging.debug(f"Updating comic ID {self.comic_id} with path {filepath.name}")
+        logger.info(f"Updating comic ID {self.comic_id} with path {filepath.name}")
         self.cursor.execute(
             """
             UPDATE comics
@@ -251,14 +250,14 @@ class MetadataInputting:
             """,
             (str(filepath), self.comic_id),
         )
-        logging.info("SQL executed successfully.")
-        logging.debug(f"Rows updated: {self.cursor.rowcount}")
+        logger.info("SQL executed successfully.")
+        logger.info(f"Rows updated: {self.cursor.rowcount}")
         self.conn.commit()
 
 
-def insert_new_publisher(publisher_name: str) -> None:
+def insert_new_publisher(publisher_name: str, database_path: Path) -> None:
     normalised_name = normalise_publisher_name(publisher_name)
-    conn = sqlite3.connect("comics.db")
+    conn = sqlite3.connect(database_path)
     cursor = conn.cursor()
 
     cursor.execute(

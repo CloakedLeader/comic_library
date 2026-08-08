@@ -1,31 +1,30 @@
 import logging
-import os
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from enum import IntEnum
 from io import BytesIO
 from pathlib import Path
-from typing import Optional
 
+import cv2
 import imagehash
+import numpy as np
 import requests
-from dotenv import load_dotenv
 from imagehash import ImageHash
 from PIL import Image
 
-from my_project.classes.helper_classes import ComicVineIssueStruct
-from my_project.tagging.lexer import Lexer, LexerFunc, run_lexer
+from my_project.classes.helper_classes import (
+    ComicVineIssueStruct,
+    ComicVineSearchStruct,
+    Publisher,
+)
+from my_project.tagging.lexer import Lexer
 from my_project.tagging.parser import Parser
 from my_project.tagging.requester import HttpRequest, RequestData
 from my_project.tagging.validator import IssueResponseValidator, SearchResponseValidator
 
-load_dotenv()
-API_KEY = os.getenv("API_KEY")
-logging.basicConfig(
-    filename="debug.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+logger = logging.getLogger(__name__)
+
+HASH_SIZE = 16
 
 
 class MatchCode(IntEnum):
@@ -56,6 +55,7 @@ class TaggingPipeline:
         self.http = HttpRequest(data, api_key, session)
         self.cover = self.cover_getter()
         self.coverhashes = self.cover_hasher()
+        self.cover_colour_hist = self.create_cover_hist()
         self.results: list[ComicVineIssueStruct] = []
 
     def cover_getter(self):
@@ -66,7 +66,7 @@ class TaggingPipeline:
                 if f.lower().endswith((".jpg", ".jpeg", ".png"))
             ]
             if not image_files:
-                logging.debug(f"Empty archive in {self.path}")
+                logger.info(f"Empty archive in {self.path}")
                 raise ValueError("Empty archive.")
 
             image_files.sort()
@@ -76,29 +76,91 @@ class TaggingPipeline:
     def cover_hasher(self) -> dict[str, ImageHash]:
         image = Image.open(self.cover)
         return {
-            "phash": imagehash.phash(image),
-            "dhash": imagehash.dhash(image),
-            "ahash": imagehash.average_hash(image),
+            "phash": imagehash.phash(image, hash_size=HASH_SIZE),
+            "dhash": imagehash.dhash(image, hash_size=HASH_SIZE),
+            "ahash": imagehash.average_hash(image, hash_size=HASH_SIZE),
         }
 
+    def create_cover_hist(self):
+        with Image.open(self.cover) as pil_img:
+            img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        hist = cv2.calcHist(
+            [hsv], [0, 1, 2], None, [16, 8, 8], [0, 180, 0, 256, 0, 256]
+        )
+        return cv2.normalize(hist, None, alpha=1.0, norm_type=cv2.NORM_L1)  # type: ignore
+
+    def compare_images(self, images: list[BytesIO]) -> list[int]:
+        weights = {"phash": 0.7, "dhash": 0.2, "ahash": 0.1}
+        results: list[tuple[int, float, float, float]] = []
+        for index, i in enumerate(images):
+            with Image.open(i) as unsure_img:
+                img = cv2.cvtColor(np.array(unsure_img), cv2.COLOR_RGB2BGR)
+                unsure_hashes = {
+                    "phash": imagehash.phash(unsure_img, hash_size=HASH_SIZE),
+                    "dhash": imagehash.dhash(unsure_img, hash_size=HASH_SIZE),
+                    "ahash": imagehash.average_hash(unsure_img, hash_size=HASH_SIZE),
+                }
+            hash_score = sum(
+                weights[k] * (1 - (self.coverhashes[k] - unsure_hashes[k]) / 256)
+                for k in weights
+            )
+
+            hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+            hist = cv2.calcHist(
+                [hsv], [0, 1, 2], None, [16, 8, 8], [0, 180, 0, 256, 0, 256]
+            )
+            hist = cv2.normalize(hist, None, alpha=1.0, norm_type=cv2.NORM_L1)  # type: ignore
+            bhatt = cv2.compareHist(
+                self.cover_colour_hist, hist, cv2.HISTCMP_BHATTACHARYYA
+            )
+            hist_score = 1.0 - bhatt
+
+            total = 0.2 * hash_score + 0.8 * hist_score
+            results.append((index, hash_score, hist_score, total))
+            logger.info(
+                f"idx={index} hash={hash_score:.3f} hist={hist_score:.3f} total={total:.3f}"
+            )
+
+        sorted_scores = sorted(results, key=lambda x: x[3], reverse=True)
+        if len(sorted_scores) == 1:
+            if sorted_scores[0][3] > 0.75:
+                return [sorted_scores[0][0]]
+            else:
+                return []
+        margin = sorted_scores[0][1] - sorted_scores[1][1]
+        ratio = sorted_scores[0][1] / max(sorted_scores[1][1], 1e-9)
+        if margin > 0.3 or ratio > 2.0:
+            return [sorted_scores[0][0]]
+        else:
+            return [k[0] for k in sorted_scores if k[3] > 0.75]
+
     def run(self) -> MatchCode:
-        queries: list[str] = [
-            f"{self.data.series} {self.data.title or ''}".strip(),
-            self.data.series,
-            self.data.title,
-        ]
+        queries: set[str] = set(
+            [
+                f"{self.data.series} {self.data.title or ''}".strip(),
+                self.data.series,
+                self.data.title,
+            ]
+        )
         self.potential_results: list = []
 
         skipped_vols = []
-        good_matches = []
+        possible_ids: list[int] = []
+        self.search_results: list[ComicVineSearchStruct] = []
         for q in queries:
+            if q == "":
+                continue
+            logger.info(f"Query: {q}")
             self.http.build_url_search(q)
             results = self.http.search_get_request()
             self.search_validator = SearchResponseValidator(results.results, self.data)
 
-            print(f"There are {len(results.results)} results returned.")
+            logger.info(f"There are {len(results.results)} results returned.")
             filtered_results = self.search_validator.filter_search_results()
-            print(
+            for filtered in filtered_results:
+                logger.info(filtered)
+            logger.info(
                 "After filtering for title, publisher and issue "
                 + f"there are {len(filtered_results)} remaining results."
             )
@@ -106,22 +168,24 @@ class TaggingPipeline:
             if len(filtered_results) == 0:
                 continue
 
+            self.search_results.extend(filtered_results)
+
             vol_info = [(i.id, i.name) for i in filtered_results]
-            final_results = []
-            for index, (j, k) in enumerate(vol_info):
+            final_results: list[ComicVineIssueStruct] = []
+            for j, k in vol_info:
                 self.http.build_url_iss(j)
                 issue_results = self.http.issue_get_request()
 
                 self.issue_validator = IssueResponseValidator(
                     issue_results.results, self.data
                 )
-                logging.debug(
+                logger.info(
                     f"There are {len(self.issue_validator.results)}"
                     + f" issues in the matching volume: '{k}' for query {q}."
                 )
                 temp_results = self.issue_validator.filter_issue_results()
 
-                logging.debug(
+                logger.info(
                     "After filtering for title and year "
                     + f"there are {len(temp_results)} results remaining for query {q}"
                 )
@@ -129,8 +193,8 @@ class TaggingPipeline:
                 if len(temp_results) == 0:
                     continue
 
-                if len(temp_results) > 25:
-                    logging.debug(
+                if len(temp_results) > 20:
+                    logger.info(
                         "Too many issues to compare covers, "
                         + f"skipping volume '{k}'."
                     )
@@ -138,61 +202,77 @@ class TaggingPipeline:
                     continue
 
                 self.potential_results.extend(temp_results)
-                self.issue_validator.cover_img_url_getter()
+                for result in temp_results:
+                    if result.id not in possible_ids:
+                        final_results.append(result)
+
+            if len(final_results) == 1:
+                image = self.http.download_img(final_results[0].image.medium_url)
+                if self.compare_images([image]):
+                    logger.info(f"There is ONE match for query: {q}")
+                    logger.info(f"The match is: {final_results[0].volume.name}")
+                    self.results.extend(final_results)
+                    possible_ids.append(final_results[0].id)
+                    break
+                else:
+                    continue
+
+            elif len(final_results) == 0:
+                logger.warning(f"There are no matches for query {q}.")
+                continue
+
+            elif len(final_results) > 1:
                 images: list[BytesIO] = []
                 with ThreadPoolExecutor(max_workers=5) as executor:
                     images = list(
-                        executor.map(self.http.download_img, self.issue_validator.urls)
-                    )
-
-                for index, i in enumerate(images):
-                    try:
-                        score = self.issue_validator.cover_img_comp_w_weight(
-                            self.coverhashes, i
+                        executor.map(
+                            self.http.download_img,
+                            [struct.image.medium_url for struct in final_results],
                         )
-                        logging.debug(f"Index {index}: similarity score = {score:.2f}")
-                        if score > 0.85:
-                            final_results.append(temp_results[index])
-                    except Exception as e:
-                        logging.error(f"Error comparing image at index {index}: {e}.")
-                good_matches.extend(final_results)
-
-            if len(final_results) == 1:
-                logging.info(final_results[0].volume.name)
-                logging.info("There is ONE match!!!")
-                logging.info(good_matches)
-                self.results.extend(final_results)
-                break
-            elif len(final_results) == 0:
-                logging.warning(f"There are no matches using query {q}.")
-                continue
-            elif len(final_results) > 1:
-                for res in good_matches:
-                    logging.debug(res.volume.name)
-                self.results.extend(final_results)
+                    )
+                image_match_indices = self.compare_images(images)
+                self.results.extend([final_results[pos] for pos in image_match_indices])
+                possible_ids.extend([res.id for res in final_results])
                 continue
                 # Need to use scoring or sorting or closest title match etc.
                 # If that cant decide then we need to flag the comic
                 # and ask the user for input.
-        if len(self.results) == 0:
-            logging.warning("There are no matches")
+        if len(self.results) == 1:
+            logger.info("There is ONE MATCH!!!")
+            return MatchCode.ONE_MATCH
+        elif len(self.results) == 0:
+            logger.warning("There are no matches")
             return MatchCode.NO_MATCH
         elif len(self.results) > 1:
-            logging.warning("There are multiple matches")
+            # ! Need to implement a greater detail image matcher, perhaps ORB or SIFT
+            logger.warning(f"There are multiple matches ({len(self.results)})")
+            logger.info(f"The matches are: {", ".join([g.name for g in self.results])}")  # type: ignore
             return MatchCode.MULTIPLE_MATCHES
         else:
             return MatchCode.NO_MATCH
 
+    def get_publisher_info(self, volume_id: int) -> Publisher:
+        for i in self.search_results:
+            if i.id == volume_id:
+                return i.publisher if i.publisher else Publisher(name="Empty")
+        return Publisher(name="Empty")
 
-def run_tagging_process(filepath: Path, api_key: str) -> TaggingPipeline:
+
+def run_tagging_process(
+    filepath: Path, api_key: str
+) -> tuple[TaggingPipeline, MatchCode]:
     filename = filepath.stem
+
     lexer_instance = Lexer(filename)
-    state: Optional[LexerFunc] = run_lexer
-    while state is not None:
-        state = state(lexer_instance)
+    logger.info("Starting lexing the filename.")
+    lexer_instance.run()
+    logger.info(lexer_instance.format_items())
+
     parser_instance = Parser(lexer_instance.items)
+    logger.info("Starting parsing lexed items.")
     comic_info = parser_instance.parse()
-    logging.debug(f"The filename {filename} gives the following info:\n", comic_info)
+    logger.info(f"The filename {filename} gives the following info:\n {comic_info}")
+
     series = comic_info.series
     num = comic_info.volume_number
     year = comic_info.year
@@ -204,25 +284,4 @@ def run_tagging_process(filepath: Path, api_key: str) -> TaggingPipeline:
         data=data, path=filepath, size=filepath.stat().st_size, api_key=api_key
     )
 
-    tagger.run()
-    return tagger
-    # if final_result == MatchCode.ONE_MATCH:
-    #     # inserter = TagApplication(tagger.results[0], tagger.publisher_info, api_key, filename, session)
-    #     # inserter.create_metadata_dict()
-    #     # inserter.insert_xml_into_cbz(filepath)
-    #     return tagger
-    # elif final_result == MatchCode.NO_MATCH:
-    #     return tagger
-    #     # Add a method to rank and return the best 3-5 matches.
-    # elif final_result == MatchCode.MULTIPLE_MATCHES:
-    #     return tagger
-    # else:
-    #     raise ValueError("Something has gone wrong")
-
-
-# def extract_and_insert(match, api_key, filename: str, filepath: Path):
-#     inserter = TagApplication(match, api_key, filename, session)
-#     inserter.get_request()
-#     inserter.create_metadata_dict()
-#     inserter.insert_xml_into_cbz(filepath)
-#     return None
+    return (tagger, tagger.run())

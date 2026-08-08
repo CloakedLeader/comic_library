@@ -2,19 +2,13 @@
 The collection of all the functions which query, edit or save information to the database.
 """
 
-import os
 import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from dotenv import load_dotenv
-
 from my_project.classes.helper_classes import GUIComicInfo, MetadataInfo, ReviewData
-
-load_dotenv()
-ROOT_DIR = Path(os.getenv("ROOT_DIR") or "")
-DB_PATH = Path(os.getenv("DB_PATH") or "comics.db")
+from my_project.config.config_manager import ConfigManager
 
 
 class RepoWorker:
@@ -23,9 +17,10 @@ class RepoWorker:
     are properly saved.
     """
 
-    COVER_FOLDER = ROOT_DIR / ".covers"
+    def __init__(self, config_manager: ConfigManager):
+        self.config_manager = config_manager
+        self.COVER_FOLDER = self.config_manager.config.comicsroot.path / ".covers"
 
-    def __init__(self):
         """
         Intiates the class instance.
         """
@@ -35,7 +30,7 @@ class RepoWorker:
         Enters the context manager by connecting to the database and initialising the
         context manager.
         """
-        self.conn = sqlite3.connect(DB_PATH)
+        self.conn = sqlite3.connect(self.config_manager.config.database.path)
         self.cursor = self.conn.cursor()
         return self
 
@@ -76,14 +71,14 @@ class RepoWorker:
             series, title, relative_filepath = row
             relative_filepath = Path(relative_filepath)
             if thumb:
-                cover_path = RepoWorker.COVER_FOLDER / f"{id}_t.jpg"
+                cover_path = self.COVER_FOLDER / f"{id}_t.jpg"
             else:
-                cover_path = RepoWorker.COVER_FOLDER / f"{id}_b.jpg"
+                cover_path = self.COVER_FOLDER / f"{id}_b.jpg"
 
             basemodel = GUIComicInfo(
                 primary_id=id,
                 title=f"{series}: {title}",
-                filepath=ROOT_DIR / relative_filepath,
+                filepath=self.config_manager.config.comicsroot.path / relative_filepath,
                 cover_path=cover_path,
             )
             comic_info.append(basemodel)
@@ -118,7 +113,7 @@ class RepoWorker:
         Returns:
             bool: True if it is in the database, False otherwise.
         """
-        rel_path = filepath.relative_to(ROOT_DIR)
+        rel_path = filepath.relative_to(self.config_manager.config.comicsroot.path)
         self.cursor.execute(
             "SELECT * FROM comics WHERE file_path = ? LIMIT 1", (str(rel_path),)
         )
@@ -300,8 +295,8 @@ class RepoWorker:
             gui_info = GUIComicInfo(
                 primary_id=row[0],
                 title=f"{row[1]}: {row[2]}",
-                filepath=ROOT_DIR / Path(row[3]),
-                cover_path=RepoWorker.COVER_FOLDER / f"{row[0]}_b.jpg",
+                filepath=self.config_manager.config.comicsroot.path / Path(row[3]),
+                cover_path=self.COVER_FOLDER / f"{row[0]}_b.jpg",
             )
             info.append(gui_info)
         return info
@@ -744,3 +739,37 @@ class RepoWorker:
             """,
             (comic_id, rating),
         )
+
+    def get_filepath(self, primary_key: str) -> Path | None:
+        """
+        Uses the unique ID of the comic to query the database and get the filepath.
+
+        Args:
+            primary_key (str): The unique ID of the comic.
+
+        Returns:
+            Path | None: The filepath of the comic or None if it cannot be found.
+        """
+        self.cursor.execute("SELECT file_path FROM comics WHERE id = ?", (primary_key,))
+        results = self.cursor.fetchone()
+        absolute_path = self.config_manager.config.comicsroot.path / Path(results[0])
+        return absolute_path if results is not None else None
+
+    def get_comicid_from_path(self, path: Path) -> int:
+        """
+        Finds the ID of the comic in the database from its filepath.
+
+        Args:
+            path: The filepath of the comic archive to be searched against.
+
+        Raises:
+            LookupError: if the comic is not found in the database.
+        """
+        path = Path(path)
+        self.cursor.execute("SELECT id FROM comics WHERE path = ?", (str(path),))
+        result = self.cursor.fetchone()
+        self.conn.close()
+        if result:
+            return result[0]
+        else:
+            raise LookupError(f"No comic found in database for path: {path}")

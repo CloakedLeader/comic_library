@@ -7,14 +7,9 @@ from fuzzywuzzy import fuzz  # type: ignore[import-untyped]
 from word2number import w2n  # type: ignore[import-untyped]
 
 from my_project.classes.helper_classes import ComicInfo
+from my_project.config.config_manager import ConfigManager
 from my_project.database.db_utils import get_publisher_info
 from my_project.utils.file_utils import normalise_publisher_name
-
-logging.basicConfig(
-    filename="debug.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
 
 SERIES_OVERRIDES = [
     ("tpb", 1, "TPB"),
@@ -39,13 +34,14 @@ class MetadataProcessing:
     into a constant formatting used across the entire application.
     """
 
-    def __init__(self, raw_dict: ComicInfo) -> None:
+    def __init__(self, raw_dict: ComicInfo, config_manager: ConfigManager) -> None:
         """
         Initialises the instance variables.
 
         Args:
             raw_dict (ComicInfo): The raw information taken from the ComicVine resource.
         """
+        self.config_manager = config_manager
         self.raw_info = raw_dict
         self.filepath = raw_dict.filepath
         self.title_info: dict[str, str | int] = {}
@@ -154,7 +150,7 @@ class MetadataProcessing:
         Raises:
             KeyError: If no known publisher matches closely enough.
         """
-        known_publishers = get_publisher_info()
+        known_publishers = get_publisher_info(self.config_manager)
         best_score = 0
         best_match = None
         raw_pub_name = self.raw_info.publisher if self.raw_info.publisher else "Marvel"
@@ -258,7 +254,6 @@ class MetadataProcessing:
         def parse_volume_number(raw_title: str) -> tuple[int | None, str | None]:
             """
             Parses volume numbers like 'Vol. 2', 'Book One', etc.
-
 
             Args:
                 raw_title (str): The title to be cleaned of unhelpful terms.

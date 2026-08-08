@@ -3,7 +3,6 @@ from fastapi.responses import FileResponse, StreamingResponse
 from sqlmodel import Session, create_engine
 
 import my_project.api.repo_worker as repo_worker
-from my_project.database.gui_repo_worker import RepoWorker
 
 app = FastAPI(title="Comic Server")
 
@@ -36,10 +35,10 @@ def get_cover_image(comic_id: str):
     return FileResponse(cover_path, media_type="image/jpeg")
 
 
-@app.get("/comics/{comic_id}/metadata")
-def get_metadata(comic_id: str):
-    with RepoWorker() as worker:
-        return worker.get_complete_metadata(comic_id).model_dump()
+# @app.get("/comics/{comic_id}/metadata")
+# def get_metadata(comic_id: str):
+#     with RepoWorker() as worker:
+#         return worker.get_complete_metadata(comic_id).model_dump()
 
 
 @app.get("/comics/{comic_id}/download")

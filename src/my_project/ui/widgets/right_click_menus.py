@@ -7,13 +7,10 @@ import logging
 from PySide6.QtWidgets import QMenu
 
 from my_project.classes.helper_classes import GUIComicInfo
+from my_project.config.config_manager import ConfigManager
 from my_project.database.gui_repo_worker import RepoWorker
 
-logging.basicConfig(
-    filename="debug.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+logger = logging.getLogger(__name__)
 
 
 class GridViewContextMenuManager:
@@ -25,7 +22,12 @@ class GridViewContextMenuManager:
         collections (list[tuple[int, str]]): A list of the comic collections in the database.
     """
 
-    def __init__(self, collection_ids: list[int], collection_names: list[str]):
+    def __init__(
+        self,
+        collection_ids: list[int],
+        collection_names: list[str],
+        config_manager: ConfigManager,
+    ):
         """
         Initialises the `self.collections` attribute by zipping together two lists.
 
@@ -33,6 +35,7 @@ class GridViewContextMenuManager:
             collection_ids (list[int]): List of the comic collection ids.
             collection_names (list[str]): List of the comic collection names.
         """
+        self.config_manager = config_manager
         self.collections = list(zip(collection_ids, collection_names, strict=False))
 
     def show_menu(self, comic_info: GUIComicInfo, global_pos):
@@ -47,9 +50,7 @@ class GridViewContextMenuManager:
             global_pos (_type_): The position of the right click w.r.t the entire
             app view.
         """
-        logging.debug(
-            "Context menu requested for %s at %s", comic_info.title, global_pos
-        )
+        logger.info("Context menu requested for %s at %s", comic_info.title, global_pos)
         menu = QMenu()
 
         open_action = menu.addAction("Read")
@@ -67,13 +68,13 @@ class GridViewContextMenuManager:
         chosen_menu = menu.exec(global_pos)
 
         if chosen_menu == open_action:
-            logging.debug(f"Read clicked for {comic_info.title}")
+            logger.info(f"Read clicked for {comic_info.title}")
         elif chosen_menu == info_action:
-            logging.debug(f"Metadata clicked for {comic_info.title}")
+            logger.info(f"Metadata clicked for {comic_info.title}")
         elif chosen_menu in action_map:
             coll_id = action_map[chosen_menu]
-            logging.debug(f"Add {comic_info.title} to collection {coll_id}")
-            with RepoWorker() as worker:
+            logger.info(f"Add {comic_info.title} to collection {coll_id}")
+            with RepoWorker(self.config_manager) as worker:
                 worker.add_to_collection(coll_id, comic_info.primary_id)
         else:
-            logging.debug("Menu dismissed")
+            logger.info("Menu dismissed")

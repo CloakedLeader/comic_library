@@ -4,7 +4,9 @@ from difflib import SequenceMatcher
 from io import BytesIO
 from typing import Callable, TypeAlias
 
+import cv2
 import imagehash
+import numpy as np
 from imagehash import ImageHash
 from PIL import Image
 from rapidfuzz import fuzz
@@ -12,17 +14,11 @@ from rapidfuzz import fuzz
 from my_project.classes.helper_classes import (
     ComicVineIssueStruct,
     ComicVineSearchStruct,
-    Publisher,
 )
 
 from .requester import RequestData
 
-logging.basicConfig(
-    filename="debug.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-
+logger = logging.getLogger(__name__)
 
 ComicVineResponseList: TypeAlias = (
     list[ComicVineIssueStruct] | list[ComicVineSearchStruct]
@@ -147,30 +143,34 @@ class SearchResponseValidator:
             if pub_id in english_publishers.values():
                 filtered.append(result)
             elif any(word.lower() in foriegn_keywords for word in pub_name.split()):
-                logging.info(f"Filtered out {pub_name} due to foreign publisher.")
+                logger.info(f"Filtered out {pub_name} due to foreign publisher.")
             else:
                 filtered.append(result)
-                logging.info(f"Accepted '{pub_name}' but please check.")
+                logger.info(f"Accepted '{pub_name}' but please check.")
         self.mutable_results = filtered
         return filtered
 
-    def get_publisher_info(self, volume_id: int) -> Publisher:
-        """
-        Finds the publisher information for the correct volume in the results.
+    # def get_publisher_info(self, volume_id: int) -> Publisher:
+    #     """
+    #     Finds the publisher information for the correct volume in the results.
 
-        Args:
-            volume_id (int): The ID of the volume.
+    #     Args:
+    #         volume_id (int): The ID of the volume.
 
-        Raises:
-            KeyError: If the volume ID cannot be found in the results.
+    #     Raises:
+    #         KeyError: If the volume ID cannot be found in the results.
 
-        Returns:
-            Publisher: A structure that includes name, and comicvines ID.
-        """
-        for result in self.mutable_results:
-            if result.id == volume_id:
-                return result.publisher
-        raise KeyError(f"volume_id {volume_id} not found")
+    #     Returns:
+    #         Publisher: A structure that includes name, and comicvines ID.
+    #     """
+    #     for result in self.mutable_results:
+    #         if result.publisher:
+    #             if result.id == volume_id:
+    #                 return result.publisher
+    #             else:
+    #                 return Publisher(name="Error")
+    #         else:
+    #             return Publisher(name="Null")
 
     def filter_search_results(self) -> list[ComicVineSearchStruct]:
         """
@@ -320,7 +320,7 @@ class IssueResponseValidator:
 
         self.urls: list[str] = []
         for i in self.mutable_results:
-            self.urls.append(i.image.small_url)
+            self.urls.append(i.image.medium_url)
 
     # def cover_img_comparison(
     #     self, known_image_hash, unsure_image_bytes, threshold=8
@@ -346,7 +346,7 @@ class IssueResponseValidator:
     #     hash1 = known_image_hash
     #     hash2 = imagehash.phash(unsure_image)
     #     hash_diff = hash1 - hash2
-    #     logging.debug(
+    #     logger.info(
     #         f"Hashing distance = \
     #           {hash_diff}, threshold = {threshold}"
     #     )
@@ -365,7 +365,7 @@ class IssueResponseValidator:
         Args:
             known_image_hashes (_type_): Different hash values for the known
                 image.
-            unsure_image_bytes (_type_): An image-like object accepted by
+            unsure_image_bytes (_type_): An image-like object accepted
                 by imagehash. Used to compute p, d and a hashes.
             max_dist (int, optional): Maximum distance used to normalise
                 individual hash distances. Defaults to 64.
@@ -374,7 +374,7 @@ class IssueResponseValidator:
             float: Weighted similarity where higher values represent greater
                 similarity.
         """
-        weights = {"phash": 0.6, "dhash": 0.2, "ahash": 0.2}
+        weights = {"phash": 0.7, "dhash": 0.2, "ahash": 0.1}
         with Image.open(unsure_image_bytes) as img:
             unsure_hashes = {
                 "phash": imagehash.phash(img),
@@ -387,6 +387,27 @@ class IssueResponseValidator:
             normalised = 1 - (dist / max_dist)
             score += weights[key] * normalised
         return score
+
+    def colour_hist_comparison(self, known_hist, unsure_img) -> float:
+        with Image.open(unsure_img) as unsure_img:
+            img = cv2.cvtColor(np.array(unsure_img), cv2.COLOR_RGB2BGR)
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        hist = cv2.calcHist(
+            [hsv], [0, 1, 2], None, [16, 16, 16], [0, 180, 0, 256, 0, 256]
+        )
+
+        hist = cv2.normalize(hist, None, alpha=1.0, norm_type=cv2.NORM_L1)  # type: ignore
+
+        # methods = {
+        #     "CORREL": cv2.HISTCMP_CORREL,
+        #     "CHISQR": cv2.HISTCMP_CHISQR,
+        #     "INTERSECT": cv2.HISTCMP_INTERSECT,
+        #     "BHATT": cv2.HISTCMP_BHATTACHARYYA,
+        #     "CHISQR_ALT": cv2.HISTCMP_CHISQR_ALT,
+        #     "KL_DIV": cv2.HISTCMP_KL_DIV,
+        # }
+
+        return cv2.compareHist(known_hist, hist, cv2.HISTCMP_CHISQR)
 
     def filter_issue_results(self) -> list[ComicVineIssueStruct]:
         """

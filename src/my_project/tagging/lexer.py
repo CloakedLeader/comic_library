@@ -3,12 +3,7 @@ import os
 import re
 from typing import Callable, Optional, Protocol
 
-from dotenv import load_dotenv
-
 from .itemtypes import Item, LexerType, ParserType
-
-load_dotenv()
-API_KEY = os.getenv("API_KEY")
 
 eof = chr(0)
 
@@ -83,6 +78,14 @@ class Lexer:
         self.brace_depth: int = 0
         self.sbrace_depth: int = 0
         self.items: list[Item] = []
+
+    def format_items(self) -> str:
+        """Returns all lexer items in a readable format for debugging."""
+        lines = [f"Lexer items ({len(self.items)}):"]
+        for item in self.items:
+            lines.append(item.__repr__())
+
+        return "\n".join(lines)
 
     def get(self) -> str:
         """

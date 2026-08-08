@@ -11,6 +11,7 @@ thumbnails/
 *.png
 ipad_app/
 *.json
+!test_config.json
 log.txt
 *.toml
 *.log
@@ -20,3 +21,5 @@ missing_stubs
 .mypy_cache/
 *.svg
 *.egg-info
+build/
+dist/

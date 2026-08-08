@@ -9,11 +9,7 @@ from typing import Optional
 import Levenshtein
 from PIL import Image
 
-logging.basicConfig(
-    filename="debug.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+logger = logging.getLogger(__name__)
 
 
 class ImageExtraction:
@@ -151,6 +147,6 @@ class ImageExtraction:
         try:
             self.extract_image_bytes()
             self.save_cover()
-            logging.info("Cover saved!")
+            logger.info("Cover saved!")
         except Exception as e:
-            logging.error(e)
+            logger.error(e)

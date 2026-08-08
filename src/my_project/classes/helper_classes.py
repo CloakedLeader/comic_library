@@ -88,7 +88,7 @@ class ComicVineSearchStruct(BaseModel):
     count_of_issues: Optional[int] = None
     date_added: str
     image: Optional[ImageInfo] = None
-    publisher: Publisher
+    publisher: Publisher | None = None
     id: int
     name: str
     site_detail_url: Optional[str] = None
@@ -137,8 +137,8 @@ class TeamInfo(BaseModel):
 
 
 class ComicVineIssueStruct(BaseModel):
-    api_detail_url: Optional[str] = None
-    character_credits: Optional[list[CharacterInfo]] = None
+    api_detail_url: str
+    # character_credits: Optional[list[CharacterInfo]] = None
     cover_date: str
     date_added: str
     description: Optional[str] = None
@@ -146,9 +146,9 @@ class ComicVineIssueStruct(BaseModel):
     image: ImageInfo
     issue_number: int
     name: Optional[str] = None
-    person_credits: Optional[list[PersonInfo]] = None
+    # person_credits: Optional[list[PersonInfo]] = None
     site_detail_url: Optional[str] = None
-    team_credits: Optional[list[TeamInfo]] = None
+    # team_credits: Optional[list[TeamInfo]] = None
     volume: VolumeInfo
 
 
@@ -160,6 +160,21 @@ class APIIssueResults(BaseModel):
     number_of_total_results: int
     status_code: int
     results: list[ComicVineIssueStruct]
+
+
+class ComicVineDetailStruct(BaseModel):
+    api_detail_url: str
+    character_credits: list[CharacterInfo]
+    cover_date: str
+    date_added: str
+    description: Optional[str] = None
+    id: int
+    image: ImageInfo
+    issue_number: int
+    name: str
+    person_credits: list[PersonInfo]
+    team_credits: list[TeamInfo]
+    volume: VolumeInfo
 
 
 class MainViewType(Enum):

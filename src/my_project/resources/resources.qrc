@@ -1,0 +1,19 @@
+<!DOCTYPE RCC><RCC version="1.0">
+    <qresource prefix="/">
+        <file>icons/analytics.svg</file>
+        <file>icons/arrow_left.svg</file>
+        <file>icons/arrow_right.svg</file>
+        <file>icons/bookmark_add.svg</file>
+        <file>icons/comment_add.svg</file>
+        <file>icons/heart_filled.svg</file>
+        <file>icons/heart_outline.svg</file>
+        <file>icons/one_page.svg</file>
+        <file>icons/search.svg</file>
+        <file>icons/star_filled.svg</file>
+        <file>icons/star_half.svg</file>
+        <file>icons/star_outline.svg</file>
+        <file>icons/two_pages.svg</file>
+        <file>icons/zoom_in.svg</file>
+        <file>icons/zoom_out.svg</file>
+    </qresource>
+</RCC>
