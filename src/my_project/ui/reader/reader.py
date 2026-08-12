@@ -956,8 +956,14 @@ class SimpleReader(QMainWindow):
 
         self.setCentralWidget(self.image_label)
 
-        self.shortcut = QShortcut(QKeySequence("F11"), self)
-        self.shortcut.activated.connect(self.toggle_fullscreen)
+        self.fullscreen_shortcut = QShortcut(QKeySequence("F11"), self)
+        self.fullscreen_shortcut.activated.connect(self.toggle_fullscreen)
+
+        self.double_page_shortcut = QShortcut(QKeySequence("Ctrl+D"), self)
+        self.double_page_shortcut.activated.connect(self.set_double_page)
+
+        self.single_page_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
+        self.single_page_shortcut.activated.connect(self.set_one_page)
 
         self.display_current_page()
 

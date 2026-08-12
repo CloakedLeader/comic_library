@@ -4,7 +4,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-APP_NAME = "ComicLibrary"
+APP_NAME = "ComicLibrary-Dev"
 
 
 def get_app_data_dir() -> Path:
