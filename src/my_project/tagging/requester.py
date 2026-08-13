@@ -9,7 +9,6 @@ from my_project.classes.helper_classes import (
     APISearchResults,
     ComicVineDetailStruct,
     ComicVineIssueStruct,
-    Publisher,
 )
 
 logger = logging.getLogger(__name__)
@@ -156,10 +155,12 @@ class HttpRequest:
                     {response.status_code}"
             )
             logger.warning("\n" + response.text)
+            raise RuntimeError(
+                f"Search request failed with status {response.status_code}"
+            )
         data = response.json()
         if data["error"] != "OK":
-            logger.warning("Error, please investigate")
-            # raise RuntimeError("Error, please investigate")
+            raise RuntimeError(f"ComicVine returned error: {data['error']}")
         return APISearchResults.model_validate(data)
 
     def issue_get_request(self) -> APIIssueResults:
@@ -187,10 +188,13 @@ class HttpRequest:
                     {response.status_code}"
             )
             logger.warning("\n" + response.text)
+            raise RuntimeError(
+                f"Issue request failed with status {response.status_code}"
+            )
+
         data = response.json()
         if data["error"] != "OK":
-            logger.warning("Error, please investigate")
-            # raise RuntimeError("Error, please investigate")
+            raise RuntimeError(f"ComicVine returned error: {data['error']}")
         items = data["results"]
         validated: list[ComicVineIssueStruct] = []
         for item in items:
@@ -202,10 +206,10 @@ class HttpRequest:
         data["results"] = validated
         return APIIssueResults.model_validate(data)
 
-    def detail_get_request(self, volume_id: int) -> ComicVineDetailStruct:
+    def detail_get_request(self, issue_id: int) -> ComicVineDetailStruct:
         req = requests.Request(
             method="GET",
-            url=f"{HttpRequest.base_address}/issue/4000-{volume_id}/",
+            url=f"{HttpRequest.base_address}/issue/4000-{issue_id}/",
             params={
                 "api_key": self.api_key,
                 "format": "json",
@@ -225,48 +229,50 @@ class HttpRequest:
                     {response.status_code}"
             )
             logger.warning("\n" + response.text)
+            raise RuntimeError(
+                f"Detail request failed with status {response.status_code}"
+            )
         data = response.json()
         if data["error"] != "OK":
-            logger.warning("Error, please investigate")
-            # raise RuntimeError("Error, please investigate")
+            raise RuntimeError(f"ComicVine returned error: {data['error']}")
         items = data["results"]
         if data["number_of_page_results"] != 1:
             raise RuntimeError("Error, please investigate")
 
         return ComicVineDetailStruct.model_validate(items)
 
-    def get_publisher_info(self, volume_id: int) -> Publisher:
-        req = requests.Request(
-            method="GET",
-            url=f"{HttpRequest.base_address}/search/",
-            params={
-                "api_key": self.api_key,
-                "format": "json",
-                "filter": f"volume:{id}",
-            },
-            headers=header,
-        )
-        prepared = req.prepare()
-        pub_url = prepared.url
+    # def get_publisher_info(self, volume_id: int) -> Publisher:
+    #     req = requests.Request(
+    #         method="GET",
+    #         url=f"{HttpRequest.base_address}/search/",
+    #         params={
+    #             "api_key": self.api_key,
+    #             "format": "json",
+    #             "filter": f"volume:{id}",
+    #         },
+    #         headers=header,
+    #     )
+    #     prepared = req.prepare()
+    #     pub_url = prepared.url
 
-        if pub_url is None:
-            raise ValueError("Publisher url cannot be None")
-        response = self.session.get(pub_url)
-        if response.status_code != 200:
-            logger.warning(
-                f"Detail request failed with status code: \
-                    {response.status_code}"
-            )
-            logger.warning("\n" + response.text)
-        data = response.json()
-        if data["error"] != "OK":
-            logger.warning("Error, please investigate")
-            # raise RuntimeError("Error, please investigate")
-        items = data["results"]
-        if len(items) != 1:
-            raise RuntimeError("Error, please investigate")
+    #     if pub_url is None:
+    #         raise ValueError("Publisher url cannot be None")
+    #     response = self.session.get(pub_url)
+    #     if response.status_code != 200:
+    #         logger.warning(
+    #             f"Detail request failed with status code: \
+    #                 {response.status_code}"
+    #         )
+    #         logger.warning("\n" + response.text)
+    #     data = response.json()
+    #     if data["error"] != "OK":
+    #         logger.warning("Error, please investigate")
+    #         # raise RuntimeError("Error, please investigate")
+    #     items = data["results"]
+    #     if len(items) != 1:
+    #         raise RuntimeError("Error, please investigate")
 
-        return Publisher.model_validate(data["publisher"])
+    #     return Publisher.model_validate(data["publisher"])
 
     def download_img(self, url: str) -> BytesIO:
         """

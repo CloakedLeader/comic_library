@@ -268,14 +268,14 @@ class DownloadServiceAsync:
     ):
         async with aiohttp.ClientSession() as session:
             async with session.get(url, allow_redirects=True) as response:
-                logger.info("\n=== Redirect history ===")
-                for i, r in enumerate(response.history, start=1):
-                    logger.info(f"\nHop {i}: {r.url}")
-                    logger.info(r.headers)
+                # logger.info("\n=== Redirect history ===")
+                # for i, r in enumerate(response.history, start=1):
+                #     logger.info(f"\nHop {i}: {r.url}")
+                #     logger.info(r.headers)
 
-                logger.info("\n=== Final response ===")
-                logger.info(response.url.human_repr())
-                logger.info(dict(response.headers))
+                # logger.info("\n=== Final response ===")
+                # logger.info(response.url.human_repr())
+                # logger.info(dict(response.headers))
 
                 if response.status != 200:
                     raise Exception(

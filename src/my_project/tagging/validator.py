@@ -150,28 +150,6 @@ class SearchResponseValidator:
         self.mutable_results = filtered
         return filtered
 
-    # def get_publisher_info(self, volume_id: int) -> Publisher:
-    #     """
-    #     Finds the publisher information for the correct volume in the results.
-
-    #     Args:
-    #         volume_id (int): The ID of the volume.
-
-    #     Raises:
-    #         KeyError: If the volume ID cannot be found in the results.
-
-    #     Returns:
-    #         Publisher: A structure that includes name, and comicvines ID.
-    #     """
-    #     for result in self.mutable_results:
-    #         if result.publisher:
-    #             if result.id == volume_id:
-    #                 return result.publisher
-    #             else:
-    #                 return Publisher(name="Error")
-    #         else:
-    #             return Publisher(name="Null")
-
     def filter_search_results(self) -> list[ComicVineSearchStruct]:
         """
         Combines many filters and checks to reduce the number of results to a more reasonable amount
@@ -389,11 +367,12 @@ class IssueResponseValidator:
         return score
 
     def colour_hist_comparison(self, known_hist, unsure_img) -> float:
+        """Returns a similarity score in [0, 1]; higher means closer match."""
         with Image.open(unsure_img) as unsure_img:
-            img = cv2.cvtColor(np.array(unsure_img), cv2.COLOR_RGB2BGR)
+            img = cv2.cvtColor(np.array(unsure_img.convert("RGB")), cv2.COLOR_RGB2BGR)
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         hist = cv2.calcHist(
-            [hsv], [0, 1, 2], None, [16, 16, 16], [0, 180, 0, 256, 0, 256]
+            [hsv], [0, 1, 2], None, [16, 8, 8], [0, 180, 0, 256, 0, 256]
         )
 
         hist = cv2.normalize(hist, None, alpha=1.0, norm_type=cv2.NORM_L1)  # type: ignore
@@ -407,7 +386,7 @@ class IssueResponseValidator:
         #     "KL_DIV": cv2.HISTCMP_KL_DIV,
         # }
 
-        return cv2.compareHist(known_hist, hist, cv2.HISTCMP_CHISQR)
+        return cv2.compareHist(known_hist, hist, cv2.HISTCMP_BHATTACHARYYA)
 
     def filter_issue_results(self) -> list[ComicVineIssueStruct]:
         """

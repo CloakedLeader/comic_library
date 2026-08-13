@@ -214,7 +214,9 @@ class HomeView(QWidget):
         self.download_controller = DownloadControllerAsync(
             view=self,
             config_manager=self.config_manager,
-            download_folder=Path("G:/adams-comics/0 - Downloads"),
+            download_folder=Path(
+                self.config_manager.config.comicsroot.path / "0 - Downloads"
+            ),
         )
         return self.create_scroll_area(
             recent_comics_list,

@@ -23,6 +23,7 @@ from my_project.tagging.metadata_inserter import MetadataInserter
 from my_project.tagging.tagging_controller import (  # extract_and_insert
     MatchCode,
     RequestData,
+    TaggingPipeline,
     run_tagging_process,
 )
 from my_project.utils.cover_processing import ImageExtraction
@@ -239,7 +240,9 @@ class MetadataController:
         with MetadataExtraction(self.comic_info) as extractor:
             return extractor.run()
 
-    def clean_embedded_metadata(self, raw_data: ComicInfo) -> ComicInfo:
+    def clean_embedded_metadata(
+        self, raw_data: ComicInfo, attempt: int = 0
+    ) -> ComicInfo:
         with MetadataProcessing(raw_data, self.config_manager) as cleaner:
             try:
                 cleaned_comic_info = cleaner.run()
@@ -247,13 +250,15 @@ class MetadataController:
                 # ! Take this function from metadata_cleaning and use in this class.
                 return cleaned_comic_info
             except PublisherNotKnown as e:
+                if attempt >= 2:
+                    raise ValueError(
+                        f"Publisher '{e.publisher_name}' is still unresolved after insertion"
+                    ) from e
                 logger.warning(f"Publisher unknown: {e.publisher_name}")
                 insert_new_publisher(
                     e.publisher_name, self.config_manager.config.database.path
                 )
-                return self.clean_embedded_metadata(
-                    raw_data
-                )  # This may cause infinite loop!
+                return self.clean_embedded_metadata(raw_data, attempt + 1)
 
     def process_with_metadata(self) -> None:
         """
@@ -285,6 +290,19 @@ class MetadataController:
         self.extract_cover()
         self.move_to_publisher_folder(new_name, publisher_int)
 
+    def build_tag_application(
+        self, tagger: TaggingPipeline, selected: ComicVineIssueStruct
+    ) -> TagApplication:
+        publisher_info = tagger.get_publisher_info(selected.volume.id)
+        detailed_info = tagger.http.detail_get_request(selected.id)
+
+        return TagApplication(
+            detailed_info,
+            publisher_info,
+            self.config_manager.config.comicvine.api_key,
+            self.filename,
+        )
+
     def get_one_result(self) -> Optional[TagApplication]:
         """
         This runs the full tagging process; queries the ComicVine database to get the correct metadata,
@@ -296,45 +314,19 @@ class MetadataController:
         )
 
         if matchcode == MatchCode.ONE_MATCH:
-            publisher_info = tagger.get_publisher_info(tagger.results[0].volume.id)
-            detailed_info = tagger.http.detail_get_request(tagger.results[0].id)
-            return TagApplication(
-                detailed_info,
-                publisher_info,
-                self.config_manager.config.comicvine.api_key,
-                self.filename,
-            )
-        elif matchcode == MatchCode.MULTIPLE_MATCHES:
-            ranked = self.rank_results(tagger.results, tagger.data)
-            selected = self.request_disambiguation(ranked, tagger.data, tagger.results)
-            # TODO: Test this and then remove as wrong logic if there is only 1 good match.
-            if not selected:
-                logger.info("User cancelled disambiguation process.")
-                return None
-            publisher_info = tagger.get_publisher_info(selected.volume.id)
-            detailed_info = tagger.http.detail_get_request(selected.id)
-            return TagApplication(
-                detailed_info,
-                publisher_info,
-                self.config_manager.config.comicvine.api_key,
-                self.filename,
-            )
-        else:
-            ranked = self.rank_results(tagger.potential_results, tagger.data)
-            selected = self.request_disambiguation(
-                ranked, tagger.data, tagger.potential_results
-            )
-            if not selected:
-                logger.info("User cancelled disambiguation process.")
-                return None
-            publisher_info = tagger.get_publisher_info(selected.volume.id)
-            detailed_info = tagger.http.detail_get_request(selected.id)
-            return TagApplication(
-                detailed_info,
-                publisher_info,
-                self.config_manager.config.comicvine.api_key,
-                self.filename,
-            )
+            return self.build_tag_application(tagger, tagger.results[0])
+
+        candidates = (
+            tagger.results
+            if matchcode == MatchCode.MULTIPLE_MATCHES
+            else tagger.potential_results
+        )
+        ranked = self.rank_results(candidates, tagger.data)
+        selected = self.request_disambiguation(ranked, tagger.data, candidates)
+        if not selected:
+            logger.info("User cancelled disambiguation process.")
+            return None
+        return self.build_tag_application(tagger, selected)
 
     def insert_into_db(self, cleaned_comic_info: ComicInfo) -> None:
         """
@@ -446,8 +438,10 @@ def run_tagger(display: QMainWindow, config_manager: ConfigManager):
         ):
             logger.info(f"Starting to process {path.name}")
             with RepoWorker(config_manager) as worker:
-                if worker.comic_in_db(path):
-                    return None
+                already_imported = worker.comic_in_db(path)
+            if already_imported:
+                logger.info(f"Skipping {path.name}; it is already in database.")
+                continue
             new_id = generate_uuid()
             cont = MetadataController(new_id, path, display, config_manager)
             cont.process()

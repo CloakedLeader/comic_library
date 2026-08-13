@@ -269,3 +269,4 @@ def insert_new_publisher(publisher_name: str, database_path: Path) -> None:
     )
 
     conn.commit()
+    conn.close()

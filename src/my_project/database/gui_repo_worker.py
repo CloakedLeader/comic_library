@@ -751,9 +751,10 @@ class RepoWorker:
             Path | None: The filepath of the comic or None if it cannot be found.
         """
         self.cursor.execute("SELECT file_path FROM comics WHERE id = ?", (primary_key,))
-        results = self.cursor.fetchone()
-        absolute_path = self.config_manager.config.comicsroot.path / Path(results[0])
-        return absolute_path if results is not None else None
+        result = self.cursor.fetchone()
+        if result is None:
+            return None
+        return self.config_manager.config.comicsroot.path / Path(result[0])
 
     def get_comicid_from_path(self, path: Path) -> int:
         """
@@ -766,10 +767,12 @@ class RepoWorker:
             LookupError: if the comic is not found in the database.
         """
         path = Path(path)
-        self.cursor.execute("SELECT id FROM comics WHERE path = ?", (str(path),))
+        relative_path = path.relative_to(self.config_manager.config.comicsroot.path)
+        self.cursor.execute(
+            "SELECT id FROM comics WHERE file_path = ?",
+            (str(relative_path),),
+        )
         result = self.cursor.fetchone()
-        self.conn.close()
-        if result:
-            return result[0]
-        else:
+        if result is None:
             raise LookupError(f"No comic found in database for path: {path}")
+        return result[0]

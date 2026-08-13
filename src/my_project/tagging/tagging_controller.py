@@ -83,7 +83,7 @@ class TaggingPipeline:
 
     def create_cover_hist(self):
         with Image.open(self.cover) as pil_img:
-            img = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+            img = cv2.cvtColor(np.array(pil_img.convert("RGB")), cv2.COLOR_RGB2BGR)
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         hist = cv2.calcHist(
             [hsv], [0, 1, 2], None, [16, 8, 8], [0, 180, 0, 256, 0, 256]
@@ -95,7 +95,9 @@ class TaggingPipeline:
         results: list[tuple[int, float, float, float]] = []
         for index, i in enumerate(images):
             with Image.open(i) as unsure_img:
-                img = cv2.cvtColor(np.array(unsure_img), cv2.COLOR_RGB2BGR)
+                img = cv2.cvtColor(
+                    np.array(unsure_img.convert("RGB")), cv2.COLOR_RGB2BGR
+                )
                 unsure_hashes = {
                     "phash": imagehash.phash(unsure_img, hash_size=HASH_SIZE),
                     "dhash": imagehash.dhash(unsure_img, hash_size=HASH_SIZE),
@@ -123,13 +125,16 @@ class TaggingPipeline:
             )
 
         sorted_scores = sorted(results, key=lambda x: x[3], reverse=True)
+        if not sorted_scores:
+            return []
+
         if len(sorted_scores) == 1:
             if sorted_scores[0][3] > 0.75:
                 return [sorted_scores[0][0]]
             else:
                 return []
-        margin = sorted_scores[0][1] - sorted_scores[1][1]
-        ratio = sorted_scores[0][1] / max(sorted_scores[1][1], 1e-9)
+        margin = sorted_scores[0][3] - sorted_scores[1][3]
+        ratio = sorted_scores[0][3] / max(sorted_scores[1][3], 1e-9)
         if margin > 0.3 or ratio > 2.0:
             return [sorted_scores[0][0]]
         else:

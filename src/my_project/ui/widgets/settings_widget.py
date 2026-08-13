@@ -130,6 +130,8 @@ class Settings(QDialog):
                 self.api_input.setText(self.original_key)
                 self.path_input.setText(self.original_path)
                 self.accept()
+        else:
+            self.accept()
 
 
 class SaveChanges(QDialog):

@@ -15,6 +15,7 @@ pyside6==6.10.0
 pyside6_addons==6.10.0
 pyside6_essentials==6.10.0
 python_Levenshtein==0.27.3
+pytest
 qasync==0.28.0
 rapidfuzz==3.14.5
 Requests==2.34.2

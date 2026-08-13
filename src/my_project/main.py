@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 )
 from qasync import QEventLoop  # type: ignore[import-untyped]
 
+from my_project.resources import resources_rc  # noqa: F401, isort: skip
 from my_project.api.api_main import app
 from my_project.classes.helper_classes import GUIComicInfo, MainViewType
 from my_project.config.config_manager import ConfigManager
@@ -527,9 +528,9 @@ if __name__ == "__main__":
     config_manager = ConfigManager()
     config_manager.load()
 
+    startup_checks(config_manager)
     with Cleanup(config_manager) as cleaner:
         cleaner.scan_and_clean()
-    startup_checks(config_manager)
 
     api_thread = threading.Thread(target=start_api, daemon=True)
     api_thread.start()

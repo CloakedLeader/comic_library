@@ -82,8 +82,7 @@ class Lexer:
     def format_items(self) -> str:
         """Returns all lexer items in a readable format for debugging."""
         lines = [f"Lexer items ({len(self.items)}):"]
-        for item in self.items:
-            lines.append(item.__repr__())
+        lines.extend(repr(item) for item in self.items)
 
         return "\n".join(lines)
 

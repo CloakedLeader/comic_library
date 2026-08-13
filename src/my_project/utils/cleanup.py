@@ -69,13 +69,16 @@ class Cleanup:
                 partial_file_path
             )
             if not os.path.exists(full_file_path):
-                missing.append((comic_id, full_file_path))
+                missing.append((comic_id, Path(partial_file_path)))
         if len(missing) == 0:
             logger.info("Comic database is up to date.")
             return None
-        for _, file_path in missing:
-            logger.info(f"Removing missing comic: {file_path}")
-            self.delete_comic(file_path)
+        for _, relative_file_path in missing:
+            logger.info(
+                "Removing missing comic: "
+                f"{self.config_manager.config.comicsroot.path / relative_file_path}"
+            )
+            self.delete_comic(relative_file_path)
 
         logger.info(f"Scan complete. Removed {len(missing)} missing comics.")
         return None

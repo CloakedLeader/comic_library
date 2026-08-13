@@ -19,6 +19,7 @@ class ConfigManager(QObject):
     api_key_changed = Signal(str)
 
     def __init__(self, json_path: Path | None = None) -> None:
+        super().__init__()
         if json_path:
             self._config_path = json_path
         else:
@@ -35,8 +36,8 @@ class ConfigManager(QObject):
     def update_settings(self, comics_root: Path, api_key: str) -> None:
         changed_root = comics_root != self.config.comicsroot.path
         changed_key = api_key != self.config.comicvine.api_key
-
-        self.config.comicsroot.path = comics_root
+        if comics_root.exists():
+            self.config.comicsroot.path = comics_root
         self.config.comicvine.api_key = api_key
 
         self.save()

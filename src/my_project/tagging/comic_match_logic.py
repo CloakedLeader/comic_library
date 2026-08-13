@@ -76,7 +76,8 @@ class ResultsFilter:
         return score
 
     def filter_results(self, top_n: int = 5) -> list[tuple[ComicVineIssueStruct, int]]:
-        logger.info(f"Adam here you go:\n{self.query_results}")
+        # logger.info(f"Adam here you go:\n{self.query_results}")
+        logger.debug("Filtering %d query results.", len(self.query_results))
         ids: set[int] = set()
         scored: list[tuple[float, ComicVineIssueStruct, int]] = []
         # Each tuple has (score, result, position)
