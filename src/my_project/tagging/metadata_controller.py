@@ -176,8 +176,9 @@ class MetadataController:
         into the correct format then it decides if its metadata is sufficient and then decides
         what to do from there.
         """
-        logger.info("========== TAGGING PIPELINE STARTED ==========")
-        logger.warning("========== TEST WARNING ==========")
+        if not self.config_manager.has_comics_root:
+            raise RuntimeError("Comics root is not configured.")
+
         self.reformat()
         has_metadata = self.has_metadata()
 
@@ -435,6 +436,8 @@ EXCLUDE = {
 
 
 def run_tagger(display: QMainWindow, config_manager: ConfigManager):
+    if not config_manager.has_comics_root:
+        raise RuntimeError("Comics root not configured.")
     downloads_dir = config_manager.config.comicsroot.path / "0 - Downloads"
     for path in downloads_dir.rglob("*"):
         if path.is_dir() and path.name in EXCLUDE:

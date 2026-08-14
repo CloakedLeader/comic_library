@@ -223,10 +223,8 @@ class MetadataDialog(QMainWindow):
         review_panel = DashboardBox("Reviews", wrap=False)
         review_panel.add_content(review_area)
 
-        thumbnail_filename = f"{self.primary_id}_t.jpg"
-        thumbnail_pix = QPixmap(
-            self.config_manager.config.comicsroot.path / ".covers" / thumbnail_filename
-        )
+        # thumbnail_filename = f"{self.primary_id}_t.jpg"
+        thumbnail_pix = QPixmap(self.coverpath)
         thumbnail_label = QLabel()
         thumbnail_label.setPixmap(thumbnail_pix)
         thumbnail_label.setScaledContents(False)

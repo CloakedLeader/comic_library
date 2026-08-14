@@ -28,6 +28,8 @@ class Cleanup:
         return
 
     def delete_comic(self, filepath: Path) -> None:
+        if not self.config_manager.has_comics_root:
+            return
         self.cursor.execute(
             "SELECT id FROM comics where file_path = ?", (str(filepath),)
         )
@@ -61,6 +63,8 @@ class Cleanup:
         return None
 
     def scan_and_clean(self) -> None:
+        if not self.config_manager.has_comics_root:
+            return
         self.cursor.execute("SELECT id, file_path FROM comics")
         rows = self.cursor.fetchall()
         missing = []

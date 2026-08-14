@@ -13,6 +13,8 @@ from my_project.config.models import (
 )
 from my_project.utils.paths import APP_DATA_DIR
 
+UNSET_COMICS_ROOT = Path("__UNSET_COMICS_ROOT__")
+
 
 class ConfigManager(QObject):
     comics_root_changed = Signal(Path)
@@ -32,6 +34,16 @@ class ConfigManager(QObject):
             self.load()
 
         return self._config  # type: ignore
+
+    @property
+    def has_comics_root(self) -> bool:
+        root = self.config.comicsroot.path
+
+        return root != UNSET_COMICS_ROOT and root.exists() and root.is_dir()
+
+    @property
+    def comics_root(self) -> Path:
+        return self.config.comicsroot.path
 
     def update_settings(self, comics_root: Path, api_key: str) -> None:
         if not comics_root.exists() or not comics_root.is_dir():
@@ -62,8 +74,8 @@ class ConfigManager(QObject):
             data = json.load(f)
 
         comics_root = data["comicsroot"]["path"]
-        if comics_root in (None, ".", ""):
-            comics_root = None
+        if comics_root is None:
+            comics_root = UNSET_COMICS_ROOT
         else:
             comics_root = Path(comics_root)
 
@@ -84,10 +96,10 @@ class ConfigManager(QObject):
 
         data["database"]["path"] = str(self._config.database.path)
 
-        if self._config.comicsroot.path is not None:
-            data["comicsroot"]["path"] = str(self._config.comicsroot.path)
-        else:
+        if self._config.comicsroot.path == UNSET_COMICS_ROOT:
             data["comicsroot"]["path"] = None
+        else:
+            data["comicsroot"]["path"] = str(self._config.comicsroot.path)
 
         with self._config_path.open("w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
@@ -95,7 +107,7 @@ class ConfigManager(QObject):
     def _default_config(self) -> Config:
         return Config(
             database=DatabaseConfig(path=APP_DATA_DIR / "comics.db"),
-            comicsroot=ComicsRootConfig(None),
+            comicsroot=ComicsRootConfig(path=UNSET_COMICS_ROOT),
             comicvine=ComicVineConfig(""),
             ui=UIConfig(""),
         )

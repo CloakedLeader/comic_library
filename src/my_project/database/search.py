@@ -146,6 +146,8 @@ class FTS5Searcher:
         Returns:
             list[GUIComicInfo] | None: A list of the comics matching the search criteria, or None if none match.
         """
+        if not self.config_manager.has_comics_root:
+            raise RuntimeError("Comics root is not configured.")
         query = " ".join(f"{term}*" for term in text.split())
 
         self.cursor.execute(

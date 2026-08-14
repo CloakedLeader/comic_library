@@ -18,12 +18,8 @@ class RepoWorker:
     """
 
     def __init__(self, config_manager: ConfigManager):
+        """Intiates the class instance."""
         self.config_manager = config_manager
-        self.COVER_FOLDER = self.config_manager.config.comicsroot.path / ".covers"
-
-        """
-        Intiates the class instance.
-        """
 
     def __enter__(self):
         """
@@ -39,6 +35,17 @@ class RepoWorker:
         self.conn.commit()
         self.conn.close()
         return
+
+    @property
+    def comics_root(self) -> Path:
+        if self.config_manager.has_comics_root:
+            return self.config_manager.comics_root
+        else:
+            raise RuntimeError("Comics root has not been configured.")
+
+    @property
+    def cover_folder(self) -> Path:
+        return self.comics_root / ".covers"
 
     def create_basemodel(self, ids: list[str], **thumb: bool) -> list[GUIComicInfo]:
         """
@@ -71,14 +78,14 @@ class RepoWorker:
             series, title, relative_filepath = row
             relative_filepath = Path(relative_filepath)
             if thumb:
-                cover_path = self.COVER_FOLDER / f"{id}_t.jpg"
+                cover_path = self.cover_folder / f"{id}_t.jpg"
             else:
-                cover_path = self.COVER_FOLDER / f"{id}_b.jpg"
+                cover_path = self.cover_folder / f"{id}_b.jpg"
 
             basemodel = GUIComicInfo(
                 primary_id=id,
                 title=f"{series}: {title}",
-                filepath=self.config_manager.config.comicsroot.path / relative_filepath,
+                filepath=self.comics_root / relative_filepath,
                 cover_path=cover_path,
             )
             comic_info.append(basemodel)
@@ -295,8 +302,8 @@ class RepoWorker:
             gui_info = GUIComicInfo(
                 primary_id=row[0],
                 title=f"{row[1]}: {row[2]}",
-                filepath=self.config_manager.config.comicsroot.path / Path(row[3]),
-                cover_path=self.COVER_FOLDER / f"{row[0]}_b.jpg",
+                filepath=self.comics_root / Path(row[3]),
+                cover_path=self.cover_folder / f"{row[0]}_b.jpg",
             )
             info.append(gui_info)
         return info
@@ -754,7 +761,7 @@ class RepoWorker:
         result = self.cursor.fetchone()
         if result is None:
             return None
-        return self.config_manager.config.comicsroot.path / Path(result[0])
+        return self.comics_root / Path(result[0])
 
     def get_comicid_from_path(self, path: Path) -> int:
         """
@@ -767,7 +774,7 @@ class RepoWorker:
             LookupError: if the comic is not found in the database.
         """
         path = Path(path)
-        relative_path = path.relative_to(self.config_manager.config.comicsroot.path)
+        relative_path = path.relative_to(self.comics_root)
         self.cursor.execute(
             "SELECT id FROM comics WHERE file_path = ?",
             (str(relative_path),),

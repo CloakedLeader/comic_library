@@ -9,7 +9,7 @@ class DatabaseConfig:
 
 @dataclass
 class ComicsRootConfig:
-    path: Path | None = None
+    path: Path
 
 
 @dataclass
