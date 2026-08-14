@@ -27,7 +27,9 @@ class DownloadControllerAsync:
     download workflow including status updates and error handling.
     """
 
-    def __init__(self, view, config_manager: ConfigManager, download_folder: Path):
+    def __init__(
+        self, view, config_manager: ConfigManager, download_folder: Path | None
+    ):
         """
         Initialise the download controller.
 
@@ -35,11 +37,11 @@ class DownloadControllerAsync:
             view: The view object for updating UI status.
             service: The download servie for handling actual file downloads.
         """
+        if download_folder is None:
+            raise ValueError("Cannot")
         self.config_manager = config_manager
         self.view = view
-        self.download_service: DownloadServiceAsync = DownloadServiceAsync(
-            self.config_manager, download_folder
-        )
+        self.download_service = DownloadServiceAsync(download_folder)
         self.download_folder = download_folder
         self.comic_dict: dict[str, str] = {}
 
@@ -72,10 +74,8 @@ class DownloadControllerAsync:
             IOError: If there are file system issues during download.
 
         """
-        if self.download_service is None:
-            self.download_service = DownloadServiceAsync(
-                self.config_manager, self.download_folder
-            )
+        # if self.download_service is None:
+        #     self.download_service = DownloadServiceAsync(self.config_manager)
         self.comic_info = comic_info
         self.view.update_status(f"Starting download of: {comic_info.title}")
         logger.info(f"comic_info.url: {comic_info.url}")
@@ -128,7 +128,7 @@ class DownloadServiceAsync:
     It provides robust error handling and supports various comic file formats.
     """
 
-    def __init__(self, config_manager: ConfigManager, download_folder: Path) -> None:
+    def __init__(self, download_folder: Path | None) -> None:
         """
         Initialise the download service.
 
@@ -138,7 +138,7 @@ class DownloadServiceAsync:
         The download folder will be created if it does not exist.
         """
         self.download_folder = download_folder
-        if not download_folder.exists():
+        if self.download_folder is not None and not self.download_folder.exists():
             self.download_folder.mkdir(parents=True, exist_ok=True)
 
     async def __aenter__(self):
@@ -236,7 +236,7 @@ class DownloadServiceAsync:
 
     async def download_comic(
         self, comic_download_link: str, progress_callback: Callable
-    ) -> Path:
+    ) -> Path | None:
         """
         Download comic file asynchronously.
 
@@ -254,6 +254,8 @@ class DownloadServiceAsync:
         Attempts to get filename from Content-Disposition header, falls back
         to URL path, finally, uses "downloaded_comic.cbz" as a last resort.
         """
+        if self.download_folder is None:
+            return None
 
         filepath = await self.download_with_progress(
             comic_download_link,

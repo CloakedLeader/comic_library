@@ -12,6 +12,7 @@ thumbnails/
 ipad_app/
 *.json
 !/tests/test_config.json
+/tests/test_comicvine_search.py
 log.txt
 *.toml
 *.log

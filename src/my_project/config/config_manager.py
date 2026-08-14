@@ -34,10 +34,15 @@ class ConfigManager(QObject):
         return self._config  # type: ignore
 
     def update_settings(self, comics_root: Path, api_key: str) -> None:
+        if not comics_root.exists() or not comics_root.is_dir():
+            raise ValueError(
+                f"Comics root does not exist or is not a directory: {comics_root}"
+            )
+
         changed_root = comics_root != self.config.comicsroot.path
         changed_key = api_key != self.config.comicvine.api_key
-        if comics_root.exists():
-            self.config.comicsroot.path = comics_root
+
+        self.config.comicsroot.path = comics_root
         self.config.comicvine.api_key = api_key
 
         self.save()
@@ -56,10 +61,16 @@ class ConfigManager(QObject):
         with self._config_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
 
+        comics_root = data["comicsroot"]["path"]
+        if comics_root in (None, ".", ""):
+            comics_root = None
+        else:
+            comics_root = Path(comics_root)
+
         self._config = Config(
             database=DatabaseConfig(path=Path(data["database"]["path"])),
             comicvine=ComicVineConfig(api_key=data["comicvine"]["api_key"]),
-            comicsroot=ComicsRootConfig(path=Path(data["comicsroot"]["path"])),
+            comicsroot=ComicsRootConfig(path=comics_root),
             ui=UIConfig(**data["ui"]),
         )
 
@@ -72,7 +83,11 @@ class ConfigManager(QObject):
         data = asdict(self._config)
 
         data["database"]["path"] = str(self._config.database.path)
-        data["comicsroot"]["path"] = str(self._config.comicsroot.path)
+
+        if self._config.comicsroot.path is not None:
+            data["comicsroot"]["path"] = str(self._config.comicsroot.path)
+        else:
+            data["comicsroot"]["path"] = None
 
         with self._config_path.open("w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
@@ -80,7 +95,7 @@ class ConfigManager(QObject):
     def _default_config(self) -> Config:
         return Config(
             database=DatabaseConfig(path=APP_DATA_DIR / "comics.db"),
-            comicsroot=ComicsRootConfig(Path("")),
+            comicsroot=ComicsRootConfig(None),
             comicvine=ComicVineConfig(""),
             ui=UIConfig(""),
         )

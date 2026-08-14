@@ -4,7 +4,6 @@ Code for creating the home-page of the app.
 
 import asyncio
 import inspect
-from pathlib import Path
 from typing import Callable, Optional, Sequence
 
 from PySide6.QtCore import Qt, Signal
@@ -211,13 +210,17 @@ class HomeView(QWidget):
         repository = RSSRepository(self.config_manager.config.database.path)
         rss_cont = RSSController(repository)
         recent_comics_list = rss_cont.run(num)
+
+        comicsroot = self.config_manager.config.comicsroot.path
+        download_folder = (
+            comicsroot / "0 - Downloads" if comicsroot is not None else None
+        )
         self.download_controller = DownloadControllerAsync(
             view=self,
             config_manager=self.config_manager,
-            download_folder=Path(
-                self.config_manager.config.comicsroot.path / "0 - Downloads"
-            ),
+            download_folder=download_folder,
         )
+
         return self.create_scroll_area(
             recent_comics_list,
             header="GetComics RSS Feed",
