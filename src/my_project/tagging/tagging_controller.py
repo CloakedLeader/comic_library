@@ -284,6 +284,7 @@ def run_tagging_process(
     title = comic_info.title
 
     data = RequestData(num, year, series, title)
+    logger.info(f"The expected complete title is: {data.unclean_title}")
 
     tagger = TaggingPipeline(
         data=data, path=filepath, size=filepath.stat().st_size, api_key=api_key

@@ -176,6 +176,8 @@ class MetadataController:
         into the correct format then it decides if its metadata is sufficient and then decides
         what to do from there.
         """
+        logger.info("========== TAGGING PIPELINE STARTED ==========")
+        logger.warning("========== TEST WARNING ==========")
         self.reformat()
         has_metadata = self.has_metadata()
 
@@ -382,7 +384,7 @@ class MetadataController:
         for subdir in self.config_manager.config.comicsroot.path.iterdir():
             if subdir.is_dir() and subdir.name.startswith(str(publisher_int)):
                 new_path = subdir / new_name
-                shutil.move(self.original_filepath, new_path)
+                shutil.move(self.filepath, new_path)
                 logger.info(f"Moved file to {subdir.name}")
 
                 try:
@@ -395,6 +397,10 @@ class MetadataController:
                 # TODO: Implement code to recover correct path, not urgent.
                 logger.info("Inserted filepath to database")
                 self.inputter.conn.close()
+                return
+            logger.error(
+                f"No publisher folder found for id {publisher_int}; file not moved."
+            )
 
     def rank_results(self, all_results, comic_info):
         with ResultsFilter(all_results, comic_info, self.filepath) as filterer:

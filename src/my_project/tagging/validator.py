@@ -166,7 +166,7 @@ class SearchResponseValidator:
 
 class IssueResponseValidator:
     ISSUE_THRESHOLD = 70
-    VOLUME_THRESHOLD = 50
+    VOLUME_THRESHOLD = 60
 
     def __init__(
         self, response: list[ComicVineIssueStruct], expected_data: RequestData
@@ -197,9 +197,10 @@ class IssueResponseValidator:
         Returns:
             list: The subset of 'self.results' which fulfills the predicate.
         """
-        self.mutable_results = [
-            item for item in self.mutable_results if predicate(item)
-        ]
+
+        temp_list = [item for item in self.mutable_results if predicate(item)]
+        logger.info(f"Removed {len(self.mutable_results) - len(temp_list)} entries.")
+        self.mutable_results = temp_list
         return self.mutable_results
 
     def year_checker(self) -> list[ComicVineIssueStruct]:
@@ -211,6 +212,7 @@ class IssueResponseValidator:
             list: Result items for which the year is within 4 of the expected
                 year of publication.
         """
+        logger.info("Starting year checks: ")
 
         def check_year(item: ComicVineResponse) -> bool:
             year = int(item.date_added[:4])
@@ -249,6 +251,7 @@ class IssueResponseValidator:
             list: The subset of  self.results  whose title matches accoring to the
                 configured fuzzy-match threshold.
         """
+        logger.info("Starting title checks: ")
 
         def check_title(item: ComicVineIssueStruct):
             used_fallback = False
@@ -267,6 +270,7 @@ class IssueResponseValidator:
                     re.match(p, lowered_title) for p in ambig_regexes
                 )
                 if is_ambig:
+                    logger.info("Ambiguous item name")
                     title = item.volume.name
                     used_fallback = True
             else:

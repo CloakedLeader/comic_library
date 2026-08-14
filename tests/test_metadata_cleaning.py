@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from my_project.config.config_manager import ConfigManager
 from my_project.tagging.metadata_cleaning import MetadataProcessing
 
-config_man = ConfigManager(Path("test_config.json"))
+config_man = ConfigManager(Path(__file__).with_name("test_config.json"))
 
 
 class MockParser:

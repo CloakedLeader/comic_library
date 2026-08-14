@@ -136,22 +136,63 @@ class Parser:
 
     def try_parse_date_in_paren(self) -> Optional[int]:
         """
-        Attempts to find a year within brackets, applies many criteria such as token length
-        and size (>1900). Finally advances the token counter after the closing parenthesis.
+        Attempts to find a year within brackets.
+
+        Supports dates such as:
+            (2021)
+            (January 2021)
+            # TODO Expand to support dates in the form (2021 January)
 
         Returns:
             Optional[int]: Returns the year if one matching criteria is found, else None.
         """
-        if self.peek().typ == LexerType.EOF:
+        first = self.peek()
+        if first.typ == LexerType.EOF:
             return None
-        maybe_year = self.peek()
-        if maybe_year.typ == LexerType.Number and len(maybe_year.val) == 4:
+
+        # Case: (2021)
+
+        if first.typ == LexerType.Number and len(first.val) == 4:
             if self.peek(2).typ == LexerType.RightParen:
-                year_tok = int(maybe_year.val)
-                if year_tok > 1900:
+                year = int(first.val)
+
+                if year > 1900:
                     self.next()
                     self.next()
-                    return year_tok
+                    return year
+
+        # Case: (January 2021)
+
+        if first.typ == LexerType.Text:
+            if first.val.lower() in (
+                "january",
+                "february",
+                "march",
+                "april",
+                "may",
+                "june",
+                "july",
+                "august",
+                "september",
+                "october",
+                "november",
+                "december",
+            ):
+                if self.peek(2).typ == LexerType.Space:
+                    maybe_year = self.peek(3)
+
+                    if (
+                        maybe_year.typ == LexerType.Number
+                        and len(maybe_year.val) == 4
+                        and self.peek(4).typ == LexerType.RightParen
+                    ):
+                        year = int(maybe_year.val)
+                        if year > 1900:
+                            self.next()
+                            self.next()
+                            self.next()
+                            self.next()
+                            return year
         return None
 
     def try_parse_useless_info(self, seen_year_yet: bool) -> Optional[str]:

@@ -50,6 +50,7 @@ from my_project.ui.widgets.reading_order_widget import (
 )
 from my_project.ui.widgets.settings_widget import Settings
 from my_project.utils.cleanup import Cleanup
+from my_project.utils.logging_config import configure_logging
 from my_project.utils.paths import LOG_DIR
 
 
@@ -494,33 +495,6 @@ def count_files_and_storage(directory: str) -> tuple[int, float]:
 
 def start_api():
     uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
-
-
-def configure_logging(log_dir: Path) -> None:
-    """Configure application-wide logging."""
-
-    log_dir.mkdir(parents=True, exist_ok=True)
-
-    log_file = log_dir / "debug.log"
-
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.FileHandler(
-                log_file,
-                mode="w",
-                encoding="utf-8",
-            ),
-            # logging.StreamHandler(sys.stdout),
-        ],
-        force=True,
-    )
-
-    # Reduce noise from libraries we don't control.
-    logging.getLogger("urllib3").setLevel(logging.WARNING)
-    logging.getLogger("asyncio").setLevel(logging.WARNING)
-    logging.getLogger("qasync").setLevel(logging.WARNING)
 
 
 if __name__ == "__main__":

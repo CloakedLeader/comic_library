@@ -241,39 +241,6 @@ class HttpRequest:
 
         return ComicVineDetailStruct.model_validate(items)
 
-    # def get_publisher_info(self, volume_id: int) -> Publisher:
-    #     req = requests.Request(
-    #         method="GET",
-    #         url=f"{HttpRequest.base_address}/search/",
-    #         params={
-    #             "api_key": self.api_key,
-    #             "format": "json",
-    #             "filter": f"volume:{id}",
-    #         },
-    #         headers=header,
-    #     )
-    #     prepared = req.prepare()
-    #     pub_url = prepared.url
-
-    #     if pub_url is None:
-    #         raise ValueError("Publisher url cannot be None")
-    #     response = self.session.get(pub_url)
-    #     if response.status_code != 200:
-    #         logger.warning(
-    #             f"Detail request failed with status code: \
-    #                 {response.status_code}"
-    #         )
-    #         logger.warning("\n" + response.text)
-    #     data = response.json()
-    #     if data["error"] != "OK":
-    #         logger.warning("Error, please investigate")
-    #         # raise RuntimeError("Error, please investigate")
-    #     items = data["results"]
-    #     if len(items) != 1:
-    #         raise RuntimeError("Error, please investigate")
-
-    #     return Publisher.model_validate(data["publisher"])
-
     def download_img(self, url: str) -> BytesIO:
         """
         Download an image from the given URL and return it as an in-memory binary stream.
