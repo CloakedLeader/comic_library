@@ -4,7 +4,6 @@ Code for creating the home-page of the app.
 
 import asyncio
 import inspect
-from pathlib import Path
 from typing import Callable, Optional, Sequence
 
 from PySide6.QtCore import Qt, Signal
@@ -17,6 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from my_project.classes.helper_classes import GUIComicInfo, MainViewType, RSSComicInfo
+from my_project.config.config_manager import ConfigManager
 from my_project.database.gui_repo_worker import RepoWorker
 from my_project.rss.download_controller import DownloadControllerAsync
 from my_project.rss.rss_controller import RSSController
@@ -35,7 +35,7 @@ class HomeView(QWidget):
     statusMessage = Signal(str)
     downloadProgress = Signal(int)
 
-    def __init__(self, db_path: Path):
+    def __init__(self, config_manager: ConfigManager):
         """
         Creats the different views off the home-page.
 
@@ -45,13 +45,13 @@ class HomeView(QWidget):
             db_path (Path): The path of the database.
         """
         super().__init__()
-        self.DB_PATH = db_path
+        self.config_manager = config_manager
         content_layout = QVBoxLayout(self)
 
         # stats_bar = self.create_stats_bar()
         # stats_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         # stats_bar.setMaximumHeight(60)
-        with RepoWorker() as repo_worker:
+        with RepoWorker(self.config_manager) as repo_worker:
             continue_list, progress_list, review_list = repo_worker.run()
         self.continue_reading = self.create_continue_reading_area(
             continue_list, progress_list
@@ -207,17 +207,35 @@ class HomeView(QWidget):
         creates a scroll area with download functionality
         for each comic.
         """
-        repository = RSSRepository(self.DB_PATH)
+        repository = RSSRepository(self.config_manager.config.database.path)
         rss_cont = RSSController(repository)
         recent_comics_list = rss_cont.run(num)
-        self.download_controller = DownloadControllerAsync(view=self)
-        return self.create_scroll_area(
-            recent_comics_list,
-            header="GetComics RSS Feed",
-            left_clicked=self.download_controller.handle_rss_comic_clicked,
-            right_clicked=None,
-            double_left_clicked=None,
-        )
+
+        if self.config_manager.has_comics_root:
+            download_folder = self.config_manager.comics_root / "0 - Downloads"
+            self.download_controller = DownloadControllerAsync(
+                view=self,
+                config_manager=self.config_manager,
+                download_folder=download_folder,
+            )
+            return self.create_scroll_area(
+                recent_comics_list,
+                header="GetComics RSS Feed",
+                left_clicked=self.download_controller.handle_rss_comic_clicked,
+                right_clicked=None,
+                double_left_clicked=None,
+            )
+
+        else:
+            return self.create_scroll_area(
+                recent_comics_list,
+                header="GetComics RSS Feed",
+                left_clicked=lambda: self.update_status(
+                    "Need to add a comics folder before downloads are possible."
+                ),
+                right_clicked=None,
+                double_left_clicked=None,
+            )
 
     def update_status(self, message: str) -> None:
         """Emits a status message for the status bar in the main window to display."""

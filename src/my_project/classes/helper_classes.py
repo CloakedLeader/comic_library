@@ -1,6 +1,7 @@
+from collections.abc import Iterable, Iterator
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Generic, Optional, Protocol, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 
@@ -137,8 +138,8 @@ class TeamInfo(BaseModel):
 
 
 class ComicVineIssueStruct(BaseModel):
-    api_detail_url: Optional[str] = None
-    character_credits: Optional[list[CharacterInfo]] = None
+    api_detail_url: str
+    # character_credits: Optional[list[CharacterInfo]] = None
     cover_date: str
     date_added: str
     description: Optional[str] = None
@@ -146,9 +147,9 @@ class ComicVineIssueStruct(BaseModel):
     image: ImageInfo
     issue_number: int
     name: Optional[str] = None
-    person_credits: Optional[list[PersonInfo]] = None
+    # person_credits: Optional[list[PersonInfo]] = None
     site_detail_url: Optional[str] = None
-    team_credits: Optional[list[TeamInfo]] = None
+    # team_credits: Optional[list[TeamInfo]] = None
     volume: VolumeInfo
 
 
@@ -160,6 +161,55 @@ class APIIssueResults(BaseModel):
     number_of_total_results: int
     status_code: int
     results: list[ComicVineIssueStruct]
+
+
+class ComicVineDetailStruct(BaseModel):
+    api_detail_url: str
+    character_credits: list[CharacterInfo]
+    cover_date: str
+    date_added: str
+    description: Optional[str] = None
+    id: int
+    image: ImageInfo
+    issue_number: int
+    name: str
+    person_credits: list[PersonInfo]
+    team_credits: list[TeamInfo]
+    volume: VolumeInfo
+
+
+class HasId(Protocol):
+    id: int
+
+
+T = TypeVar("T", bound=HasId)
+
+
+class IdSet(Generic[T]):
+    def __init__(self, items: Iterable[T] = ()) -> None:
+        self._items: dict[int, T] = {}
+
+        for item in items:
+            self.add(item)
+
+    def add(self, item: T) -> None:
+        self._items.setdefault(item.id, item)
+
+    def extend(self, items: Iterable[T]) -> None:
+        for i in items:
+            self.add(i)
+
+    def __contains__(self, id: int) -> bool:
+        return id in self._items
+
+    def __iter__(self) -> Iterator[T]:
+        return iter(self._items.values())
+
+    def __len__(self) -> int:
+        return len(self._items)
+
+    def get(self, id: int) -> Optional[T]:
+        return self._items.get(id)
 
 
 class MainViewType(Enum):

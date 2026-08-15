@@ -1,0 +1,14 @@
+{
+    "database": {
+        "path": "G:\\comic_library\\devel-config\\comics.db"
+    },
+    "comicsroot": {
+        "path": ""
+    },
+    "comicvine": {
+        "api_key": ""
+    },
+    "ui": {
+        "theme": ""
+    }
+}

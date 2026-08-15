@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from my_project.config.config_manager import ConfigManager
 from my_project.database.gui_repo_worker import RepoWorker
 
 
@@ -23,13 +24,13 @@ class CollectionCreation(QDialog):
     An empty entry is not allowed and will lead to an error message.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, config_manager: ConfigManager) -> None:
         """
         Creates the dialog window with a QTextBox to enter the collection
         title.
         """
         super().__init__()
-
+        self.config_manager = config_manager
         self.main_display = QWidget()
         self.main_layout = QVBoxLayout(self.main_display)
 
@@ -62,7 +63,7 @@ class CollectionCreation(QDialog):
         if name == "":
             self.error_message("Cannot have empty name.").exec()
         else:
-            with RepoWorker() as worker:
+            with RepoWorker(self.config_manager) as worker:
                 worker.create_collection(name)
             self.accept()
 

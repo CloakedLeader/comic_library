@@ -4,19 +4,9 @@ A collection of widgets for user interactivity with the comics.
 Includes a favourite button shaped as a heart, and a rating system with stars.
 """
 
-import os
-from pathlib import Path
-
-from dotenv import load_dotenv
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSizePolicy, QWidget
-
-load_dotenv()
-resources_path = os.getenv("FRONTEND_RESOURCES")
-if not resources_path:
-    raise RuntimeError("FRONTEND_RESOURCES environment variable is not set.")
-IMAGES = Path(resources_path)
 
 
 class HeartButton(QPushButton):
@@ -40,8 +30,8 @@ class HeartButton(QPushButton):
         super().__init__()
         self.setCheckable(True)
         self.base_size = QSize(size[0], size[1])
-        self.empty_icon = QIcon(str(IMAGES / "heart_outline.svg"))
-        self.full_icon = QIcon(str(IMAGES / "heart_filled.svg"))
+        self.empty_icon = QIcon(":/icons/heart_outline.svg")
+        self.full_icon = QIcon(":/icons/heart_filled.svg")
 
         self.toggled.connect(self.update_icon)
         self.setIcon(self.empty_icon)
@@ -85,9 +75,9 @@ class StarRating(QWidget):
         self.stars: list[QLabel] = []
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
-        self.full_star = QPixmap(str(IMAGES / "star_filled.svg"))
-        self.half_star = QPixmap(str(IMAGES / "star_half.svg"))
-        self.empty_star = QPixmap(str(IMAGES / "star_outline.svg"))
+        self.full_star = QPixmap(":/icons/star_filled.svg")
+        self.half_star = QPixmap(":/icons/star_half.svg")
+        self.empty_star = QPixmap(":/icons/star_outline.svg")
 
         layout = QHBoxLayout(self)
         self.spacing = 2

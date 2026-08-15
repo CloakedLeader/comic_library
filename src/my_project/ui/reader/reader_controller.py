@@ -5,6 +5,7 @@ Manages both memory useage and progress-saving.
 """
 
 from my_project.classes.helper_classes import GUIComicInfo
+from my_project.config.config_manager import ConfigManager
 from my_project.database.gui_repo_worker import RepoWorker
 from my_project.ui.reader.reader import Comic, SimpleReader
 
@@ -19,10 +20,11 @@ class ReadingController:
     primary key and provides functionality to close them all at once.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, config_manager: ConfigManager) -> None:
         """
         Initialises the reading controller.
         """
+        self.config_manager = config_manager
         self.open_windows: dict[str, SimpleReader] = {}
 
     def read_comic(self, comic_data: GUIComicInfo) -> None:
@@ -37,10 +39,10 @@ class ReadingController:
             self.open_windows[comic_data.primary_id].raise_()
             return
 
-        with RepoWorker() as pager:
+        with RepoWorker(self.config_manager) as pager:
             val = pager.get_recent_page(comic_data.primary_id)
         comic = Comic(comic_data, val if val is not None else 0)
-        comic_reader = SimpleReader(comic)
+        comic_reader = SimpleReader(comic, self.config_manager)
         comic_reader.closed.connect(self.window_shutdown)
         comic_reader.showFullScreen()
 
@@ -58,7 +60,7 @@ class ReadingController:
         if reader is None:
             return
         try:
-            with RepoWorker() as saver:
+            with RepoWorker(self.config_manager) as saver:
                 if page == 0:
                     saver.remove_from_reading_progress(primary_id)
                 elif page >= reader.comic.total_pages - 1:

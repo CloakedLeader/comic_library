@@ -224,7 +224,7 @@ class MetadataInserter:
         """
         MANDATORY_FIELDS = {
             "Writer",
-            "Penciller",
+            # "Penciller",
             "Year",
             "Summary",
             "Number",

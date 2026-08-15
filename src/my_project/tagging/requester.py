@@ -7,15 +7,11 @@ from pydantic import ValidationError
 from my_project.classes.helper_classes import (
     APIIssueResults,
     APISearchResults,
+    ComicVineDetailStruct,
     ComicVineIssueStruct,
 )
 
-logging.basicConfig(
-    filename="debug.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-
+logger = logging.getLogger(__name__)
 
 header = {
     "User-Agent": (
@@ -109,7 +105,7 @@ class HttpRequest:
         )
         prepared = req.prepare()
         self.url_search = prepared.url
-        logging.info(f"The search URL is: {self.url_search}")
+        logger.info(f"The search URL is: {self.url_search}")
 
     def build_url_iss(self, id: int) -> None:
         """
@@ -132,7 +128,7 @@ class HttpRequest:
         )
         prepared = req.prepare()
         self.url_iss = prepared.url
-        logging.info(f"The issue URL is: {self.url_iss}")
+        logger.info(f"The issue URL is: {self.url_iss}")
 
     def search_get_request(self) -> APISearchResults:
         """
@@ -154,15 +150,17 @@ class HttpRequest:
             raise ValueError("Search url cannot be None")
         response = self.session.get(self.url_search)
         if response.status_code != 200:
-            logging.warning(
+            logger.warning(
                 f"Search request failed with status code: \
                     {response.status_code}"
             )
-            logging.warning("\n" + response.text)
+            logger.warning("\n" + response.text)
+            raise RuntimeError(
+                f"Search request failed with status {response.status_code}"
+            )
         data = response.json()
         if data["error"] != "OK":
-            logging.warning("Error, please investigate")
-            raise RuntimeError("Error, please investigate")
+            raise RuntimeError(f"ComicVine returned error: {data['error']}")
         return APISearchResults.model_validate(data)
 
     def issue_get_request(self) -> APIIssueResults:
@@ -185,15 +183,18 @@ class HttpRequest:
             raise ValueError("issue url cannot be None")
         response = self.session.get(self.url_iss)
         if response.status_code != 200:
-            logging.warning(
+            logger.warning(
                 f"Issue request failed with status code: \
                     {response.status_code}"
             )
-            logging.warning("\n" + response.text)
+            logger.warning("\n" + response.text)
+            raise RuntimeError(
+                f"Issue request failed with status {response.status_code}"
+            )
+
         data = response.json()
         if data["error"] != "OK":
-            logging.warning("Error, please investigate")
-            raise RuntimeError("Error, please investigate")
+            raise RuntimeError(f"ComicVine returned error: {data['error']}")
         items = data["results"]
         validated: list[ComicVineIssueStruct] = []
         for item in items:
@@ -204,6 +205,41 @@ class HttpRequest:
                 continue
         data["results"] = validated
         return APIIssueResults.model_validate(data)
+
+    def detail_get_request(self, issue_id: int) -> ComicVineDetailStruct:
+        req = requests.Request(
+            method="GET",
+            url=f"{HttpRequest.base_address}/issue/4000-{issue_id}/",
+            params={
+                "api_key": self.api_key,
+                "format": "json",
+            },
+            headers=header,
+        )
+        prepared = req.prepare()
+        detail_url = prepared.url
+        logger.info(f"The detail URL is: {detail_url}")
+
+        if detail_url is None:
+            raise ValueError("Detail url cannot be None")
+        response = self.session.get(detail_url)
+        if response.status_code != 200:
+            logger.warning(
+                f"Detail request failed with status code: \
+                    {response.status_code}"
+            )
+            logger.warning("\n" + response.text)
+            raise RuntimeError(
+                f"Detail request failed with status {response.status_code}"
+            )
+        data = response.json()
+        if data["error"] != "OK":
+            raise RuntimeError(f"ComicVine returned error: {data['error']}")
+        items = data["results"]
+        if data["number_of_page_results"] != 1:
+            raise RuntimeError("Error, please investigate")
+
+        return ComicVineDetailStruct.model_validate(items)
 
     def download_img(self, url: str) -> BytesIO:
         """
@@ -222,5 +258,5 @@ class HttpRequest:
             image = BytesIO(response.content)
             return image
         except Exception as e:
-            logging.warning(f"Failed to process {url}: {e}")
+            logger.warning(f"Failed to process {url}: {e}")
             raise Exception from e

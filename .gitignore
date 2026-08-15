@@ -11,6 +11,8 @@ thumbnails/
 *.png
 ipad_app/
 *.json
+!/tests/test_config.json
+/tests/test_comicvine_search.py
 log.txt
 *.toml
 *.log
@@ -20,3 +22,6 @@ missing_stubs
 .mypy_cache/
 *.svg
 *.egg-info
+build/
+dist/
+test-images/
