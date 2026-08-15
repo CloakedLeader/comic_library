@@ -49,7 +49,7 @@ from my_project.ui.widgets.reading_order_widget import (
     ReadingOrderEditor,
 )
 from my_project.ui.widgets.settings_widget import Settings
-from my_project.utils.cleanup import Cleanup
+from my_project.utils.cleanup import scan_and_clean
 from my_project.utils.logging_config import configure_logging
 from my_project.utils.paths import LOG_DIR
 
@@ -315,11 +315,15 @@ class HomePage(QMainWindow):
             self.library_search(text)
 
     def library_search(self, text: str):
+        if text == "":
+            return
         with FTS5Searcher(config_manager) as searcher:
             display_info = searcher.text_search(text)
-        if display_info is None:
-            # TODO: Need to add logic here.
-            raise ValueError("Incorrect type passed!")
+        # if display_info is None:
+        #     return
+        #     # TODO: Need to add logic here.
+        #     raise ValueError("Incorrect type passed!")
+        display_info = display_info or []
         search_view = ComicGridView(
             display_info, self.reader_controller, config_manager
         )
@@ -495,6 +499,7 @@ def count_files_and_storage(directory: str) -> tuple[int, float]:
 
 def start_api():
     uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
+    # uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
 
 
 if __name__ == "__main__":
@@ -503,8 +508,7 @@ if __name__ == "__main__":
     config_manager.load()
 
     startup_checks(config_manager)
-    with Cleanup(config_manager) as cleaner:
-        cleaner.scan_and_clean()
+    scan_and_clean(config_manager)
 
     api_thread = threading.Thread(target=start_api, daemon=True)
     api_thread.start()

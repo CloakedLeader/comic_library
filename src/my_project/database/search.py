@@ -2,6 +2,7 @@
 A file containing functions that add to the fts5 database and query it.
 """
 
+import re
 import sqlite3
 
 from my_project.classes.helper_classes import GUIComicInfo
@@ -24,9 +25,12 @@ class FTS5Inserter:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Exits the context manager by saving the changes to the database and closing the connection"""
-        self.conn.commit()
+        if exc_type is None:
+            self.conn.commit()
+        else:
+            self.conn.rollback()
         self.conn.close()
-        return
+        return False
 
     def get_and_flatten_data(self, comic_id: str) -> dict[str, str]:
         """
@@ -131,9 +135,18 @@ class FTS5Searcher:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Exits the context manager by saving the changes to the database and closing the connection"""
-        self.conn.commit()
+        if exc_type is None:
+            self.conn.commit()
+        else:
+            self.conn.rollback()
         self.conn.close()
-        return
+        return False
+
+    @staticmethod
+    def normalise_terms(text: str) -> list[str]:
+        terms = re.findall(r"[^\W_]+", text, flags=re.UNICODE)
+        fts_operators = {"AND", "OR", "NOT", "NEAR"}
+        return [term for term in terms if term.upper() not in fts_operators]
 
     def text_search(self, text: str) -> list[GUIComicInfo] | None:
         """
@@ -148,28 +161,36 @@ class FTS5Searcher:
         """
         if not self.config_manager.has_comics_root:
             raise RuntimeError("Comics root is not configured.")
-        query = " ".join(f"{term}*" for term in text.split())
 
-        self.cursor.execute(
-            """
-            SELECT comic_id, title, series FROM comics_fts5
-            WHERE comics_fts5 MATCH ?
-            """,
-            (query,),
-        )
-        results = self.cursor.fetchall()
+        terms = self.normalise_terms(text)
+
+        if terms == []:
+            return None
+
+        query = " ".join(f"{term}*" for term in terms)
+        try:
+            self.cursor.execute(
+                """
+                SELECT comic_id, title, series FROM comics_fts5
+                WHERE comics_fts5 MATCH ?
+                """,
+                (query,),
+            )
+            results = self.cursor.fetchall()
+        except sqlite3.OperationalError:
+            return None
+
         if not results:
             return None
         hits = []
+
         with RepoWorker(self.config_manager) as worker:
             for result in results:
                 primary_key = result[0]
-                title = f"{result[1]}: {result[2]}"
+                title = f"{result[2]}: {result[1]}"
                 filepath = worker.get_filepath(primary_key)
                 cover_path = (
-                    self.config_manager.config.comicsroot.path
-                    / ".covers"
-                    / f"{primary_key}_b.jpg"
+                    self.config_manager.comics_root / ".covers" / f"{primary_key}_b.jpg"
                 )
                 if filepath is None:
                     continue

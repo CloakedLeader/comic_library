@@ -76,10 +76,9 @@ class Settings(QDialog):
         self.original_key = self.api_input.text()
         self.original_path = self.path_input.text()
 
-    def browse_folder(self):
+    def browse_folder(self) -> None:
         """
         Opens up a QFileDialog for the user to select the comics directory.
-
         The path of the selected folder is then added to the QLineEdit text.
         """
         folder = QFileDialog.getExistingDirectory(self, "Select Folder")
@@ -88,7 +87,7 @@ class Settings(QDialog):
 
     def load_vars(self) -> None:
         """
-        Gets the current entries in the .env file and adds them as the default
+        Gets the current entries in the config file and adds them as the default
         in the QLineEdits.
 
         Returns:
@@ -99,17 +98,16 @@ class Settings(QDialog):
 
         self.path_input.setText(str(self.config_manager.config.comicsroot.path))
 
-    def save_user_inputs(self):
+    def save_user_inputs(self) -> None:
         """
-        Saves the current entries in the QLineEdits into the .env
-        file.
+        Saves the current entries in the QLineEdits into the config file.
         """
         api_key = self.api_input.text().strip()
         folder = self.path_input.text().strip()
 
         self.config_manager.update_settings(Path(folder), api_key)
 
-    def okay_pressed(self):
+    def okay_pressed(self) -> None:
         """
         Triggered upon the 'Okay' button pressed. Checks if the QLineEdits
         have been changed since they were last saved and asks the user

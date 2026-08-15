@@ -1,6 +1,7 @@
+from collections.abc import Iterable, Iterator
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Generic, Optional, Protocol, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 
@@ -88,7 +89,7 @@ class ComicVineSearchStruct(BaseModel):
     count_of_issues: Optional[int] = None
     date_added: str
     image: Optional[ImageInfo] = None
-    publisher: Publisher | None = None
+    publisher: Publisher
     id: int
     name: str
     site_detail_url: Optional[str] = None
@@ -175,6 +176,40 @@ class ComicVineDetailStruct(BaseModel):
     person_credits: list[PersonInfo]
     team_credits: list[TeamInfo]
     volume: VolumeInfo
+
+
+class HasId(Protocol):
+    id: int
+
+
+T = TypeVar("T", bound=HasId)
+
+
+class IdSet(Generic[T]):
+    def __init__(self, items: Iterable[T] = ()) -> None:
+        self._items: dict[int, T] = {}
+
+        for item in items:
+            self.add(item)
+
+    def add(self, item: T) -> None:
+        self._items.setdefault(item.id, item)
+
+    def extend(self, items: Iterable[T]) -> None:
+        for i in items:
+            self.add(i)
+
+    def __contains__(self, id: int) -> bool:
+        return id in self._items
+
+    def __iter__(self) -> Iterator[T]:
+        return iter(self._items.values())
+
+    def __len__(self) -> int:
+        return len(self._items)
+
+    def get(self, id: int) -> Optional[T]:
+        return self._items.get(id)
 
 
 class MainViewType(Enum):

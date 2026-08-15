@@ -15,6 +15,7 @@ from PIL import Image
 from my_project.classes.helper_classes import (
     ComicVineIssueStruct,
     ComicVineSearchStruct,
+    IdSet,
     Publisher,
 )
 from my_project.tagging.lexer import Lexer
@@ -43,6 +44,10 @@ header = {
 }
 session = requests.Session()
 session.headers.update(header)
+
+
+class VolumeNotFoundError(Exception):
+    """Raised when a requested volume cannot be found in the search results."""
 
 
 class TaggingPipeline:
@@ -152,7 +157,7 @@ class TaggingPipeline:
 
         skipped_vols = []
         possible_ids: list[int] = []
-        self.search_results: list[ComicVineSearchStruct] = []
+        self.search_results = IdSet[ComicVineSearchStruct]()
         for q in queries:
             if q == "":
                 continue
@@ -259,8 +264,9 @@ class TaggingPipeline:
     def get_publisher_info(self, volume_id: int) -> Publisher:
         for i in self.search_results:
             if i.id == volume_id:
-                return i.publisher if i.publisher else Publisher(name="Empty")
-        return Publisher(name="Empty")
+                return i.publisher
+
+        raise VolumeNotFoundError(f"No publisher found for volume {volume_id}.")
 
 
 def run_tagging_process(

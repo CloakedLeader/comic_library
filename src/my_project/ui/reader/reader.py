@@ -129,7 +129,6 @@ class Comic:
             ComicError: This error is raised when no images are found in the comic archive folder.
         """
         self.path = comic_info.filepath
-        logger.info(f"Exposed comic filepath: {str(self.path)}")
         self.filename = comic_info.filepath.stem
         self.zip = zipfile.ZipFile(comic_info.filepath, "r")
         self.image_names = sorted(

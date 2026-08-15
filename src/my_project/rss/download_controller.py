@@ -27,9 +27,7 @@ class DownloadControllerAsync:
     download workflow including status updates and error handling.
     """
 
-    def __init__(
-        self, view, config_manager: ConfigManager, download_folder: Path | None
-    ):
+    def __init__(self, view, config_manager: ConfigManager, download_folder: Path):
         """
         Initialise the download controller.
 
@@ -37,8 +35,6 @@ class DownloadControllerAsync:
             view: The view object for updating UI status.
             service: The download servie for handling actual file downloads.
         """
-        if download_folder is None:
-            raise ValueError("Cannot")
         self.config_manager = config_manager
         self.view = view
         self.download_service = DownloadServiceAsync(download_folder)
@@ -128,7 +124,7 @@ class DownloadServiceAsync:
     It provides robust error handling and supports various comic file formats.
     """
 
-    def __init__(self, download_folder: Path | None) -> None:
+    def __init__(self, download_folder: Path) -> None:
         """
         Initialise the download service.
 
@@ -138,7 +134,7 @@ class DownloadServiceAsync:
         The download folder will be created if it does not exist.
         """
         self.download_folder = download_folder
-        if self.download_folder is not None and not self.download_folder.exists():
+        if not self.download_folder.exists():
             self.download_folder.mkdir(parents=True, exist_ok=True)
 
     async def __aenter__(self):
@@ -254,8 +250,6 @@ class DownloadServiceAsync:
         Attempts to get filename from Content-Disposition header, falls back
         to URL path, finally, uses "downloaded_comic.cbz" as a last resort.
         """
-        if self.download_folder is None:
-            return None
 
         filepath = await self.download_with_progress(
             comic_download_link,

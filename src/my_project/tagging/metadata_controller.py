@@ -399,9 +399,9 @@ class MetadataController:
                 logger.info("Inserted filepath to database")
                 self.inputter.conn.close()
                 return
-            logger.error(
-                f"No publisher folder found for id {publisher_int}; file not moved."
-            )
+        logger.error(
+            f"No publisher folder found for id {publisher_int}; file not moved."
+        )
 
     def rank_results(self, all_results, comic_info):
         with ResultsFilter(all_results, comic_info, self.filepath) as filterer:

@@ -74,7 +74,7 @@ class ConfigManager(QObject):
             data = json.load(f)
 
         comics_root = data["comicsroot"]["path"]
-        if comics_root is None:
+        if comics_root is None or comics_root == "":
             comics_root = UNSET_COMICS_ROOT
         else:
             comics_root = Path(comics_root)
@@ -101,8 +101,10 @@ class ConfigManager(QObject):
         else:
             data["comicsroot"]["path"] = str(self._config.comicsroot.path)
 
-        with self._config_path.open("w", encoding="utf-8") as f:
+        temp_path = self._config_path.with_suffix(f"{self._config_path.suffix}.tmp")
+        with temp_path.open("w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
+        temp_path.replace(self._config_path)
 
     def _default_config(self) -> Config:
         return Config(

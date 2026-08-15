@@ -211,23 +211,31 @@ class HomeView(QWidget):
         rss_cont = RSSController(repository)
         recent_comics_list = rss_cont.run(num)
 
-        comicsroot = self.config_manager.config.comicsroot.path
-        download_folder = (
-            comicsroot / "0 - Downloads" if comicsroot is not None else None
-        )
-        self.download_controller = DownloadControllerAsync(
-            view=self,
-            config_manager=self.config_manager,
-            download_folder=download_folder,
-        )
+        if self.config_manager.has_comics_root:
+            download_folder = self.config_manager.comics_root / "0 - Downloads"
+            self.download_controller = DownloadControllerAsync(
+                view=self,
+                config_manager=self.config_manager,
+                download_folder=download_folder,
+            )
+            return self.create_scroll_area(
+                recent_comics_list,
+                header="GetComics RSS Feed",
+                left_clicked=self.download_controller.handle_rss_comic_clicked,
+                right_clicked=None,
+                double_left_clicked=None,
+            )
 
-        return self.create_scroll_area(
-            recent_comics_list,
-            header="GetComics RSS Feed",
-            left_clicked=self.download_controller.handle_rss_comic_clicked,
-            right_clicked=None,
-            double_left_clicked=None,
-        )
+        else:
+            return self.create_scroll_area(
+                recent_comics_list,
+                header="GetComics RSS Feed",
+                left_clicked=lambda: self.update_status(
+                    "Need to add a comics folder before downloads are possible."
+                ),
+                right_clicked=None,
+                double_left_clicked=None,
+            )
 
     def update_status(self, message: str) -> None:
         """Emits a status message for the status bar in the main window to display."""

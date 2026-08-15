@@ -32,9 +32,12 @@ class RepoWorker:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Exits the context manager by saving the changes to the database and closing the connection"""
-        self.conn.commit()
+        if exc_type is None:
+            self.conn.commit()
+        else:
+            self.conn.rollback()
         self.conn.close()
-        return
+        return False
 
     @property
     def comics_root(self) -> Path:
