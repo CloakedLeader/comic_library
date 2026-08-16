@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
 from qasync import QEventLoop  # type: ignore[import-untyped]
 
 from my_project.resources import resources_rc  # noqa: F401, isort: skip
-from my_project.api.api_main import app
+from my_project.api.main import create_app
 from my_project.classes.helper_classes import GUIComicInfo, MainViewType
 from my_project.config.config_manager import ConfigManager
 from my_project.database.db_init import startup_checks
@@ -497,7 +497,8 @@ def count_files_and_storage(directory: str) -> tuple[int, float]:
     return file_count, total_size
 
 
-def start_api():
+def start_api(config_manager: ConfigManager):
+    app = create_app(config_manager)
     uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
     # uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
 
@@ -510,7 +511,7 @@ if __name__ == "__main__":
     startup_checks(config_manager)
     scan_and_clean(config_manager)
 
-    api_thread = threading.Thread(target=start_api, daemon=True)
+    api_thread = threading.Thread(target=start_api, args=(config_manager,), daemon=True)
     api_thread.start()
 
     qt_app = QApplication(sys.argv)
