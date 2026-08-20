@@ -64,17 +64,15 @@ class ResultsFilter:
         return 1.0 if candidate_number == self.expected_info.num else 0.0
 
     def score_results(self, result: Candidate) -> float:
-        name = cast(str, result.issue.name)
-        volume = cast(str, result.issue.volume.name)
-        cover_date = cast(str, result.issue.cover_date)
         issue_num = cast(str, result.issue.issue_number)
 
         score = 0.0
-        score += self.title_similarity(name)
-        score += self.volume_similarity(volume)
+        score += result.title_score if result.title_score else 0.0
+        score += result.series_score
         score += result.year_score
-        score += self.year_match(int(cover_date[:4]))
+        score += result.image_score if result.image_score else 0.0
         score += self.number_match(int(issue_num))
+
         return score
 
     def filter_results(self, top_n: int = 5) -> list[tuple[ComicVineIssueStruct, int]]:

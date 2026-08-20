@@ -55,7 +55,7 @@ class TaggingPipeline:
         self.size = size
         self.http = HttpRequest(data, api_key, session)
         self.cover = self.cover_getter()
-        self.results: list[ComicVineIssueStruct] = []
+        self.result: ComicVineIssueStruct | None = None
         self.issue_validator = IssueResponseValidator(expected_data=data)
         self.candidates: list[Candidate] = []
         self.image_scorer = ImageScorer(self.cover, self.http)
@@ -152,30 +152,31 @@ class TaggingPipeline:
         cutoff = int(len(total_candidates) * 0.4)
         self.candidates = total_candidates[:cutoff]
         # I now have a list self.candidates which contains all possible results.
-        image_scored_results = self.image_scorer.score_candidate_images(self.candidates)
-        for i in image_scored_results:
+        self.candidates = self.image_scorer.score_candidate_images(self.candidates)
+        for i in self.candidates:
             logger.info(i.__repr__())
-        if len(image_scored_results) == 1:
-            candidate = image_scored_results[0]
+
+        if len(self.candidates) == 1:
+            candidate = self.candidates[0]
             if candidate.confidence_score > 0.9:
                 logger.info(
                     f"Strong match: {candidate.issue.volume.name} "
                     f"(score={candidate.confidence_score:.3f})"
                 )
                 logger.info(f"The match is: {candidate.issue.volume.name}")
-                self.results.append(candidate.issue)
+                self.result = candidate.issue
                 return MatchCode.ONE_MATCH
             else:
                 return MatchCode.NO_MATCH
 
-        elif len(image_scored_results) == 0:
+        elif len(self.candidates) == 0:
             return MatchCode.NO_MATCH
             pass
             # look at previous results before filtering and try to rank them for presentation to user.
 
         else:
             ranked_candidates = sorted(
-                image_scored_results,
+                self.candidates,
                 key=lambda candidate: candidate.confidence_score,
                 reverse=True,
             )
@@ -193,7 +194,7 @@ class TaggingPipeline:
             logger.info(f"Score difference: {score_difference:.3f}")
             if score_difference >= 0.25 and best.confidence_score >= 0.7:
                 logger.info(f"Strong relative match: {best.issue.volume.name}")
-                self.results.append(best.issue)
+                self.result = best.issue
                 return MatchCode.ONE_MATCH
             return MatchCode.MULTIPLE_MATCHES
             # ? Rank candidates and see if one sticks out as the best by far.

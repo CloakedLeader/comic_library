@@ -318,13 +318,15 @@ class MetadataController:
         )
 
         if matchcode == MatchCode.ONE_MATCH:
-            return self.build_tag_application(tagger, tagger.results[0])
+            if tagger.result:
+                return self.build_tag_application(tagger, tagger.result)
+            else:
+                raise RuntimeError(
+                    "The attribute `result` of TaggingPipeline should not be None for MatchCode.ONE_MATCH."
+                )
 
-        candidates = (
-            tagger.candidates
-            if matchcode == MatchCode.MULTIPLE_MATCHES
-            else list(tagger.candidates)
-        )
+        candidates = tagger.candidates
+
         ranked = self.rank_results(candidates, tagger.data)
         selected = self.request_disambiguation(ranked, tagger.data, candidates)
         if not selected:
