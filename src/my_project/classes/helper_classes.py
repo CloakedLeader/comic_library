@@ -139,7 +139,6 @@ class TeamInfo(BaseModel):
 
 class ComicVineIssueStruct(BaseModel):
     api_detail_url: str
-    # character_credits: Optional[list[CharacterInfo]] = None
     cover_date: str
     date_added: str
     description: Optional[str] = None
@@ -147,9 +146,7 @@ class ComicVineIssueStruct(BaseModel):
     image: ImageInfo
     issue_number: int
     name: Optional[str] = None
-    # person_credits: Optional[list[PersonInfo]] = None
     site_detail_url: Optional[str] = None
-    # team_credits: Optional[list[TeamInfo]] = None
     volume: VolumeInfo
 
 

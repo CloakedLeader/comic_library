@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from my_project.classes.tagging_classes import Candidate
 from my_project.tagging.comic_match_logic import ComicMatch
 from my_project.tagging.tagging_controller import RequestData
 
@@ -30,7 +31,7 @@ class ComicMatcherUI(QDialog):
         self,
         actual_info: RequestData,
         best_matches: list[tuple[ComicMatch, int]],
-        all_matches: list[dict],
+        all_matches: list[Candidate],
         filepath: Path,
     ):
         super().__init__()

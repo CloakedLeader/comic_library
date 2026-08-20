@@ -1,20 +1,15 @@
 import logging
 import re
 from difflib import SequenceMatcher
-from io import BytesIO
 from typing import Callable, TypeAlias
 
-import cv2
-import imagehash
-import numpy as np
-from imagehash import ImageHash
-from PIL import Image
 from rapidfuzz import fuzz
 
 from my_project.classes.helper_classes import (
     ComicVineIssueStruct,
     ComicVineSearchStruct,
 )
+from my_project.classes.tagging_classes import Candidate, Queries
 
 from .requester import RequestData
 
@@ -71,7 +66,7 @@ class SearchResponseValidator:
 
         return self.filter_results(is_collection)
 
-    def pick_best_volumes(self, number: int = 5) -> list[ComicVineSearchStruct]:
+    def pick_best_volumes(self, number: int = 7) -> list[ComicVineSearchStruct]:
         """
         Selects the top matching volume results whose names best match the expected
         series name.
@@ -166,11 +161,9 @@ class SearchResponseValidator:
 
 class IssueResponseValidator:
     ISSUE_THRESHOLD = 70
-    VOLUME_THRESHOLD = 60
+    VOLUME_THRESHOLD = 50
 
-    def __init__(
-        self, response: list[ComicVineIssueStruct], expected_data: RequestData
-    ) -> None:
+    def __init__(self, expected_data: RequestData) -> None:
         """
         Initialise the validator with API response results and the expected
         request data.
@@ -182,43 +175,11 @@ class IssueResponseValidator:
                 to return.
         """
 
-        self.results = response
         self.expected_info = expected_data
-        self.mutable_results = response
 
-    def filter_results(self, predicate: Callable) -> list[ComicVineIssueStruct]:
-        """
-        Filter stored results using some predicate.
-
-        Args:
-            predicate (Callable): A function that recieves a single result
-                item and returns a boolean value to include that item.
-
-        Returns:
-            list: The subset of 'self.results' which fulfills the predicate.
-        """
-
-        temp_list = [item for item in self.mutable_results if predicate(item)]
-        logger.info(f"Removed {len(self.mutable_results) - len(temp_list)} entries.")
-        self.mutable_results = temp_list
-        return self.mutable_results
-
-    def year_checker(self) -> list[ComicVineIssueStruct]:
-        """
-        Filter results to those whose year is within 4 years of the expected
-        publication year.
-
-        Returns:
-            list: Result items for which the year is within 4 of the expected
-                year of publication.
-        """
-        logger.info("Starting year checks: ")
-
-        def check_year(item: ComicVineResponse) -> bool:
-            year = int(item.date_added[:4])
-            return abs(year - self.expected_info.pub_year) <= 4
-
-        return self.filter_results(check_year)
+    @staticmethod
+    def get_year(data: ComicVineIssueStruct) -> int:
+        return int(data.date_added[:4])
 
     @staticmethod
     def fuzzy_match(a: str, b: str, threshold: int = 65) -> bool:
@@ -238,167 +199,104 @@ class IssueResponseValidator:
 
         return fuzz.token_sort_ratio(a, b) >= threshold
 
-    def title_checker(self) -> list[ComicVineIssueStruct]:
-        """
-        Filter stored results by comparing each item's title to the expected
-        title using fuzzy matching.
-
-        Ambiguous titles include short forms like "tpb" or "hc" and patterns such as
-        volume markers like "vol 1" or "book one". When the title is ambiguous, the
-        volume title is used instead.
-
-        Returns:
-            list: The subset of  self.results  whose title matches accoring to the
-                configured fuzzy-match threshold.
-        """
-        logger.info("Starting title checks: ")
-
-        def check_title(item: ComicVineIssueStruct):
-            used_fallback = False
-            ambig_names = ["tpb", "hc", "omnibus"]
-            ambig_regexes = [
-                r"^vol(?:ume)?\.?\s*\d+$",  # matches "vol.", "volume", "vol"
-                r"^#\d+$",  # matches "#1", "#12" etc
-                r"^issue\s*\d+$",  # matches "issue 3"
-                r"\bvol(?:ume)?\.?\s*(one|two|three|four|\d+|i{1,3}|iv|v)\b",
-                r"\bbook\s*(one|two|three|four|\d+|i{1,3}|iv|v)\b",
-            ]
-            title = item.name
-            if title:
-                lowered_title = title.lower().strip()
-                is_ambig = lowered_title in ambig_names or any(
-                    re.match(p, lowered_title) for p in ambig_regexes
-                )
-                if is_ambig:
-                    logger.info("Ambiguous item name")
-                    title = item.volume.name
-                    used_fallback = True
+    @staticmethod
+    def is_ambig_name(name: str | None) -> bool:
+        ambig_names = ["tpb", "hc", "omnibus"]
+        ambig_regexes = [
+            r"^vol(?:ume)?\.?\s*\d+$",  # matches "vol.", "volume", "vol"
+            r"^#\d+$",  # matches "#1", "#1 2" etc
+            r"^issue\s*\d+$",  # matches "issue 3"
+            r"\bvol(?:ume)?\.?\s*(one|two|three|four|\d+|i{1,3}|iv|v)\b",
+            r"\bbook\s*(one|two|three|four|\d+|i{1,3}|iv|v)\b",
+        ]
+        if name:
+            lowered_name = name.lower().strip()
+            if lowered_name in ambig_names or any(
+                re.match(p, lowered_name) for p in ambig_regexes
+            ):
+                return True
             else:
-                title = item.volume.name
-                used_fallback = True
-            if title is None:
                 return False
-            threshold = (
-                IssueResponseValidator.VOLUME_THRESHOLD
-                if used_fallback
-                else IssueResponseValidator.ISSUE_THRESHOLD
-            )
-            return self.fuzzy_match(
-                title, self.expected_info.unclean_title, threshold=threshold
-            )
+        return False
 
-        return self.filter_results(check_title)
+    @staticmethod
+    def get_proper_title(name: str | None, volume_name: str | None) -> str:
+        ambig_names = ["tpb", "hc", "omnibus"]
+        ambig_regexes = [
+            r"^vol(?:ume)?\.?\s*\d+$",  # matches "vol.", "volume", "vol"
+            r"^#\d+$",  # matches "#1", "#1 2" etc
+            r"^issue\s*\d+$",  # matches "issue 3"
+            r"\bvol(?:ume)?\.?\s*(one|two|three|four|\d+|i{1,3}|iv|v)\b",
+            r"\bbook\s*(one|two|three|four|\d+|i{1,3}|iv|v)\b",
+        ]
+        if name:
+            lowered_name = name.lower().strip()
+            if lowered_name in ambig_names or any(
+                re.match(p, lowered_name) for p in ambig_regexes
+            ):
+                if not volume_name:
+                    raise ValueError("No name for issue found.")
+                else:
+                    return volume_name
+            else:
+                return name
 
-    def cover_img_url_getter(self) -> None:
-        """
-        Collects thumbnail image URL's from a list of result items and stores
-        them on the instance.
+        else:
+            if not volume_name:
+                raise ValueError("No name for issue found.")
+            else:
+                return volume_name
 
-        Args:
-            filtered_results (list): List of result dictionaries that contain a
-                sub-dictionary "image". Populates self.urls as a list of these
-                thumbnail URL strings.
-        """
+    def score_title(self, title: str) -> float:
+        sim = SequenceMatcher(
+            None, title.casefold(), self.expected_info.title.casefold()
+        ).ratio()
+        return sim**2.5
 
-        self.urls: list[str] = []
-        for i in self.mutable_results:
-            self.urls.append(i.image.medium_url)
+    def score_series(self, series: str, queries: Queries) -> float:
+        if (
+            series.casefold()
+            == f"{queries.series.casefold()}: {queries.title.casefold()}"
+        ):
+            return 1.0
+        sim = SequenceMatcher(
+            None, series.casefold(), self.expected_info.series.casefold()
+        ).ratio()
+        return sim**2.5
 
-    # def cover_img_comparison(
-    #     self, known_image_hash, unsure_image_bytes, threshold=8
-    # ) -> bool:
-    #     """
-    #     Compare an unknown image to a known image hash using a perceptual
-    #     hash distance threshold.
+    def score_year(self, year: int) -> float:
+        difference = abs(self.expected_info.pub_year - year)
 
-    #     Args:
-    #         known_image_hash (_type_): An imagehash.ImageHash representing
-    #             the known image's perceptual hash.
-    #         unsure_image_bytes (_type_): A file-like object or bytes for the image
-    #             to compare.
-    #         threshold (int, optional): Maximum allowed hash distance for images
-    #             to be considered a match. Defaults to 8.
+        if difference == 0:
+            return 1.0
+        elif difference == 1:
+            return 0.50
+        elif difference == 2:
+            return 0.2
+        elif difference == 3:
+            return 0.05
+        else:
+            return 0.0
 
-    #     Returns:
-    #         bool: True if the perceptual hash distance is less or equal to the threshold.
-    #             False otherwise.
-    #     """
+    def score_result(
+        self, issue_data: ComicVineIssueStruct, queries: Queries
+    ) -> Candidate:
+        title = self.get_proper_title(issue_data.name, issue_data.volume.name)
+        if issue_data.name is None or self.is_ambig_name(issue_data.name):
+            title_score = None
+        else:
+            title_score = self.score_title(issue_data.name)
 
-    #     unsure_image = Image.open(unsure_image_bytes)
-    #     hash1 = known_image_hash
-    #     hash2 = imagehash.phash(unsure_image)
-    #     hash_diff = hash1 - hash2
-    #     logger.info(
-    #         f"Hashing distance = \
-    #           {hash_diff}, threshold = {threshold}"
-    #     )
-    #     return hash_diff <= threshold
+        series_score = self.score_series(issue_data.volume.name, queries)
+        year = self.get_year(issue_data)
+        year_score = self.score_year(year)
 
-    def cover_img_comp_w_weight(
-        self,
-        known_image_hashes: dict[str, ImageHash],
-        unsure_image_bytes: BytesIO,
-        max_dist=64,
-    ) -> float:
-        """
-        Compute a weighted similarity score between a known image and a
-        possible match.
-
-        Args:
-            known_image_hashes (_type_): Different hash values for the known
-                image.
-            unsure_image_bytes (_type_): An image-like object accepted
-                by imagehash. Used to compute p, d and a hashes.
-            max_dist (int, optional): Maximum distance used to normalise
-                individual hash distances. Defaults to 64.
-
-        Returns:
-            float: Weighted similarity where higher values represent greater
-                similarity.
-        """
-        weights = {"phash": 0.7, "dhash": 0.2, "ahash": 0.1}
-        with Image.open(unsure_image_bytes) as img:
-            unsure_hashes = {
-                "phash": imagehash.phash(img),
-                "dhash": imagehash.dhash(img),
-                "ahash": imagehash.average_hash(img),
-            }
-        score = 0.0
-        for key in weights:
-            dist = known_image_hashes[key] - unsure_hashes[key]
-            normalised = 1 - (dist / max_dist)
-            score += weights[key] * normalised
-        return score
-
-    def colour_hist_comparison(self, known_hist, unsure_img) -> float:
-        """Returns a similarity score in [0, 1]; higher means closer match."""
-        with Image.open(unsure_img) as unsure_img:
-            img = cv2.cvtColor(np.array(unsure_img.convert("RGB")), cv2.COLOR_RGB2BGR)
-        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        hist = cv2.calcHist(
-            [hsv], [0, 1, 2], None, [16, 8, 8], [0, 180, 0, 256, 0, 256]
+        # TODO: Implement publisher scoring based on ComicVineSearch results.
+        # ! Need to pass around the imposed title so that fuzzy matching methods all compare to the same thing.
+        return Candidate(
+            name=title,
+            issue=issue_data,
+            title_score=title_score,
+            series_score=series_score,
+            year_score=year_score,
         )
-
-        hist = cv2.normalize(hist, None, alpha=1.0, norm_type=cv2.NORM_L1)  # type: ignore
-
-        # methods = {
-        #     "CORREL": cv2.HISTCMP_CORREL,
-        #     "CHISQR": cv2.HISTCMP_CHISQR,
-        #     "INTERSECT": cv2.HISTCMP_INTERSECT,
-        #     "BHATT": cv2.HISTCMP_BHATTACHARYYA,
-        #     "CHISQR_ALT": cv2.HISTCMP_CHISQR_ALT,
-        #     "KL_DIV": cv2.HISTCMP_KL_DIV,
-        # }
-
-        return cv2.compareHist(known_hist, hist, cv2.HISTCMP_BHATTACHARYYA)
-
-    def filter_issue_results(self) -> list[ComicVineIssueStruct]:
-        """
-        Combines a check of the publication year and title to identify the exact comic.
-
-        Returns:
-            list[ComicVineIssueStruct]: The remaining results after the filtering has been completed.
-        """
-        self.year_checker()
-        self.title_checker()
-        return self.mutable_results

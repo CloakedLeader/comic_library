@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import TypedDict, cast
 
 from my_project.classes.helper_classes import ComicVineIssueStruct
+from my_project.classes.tagging_classes import Candidate
 from my_project.tagging.requester import RequestData
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ class ComicMatch(TypedDict):
 class ResultsFilter:
     def __init__(
         self,
-        query_results: list[ComicVineIssueStruct],
+        query_results: list[Candidate],
         expected_info: RequestData,
         filepath: Path,
     ):
@@ -62,32 +63,32 @@ class ResultsFilter:
             return 0.5
         return 1.0 if candidate_number == self.expected_info.num else 0.0
 
-    def score_results(self, result: ComicVineIssueStruct) -> float:
-        name = cast(str, result.name)
-        volume = cast(str, result.volume.name)
-        cover_date = cast(str, result.cover_date)
-        issue_num = cast(str, result.issue_number)
+    def score_results(self, result: Candidate) -> float:
+        name = cast(str, result.issue.name)
+        volume = cast(str, result.issue.volume.name)
+        cover_date = cast(str, result.issue.cover_date)
+        issue_num = cast(str, result.issue.issue_number)
 
         score = 0.0
         score += self.title_similarity(name)
         score += self.volume_similarity(volume)
+        score += result.year_score
         score += self.year_match(int(cover_date[:4]))
         score += self.number_match(int(issue_num))
         return score
 
     def filter_results(self, top_n: int = 5) -> list[tuple[ComicVineIssueStruct, int]]:
-        # logger.info(f"Adam here you go:\n{self.query_results}")
         logger.debug("Filtering %d query results.", len(self.query_results))
         ids: set[int] = set()
         scored: list[tuple[float, ComicVineIssueStruct, int]] = []
         # Each tuple has (score, result, position)
         for index, result in enumerate(self.query_results):
-            indiv_id = int(result.id)
+            indiv_id = int(result.issue.id)
             if indiv_id not in ids:
                 ids.add(indiv_id)
             else:
                 continue
-            scored.append((self.score_results(result), result, index))
+            scored.append((self.score_results(result), result.issue, index))
 
         scored.sort(key=lambda x: x[0], reverse=True)
         for i in scored:
