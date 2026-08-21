@@ -224,31 +224,11 @@ class IssueResponseValidator:
 
     @staticmethod
     def get_proper_title(name: str | None, volume_name: str | None) -> str:
-        ambig_names = ["tpb", "hc", "omnibus"]
-        ambig_regexes = [
-            r"^vol(?:ume)?\.?\s*\d+$",  # matches "vol.", "volume", "vol"
-            r"^#\d+$",  # matches "#1", "#1 2" etc
-            r"^issue\s*\d+$",  # matches "issue 3"
-            r"\bvol(?:ume)?\.?\s*(one|two|three|four|\d+|i{1,3}|iv|v)\b",
-            r"\bbook\s*(one|two|three|four|\d+|i{1,3}|iv|v)\b",
-        ]
-        if name:
-            lowered_name = name.lower().strip()
-            if lowered_name in ambig_names or any(
-                re.match(p, lowered_name) for p in ambig_regexes
-            ):
-                if not volume_name:
-                    raise ValueError("No name for issue found.")
-                else:
-                    return volume_name
-            else:
-                return name
-
-        else:
-            if not volume_name:
-                raise ValueError("No name for issue found.")
-            else:
-                return volume_name
+        if name and not IssueResponseValidator.is_ambig_name(name):
+            return name
+        if not volume_name:
+            raise ValueError("No name for issue found")
+        return volume_name
 
     def score_title(self, title: str) -> float:
         sim = SequenceMatcher(
