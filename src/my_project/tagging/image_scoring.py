@@ -131,19 +131,21 @@ class ImageScorer:
 
     def score_candidate_images(self, possibles: list[Candidate]) -> list[Candidate]:
         scored_candidates = []
-        images: list[BytesIO] = []
         with ThreadPoolExecutor(max_workers=5) as executor:
-            images = list(
-                executor.map(
-                    self.http.download_img,
-                    [struct.issue.image.medium_url for struct in possibles],
-                )
-            )
-        for index, entry in enumerate(possibles):
-            logger.info(f"Started processing the cover of {entry.issue.volume.name}.")
-            new_entry = entry
-            new_entry.image_score = self.score_image(images[index])
+            futures = [
+                executor.submit(self.http.download_img, entry.issue.image.medium_url)
+                for entry in possibles
+            ]
 
-            scored_candidates.append(new_entry)
+        for entry, future in zip(possibles, futures, strict=False):
+            logger.info("Started processing the cover %s.", entry.issue.volume.name)
+            try:
+                entry.image_score = self.score_image(future.result())
+            except Exception:
+                logger.exception(
+                    "Failed to load the cover of %s.", entry.issue.volume.name
+                )
+                continue
+            scored_candidates.append(entry)
 
         return scored_candidates
