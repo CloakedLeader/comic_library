@@ -1,4 +1,5 @@
 import logging
+import math
 import zipfile
 from enum import IntEnum
 from io import BytesIO
@@ -153,8 +154,12 @@ class TaggingPipeline:
             key=lambda candidate: candidate.metadata_score,
             reverse=True,
         )
-        cutoff = int(len(total_candidates) * 0.4)
-        self.candidates = total_candidates[:cutoff]
+        if total_candidates:
+            n = len(total_candidates)
+            cutoff = max(6, int(6 + 2 * math.log2(n / 6)))
+            self.candidates = total_candidates[: min(n, cutoff)]
+        else:
+            self.candidates = []
         # I now have a list self.candidates which contains all possible results.
         self.candidates = self.image_scorer.score_candidate_images(self.candidates)
         for i in self.candidates:
