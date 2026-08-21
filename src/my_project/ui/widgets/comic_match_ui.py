@@ -19,6 +19,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from my_project.classes.helper_classes import ComicVineIssueStruct
+from my_project.classes.tagging_classes import Candidate
 from my_project.tagging.comic_match_logic import ComicMatch
 from my_project.tagging.tagging_controller import RequestData
 
@@ -30,7 +32,7 @@ class ComicMatcherUI(QDialog):
         self,
         actual_info: RequestData,
         best_matches: list[tuple[ComicMatch, int]],
-        all_matches: list[dict],
+        all_matches: list[Candidate],
         filepath: Path,
     ):
         super().__init__()
@@ -38,6 +40,7 @@ class ComicMatcherUI(QDialog):
         self.filepath = filepath
         self.matches = best_matches
         self.all_matches = all_matches
+        self.selected_match: Candidate | None = None
 
         self.resize(800, 600)
         self.main_display = QWidget()
@@ -137,9 +140,9 @@ class ComicMatcherUI(QDialog):
         else:
             logger.warning("No row selected")
 
-    def get_selected_result(self):
+    def get_selected_result(self) -> ComicVineIssueStruct | None:
         logger.info(self.selected_match)
-        return self.selected_match if hasattr(self, "selected_match") else None
+        return self.selected_match.issue if self.selected_match else None
 
     @staticmethod
     def cover_getter(filepath: Path):

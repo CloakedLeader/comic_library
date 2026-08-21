@@ -11,6 +11,7 @@ from defusedxml import ElementTree as ET
 from PySide6.QtWidgets import QMainWindow
 
 from my_project.classes.helper_classes import ComicInfo, ComicVineIssueStruct
+from my_project.classes.tagging_classes import Candidate
 from my_project.config.config_manager import ConfigManager
 from my_project.database.db_input import MetadataInputting, insert_new_publisher
 from my_project.database.gui_repo_worker import RepoWorker
@@ -317,13 +318,15 @@ class MetadataController:
         )
 
         if matchcode == MatchCode.ONE_MATCH:
-            return self.build_tag_application(tagger, tagger.results[0])
+            if tagger.result:
+                return self.build_tag_application(tagger, tagger.result)
+            else:
+                raise RuntimeError(
+                    "The attribute `result` of TaggingPipeline should not be None for MatchCode.ONE_MATCH."
+                )
 
-        candidates = (
-            tagger.results
-            if matchcode == MatchCode.MULTIPLE_MATCHES
-            else tagger.potential_results
-        )
+        candidates = tagger.candidates
+
         ranked = self.rank_results(candidates, tagger.data)
         selected = self.request_disambiguation(ranked, tagger.data, candidates)
         if not selected:
@@ -411,7 +414,7 @@ class MetadataController:
         self,
         results: list[tuple[ComicMatch, int]],
         actual_comic: RequestData,
-        all_results: list[ComicVineIssueStruct],
+        all_results: list[Candidate],
     ) -> Optional[ComicVineIssueStruct]:
         match = self.display.get_user_match(  # type: ignore
             results, actual_comic, all_results, self.filepath
