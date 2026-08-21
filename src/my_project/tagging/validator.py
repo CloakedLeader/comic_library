@@ -176,7 +176,7 @@ class IssueResponseValidator:
 
     @staticmethod
     def get_year(data: ComicVineIssueStruct) -> int:
-        year = (data.cover_date or data.store_date or "")[:4]
+        year = (data.cover_date or "")[:4]  # or data.store_date
         if not year.isdigit():
             raise ValueError("Issue has no usable cover date.")
         return int(year)

@@ -40,6 +40,7 @@ class ComicMatcherUI(QDialog):
         self.filepath = filepath
         self.matches = best_matches
         self.all_matches = all_matches
+        self.selected_match: Candidate | None = None
 
         self.resize(800, 600)
         self.main_display = QWidget()
@@ -141,7 +142,7 @@ class ComicMatcherUI(QDialog):
 
     def get_selected_result(self) -> ComicVineIssueStruct | None:
         logger.info(self.selected_match)
-        return self.selected_match.issue if hasattr(self, "selected_match") else None
+        return self.selected_match.issue if self.selected_match else None
 
     @staticmethod
     def cover_getter(filepath: Path):
