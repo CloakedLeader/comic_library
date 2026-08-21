@@ -116,7 +116,7 @@ class ImageScorer:
             )
 
         final_score = w_hash * hash_score + w_hue * hist_score
-        logging.info(f"""   hash-score = {hash_score}
+        logger.info(f"""   hash-score = {hash_score}
                             histogram-score = {hist_score}
                             total-score = {final_score}
                             """)
