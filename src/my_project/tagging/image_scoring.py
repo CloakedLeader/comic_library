@@ -19,7 +19,7 @@ class ImageScorer:
     FINAL_WEIGHTS = {"hash": 0.6, "hue_hist": 0.4}
 
     def __init__(self, actual_cover: BytesIO, http: HttpRequest):
-        self.cover = Image.open(actual_cover)
+        self.cover = Image.open(actual_cover).convert("RGB")
         self.padded_cover = self.pad_to_square(self.cover)
         self.actual_hashes = {
             "phash": imagehash.phash(
@@ -78,7 +78,7 @@ class ImageScorer:
         return float(np.clip(corr, -1.0, 1.0))
 
     def score_image(self, possible_image: BytesIO):
-        image = Image.open(possible_image)
+        image = Image.open(possible_image).convert("RGB")
         padded_image = self.pad_to_square(image)
         possible_hashes = {
             "phash": imagehash.phash(padded_image, hash_size=ImageScorer.HASH_SIZE),
