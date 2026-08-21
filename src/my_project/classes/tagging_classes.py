@@ -54,6 +54,7 @@ class Candidate:
         return 0.3 * self.metadata_score + 0.7 * self.image_score
 
     def __repr__(self) -> str:
+        total = "unscored" if self.image_score is None else self.confidence_score
         return f"""
         name: {self.name}
         year_score: {self.year_score}
@@ -61,5 +62,5 @@ class Candidate:
         series_score: {self.series_score}
         metadata_score = {self.metadata_score}
         image_score = {self.image_score}
-        total_score = {self.confidence_score}
+        total_score = {total}
             """
