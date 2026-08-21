@@ -30,6 +30,14 @@ class MatchCode(IntEnum):
     MULTIPLE_MATCHES = 2
 
 
+class NoSearchResultsError(Exception):
+    """Raised after filtering the search results and none remain."""
+
+
+class VolumeNotFoundError(Exception):
+    """Raised when a requested volume cannot be found in the search results."""
+
+
 header = {
     "User-Agent": "AutoComicLibrary/1.0 (contact: adam.perrott@protonmail.com;"
     "github.com/CloakedLeader/comic_library)",
@@ -40,10 +48,6 @@ header = {
 }
 session = requests.Session()
 session.headers.update(header)
-
-
-class VolumeNotFoundError(Exception):
-    """Raised when a requested volume cannot be found in the search results."""
 
 
 class TaggingPipeline:
@@ -117,7 +121,7 @@ class TaggingPipeline:
         logger.info(f"There are {len(self.search_results)} results returned.")
         filtered_results = self.search_validator.filter_search_results()
         if len(filtered_results) == 0:
-            raise RuntimeError("NO RESULTS")
+            raise NoSearchResultsError()
 
         logger.info(
             "After filtering search results for title, publisher and issue "
@@ -171,7 +175,6 @@ class TaggingPipeline:
 
         elif len(self.candidates) == 0:
             return MatchCode.NO_MATCH
-            pass
             # look at previous results before filtering and try to rank them for presentation to user.
 
         else:
