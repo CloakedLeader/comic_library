@@ -147,6 +147,7 @@ class ComicVineIssueStruct(BaseModel):
     issue_number: int
     name: Optional[str] = None
     site_detail_url: Optional[str] = None
+    store_date: Optional[str] = None
     volume: VolumeInfo
 
 

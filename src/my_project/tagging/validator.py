@@ -179,7 +179,10 @@ class IssueResponseValidator:
 
     @staticmethod
     def get_year(data: ComicVineIssueStruct) -> int:
-        return int(data.date_added[:4])
+        year = (data.cover_date or data.store_date or "")[:4]
+        if not year.isdigit():
+            raise ValueError("Issue has no usable cover date.")
+        return int(year)
 
     @staticmethod
     def fuzzy_match(a: str, b: str, threshold: int = 65) -> bool:
