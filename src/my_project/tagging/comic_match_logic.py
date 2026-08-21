@@ -1,7 +1,7 @@
 import logging
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import TypedDict, cast
+from typing import TypedDict
 
 from my_project.classes.helper_classes import ComicVineIssueStruct
 from my_project.classes.tagging_classes import Candidate
@@ -64,14 +64,11 @@ class ResultsFilter:
         return 1.0 if candidate_number == self.expected_info.num else 0.0
 
     def score_results(self, result: Candidate) -> float:
-        issue_num = cast(str, result.issue.issue_number)
+        issue_num = result.issue.issue_number
 
-        score = 0.0
-        score += result.title_score if result.title_score else 0.0
-        score += result.series_score
-        score += result.year_score
-        score += result.image_score if result.image_score else 0.0
-        score += self.number_match(int(issue_num))
+        score = result.metadata_score
+        score += result.image_score or 0.0
+        score += self.number_match(issue_num)
 
         return score
 
