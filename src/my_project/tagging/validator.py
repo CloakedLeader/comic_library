@@ -73,7 +73,7 @@ class SearchResponseValidator:
 
         Args:
             number (int, optional): Maximum number of top-matching results to return.
-                Defaults to 5.
+                Defaults to 7.
 
         Returns:
             list: The selected result dictionaries ordered from highest to lowest via
@@ -160,9 +160,6 @@ class SearchResponseValidator:
 
 
 class IssueResponseValidator:
-    ISSUE_THRESHOLD = 70
-    VOLUME_THRESHOLD = 50
-
     def __init__(self, expected_data: RequestData) -> None:
         """
         Initialise the validator with API response results and the expected
