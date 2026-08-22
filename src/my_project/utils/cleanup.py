@@ -2,18 +2,31 @@ import logging
 import os
 import sqlite3
 from pathlib import Path
+from typing import overload
 
 from my_project.config.config_manager import ConfigManager
 
 logger = logging.getLogger(__name__)
 
 
-def delete_comic(filepath: Path, cursor, config_man: ConfigManager) -> None:
-    cursor.execute("SELECT id FROM comics where file_path = ?", (str(filepath),))
-    results = cursor.fetchone()
-    if not results:
-        return None
-    primary_key = results[0]
+@overload
+def delete_comic(identifier: str, cursor, config_man: ConfigManager) -> None: ...
+
+
+@overload
+def delete_comic(identifier: Path, cursor, config_man: ConfigManager) -> None: ...
+
+
+def delete_comic(identifier: Path | str, cursor, config_man: ConfigManager) -> None:
+    if type(identifier) == Path:
+        cursor.execute("SELECT id FROM comics where file_path = ?", (str(identifier),))
+        results = cursor.fetchone()
+        if not results:
+            print("No matching comic")
+            return None
+        primary_key = results[0]
+    else:
+        primary_key = identifier
     cover_dir = config_man.comics_root / ".covers"
     for suffix in ["_t.jpg", "_b.jpg"]:
         cover_file = cover_dir / f"{primary_key}{suffix}"
@@ -21,6 +34,7 @@ def delete_comic(filepath: Path, cursor, config_man: ConfigManager) -> None:
             cover_file.unlink()
 
     cursor.execute("DELETE FROM comics WHERE id = ?", (primary_key,))
+    print("Deleted main comic.")
 
     tables = {
         "comic_characters",
@@ -37,6 +51,8 @@ def delete_comic(filepath: Path, cursor, config_man: ConfigManager) -> None:
             f"DELETE FROM {table} WHERE comic_id = ?",
             (primary_key,),  # nosec B608
         )
+
+    print("Deleted all orphan references")
 
     return None
 
@@ -62,7 +78,7 @@ def scan_and_clean(config_man: ConfigManager) -> None:
         logger.info(
             "Removing missing comic: " f"{config_man.comics_root / relative_file_path}"
         )
-        # delete_comic(relative_file_path, cursor, config_man)
+        delete_comic(relative_file_path, cursor, config_man)
     conn.commit()
 
     logger.info(f"Scan complete. Removed {len(missing)} missing comics.")

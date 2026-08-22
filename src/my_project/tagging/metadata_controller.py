@@ -191,7 +191,7 @@ class MetadataController:
 
             if tag_applier:
                 logger.info("Search results lead to one result.")
-                raw_comic_metadata = tag_applier.create_metadata_dict()
+                raw_comic_metadata = tag_applier.create_metadata_dict(self.primary_key)
                 logger.info("Metadata dictionary created.")
             else:
                 logger.error("No comic with which to match.")

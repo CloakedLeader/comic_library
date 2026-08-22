@@ -37,7 +37,7 @@ class TagApplication:
         self.api_key = api_key
         self.filename = filename
 
-    def create_metadata_dict(self) -> ComicInfo:
+    def create_metadata_dict(self, primary_id: str) -> ComicInfo:
         """
         Constructs a metadata dictionary for the current issue from the instance
         issue data.
@@ -54,7 +54,7 @@ class TagApplication:
         month = date_obj.month
 
         information = ComicInfo(
-            primary_key="temp",
+            primary_key=primary_id,
             filepath=Path("temp"),
             original_filename=self.filename,
             title=self.info.name,

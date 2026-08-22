@@ -11,7 +11,7 @@ def get_app_data_dir() -> Path:
     """Return the directory used for ComicLibrary user data."""
     if os.name == "nt":
         if APP_NAME == "ComicLibrary-Dev":
-            logger.info("Reading config.json in DEVELOPMENT MODE.")
+            print("Reading config.json in DEVELOPMENT MODE.")
             return Path("G:/comic_library/devel-config")
         app_data = os.environ.get("APPDATA")
         if not app_data:
