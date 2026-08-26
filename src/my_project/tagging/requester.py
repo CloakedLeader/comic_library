@@ -10,6 +10,7 @@ from my_project.classes.helper_classes import (
     ComicVineDetailStruct,
     ComicVineIssueStruct,
 )
+from my_project.tagging.parser import FilenameMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -27,31 +28,14 @@ header = {
 
 
 class RequestData:
-    def __init__(
-        self,
-        issue_num: int,
-        year: int,
-        series: str,
-        title: str,
-        publisher: str | None = None,
-    ) -> None:
-        """
-        Initialise RequestData with metadata describing a comic.
-
-        Args:
-            issue_num (int): Issue number for the comic.
-            year (int): Publication year of the issue.
-            series (str): Series name.
-            title (str): Comic title.
-            publisher (str | None, optional): Publisher name. Defaults to None.
-        """
-
-        self.series = series
-        self.title = title
-        self.unclean_title = (series or "") + (title or "")
-        self.num = issue_num
-        self.pub_year = year
-        self.publisher = publisher or ""
+    def __init__(self, metadata: FilenameMetadata) -> None:
+        self.series = metadata.series
+        self.title = metadata.title
+        self.unclean_title = (self.series or "") + (self.title or "")
+        self.num = metadata.volume_number
+        self.pub_year = metadata.year
+        self.cleaned_title = metadata.cleaned_title
+        self.cleaned_series = metadata.cleaned_series
 
 
 class HttpRequest:

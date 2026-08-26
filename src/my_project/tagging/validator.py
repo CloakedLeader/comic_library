@@ -20,6 +20,18 @@ ComicVineResponseList: TypeAlias = (
 )
 ComicVineResponse: TypeAlias = ComicVineIssueStruct | ComicVineSearchStruct
 
+known_collections = {
+    "tpb",
+    "hc",
+    "hardcover",
+    "omnibus",
+    "deluxe",
+    "compendium",
+    "digest",
+    "epic collection",
+    "modern era epic collection",
+}
+
 
 class SearchResponseValidator:
     def __init__(
@@ -160,6 +172,13 @@ class SearchResponseValidator:
 
 
 class IssueResponseValidator:
+    COLLECTIONS = sorted(
+        (tuple(collection.casefold().split()) for collection in known_collections),
+        key=len,
+        reverse=True,
+    )
+    PENALTY = 3.5
+
     def __init__(self, expected_data: RequestData) -> None:
         """
         Initialise the validator with API response results and the expected
@@ -227,11 +246,37 @@ class IssueResponseValidator:
             raise ValueError("No name for issue found")
         return volume_name
 
+    @staticmethod
+    def remove_collections(name: str) -> str:
+        words = name.split()
+        lower_words = tuple(word.casefold() for word in words)
+
+        result = []
+        i = 0
+
+        while i < len(words):
+            for collection in IssueResponseValidator.COLLECTIONS:
+                n = len(collection)
+
+                if n == 0:
+                    continue
+                if lower_words[i : i + n] == collection:
+                    i += n
+                    break
+
+            else:
+                result.append(words[i])
+                i += 1
+
+        return " ".join(result)
+
     def score_title(self, title: str) -> float:
         sim = SequenceMatcher(
-            None, title.casefold(), self.expected_info.title.casefold()
+            None,
+            self.remove_collections(title).casefold(),
+            self.expected_info.cleaned_title.casefold(),
         ).ratio()
-        return sim**2.5
+        return sim**IssueResponseValidator.PENALTY
 
     def score_series(self, series: str, queries: Queries) -> float:
         if (
@@ -240,9 +285,11 @@ class IssueResponseValidator:
         ):
             return 1.0
         sim = SequenceMatcher(
-            None, series.casefold(), self.expected_info.series.casefold()
+            None,
+            self.remove_collections(series).casefold(),
+            self.expected_info.cleaned_series.casefold(),
         ).ratio()
-        return sim**2.5
+        return sim**IssueResponseValidator.PENALTY
 
     def score_year(self, year: int) -> float:
         difference = abs(self.expected_info.pub_year - year)

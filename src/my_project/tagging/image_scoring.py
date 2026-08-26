@@ -108,7 +108,10 @@ class ImageScorer:
             actual_aspect, possible_aspect
         )
         if aspect_diff >= 0.03:
-            w_hash, w_hue = 0.3, 0.7
+            logger.info(
+                "Aspect ratio skewed, changing weights for image score to prefer histogram."
+            )
+            w_hash, w_hue = 0.2, 0.8
         else:
             w_hash, w_hue = (
                 ImageScorer.FINAL_WEIGHTS["hash"],

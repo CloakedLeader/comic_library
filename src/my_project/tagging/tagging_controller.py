@@ -230,12 +230,7 @@ def run_tagging_process(
     comic_info = parser_instance.parse()
     logger.info(f"The filename {filename} gives the following info:\n {comic_info}")
 
-    series = comic_info.series
-    num = comic_info.volume_number
-    year = comic_info.year
-    title = comic_info.title
-
-    data = RequestData(num, year, series, title)
+    data = RequestData(comic_info)
     logger.info(f"The expected complete title is: {data.unclean_title}")
 
     tagger = TaggingPipeline(

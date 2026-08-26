@@ -13,7 +13,8 @@ class FilenameMetadata:
     issue_number: Optional[int]
     collection_type: Optional[str]
     year: int
-    # month: Optional[int]
+    cleaned_title: str
+    cleaned_series: str
 
     def __str__(self) -> str:
         return f"""
@@ -44,10 +45,18 @@ known_collections = {
     "deluxe",
     "compendium",
     "digest",
+    "epic collection",
+    "modern era epic collection",
 }
 
 
 class Parser:
+    COLLECTIONS = sorted(
+        (tuple(collection.casefold().split()) for collection in known_collections),
+        key=len,
+        reverse=True,
+    )
+
     def __init__(self, tokens: list[Item]):
         self.tokens = tokens
         self.pos = 0
@@ -59,6 +68,28 @@ class Parser:
                 break
             else:
                 continue
+
+    @staticmethod
+    def remove_collections(words: list[str]) -> list[str]:
+        lower_words = tuple(word.casefold() for word in words)
+
+        result = []
+        i = 0
+
+        while i < len(words):
+            for collection in Parser.COLLECTIONS:
+                n = len(collection)
+
+                if n == 0:
+                    continue
+                if lower_words[i : i + n] == collection:
+                    i += n
+                    break
+            else:
+                result.append(words[i])
+                i += 1
+
+        return result
 
     def current(self) -> Item:
         """
@@ -438,4 +469,6 @@ class Parser:
             issue_number=int(possible_metadata["issue"] or 1),
             collection_type=str(possible_metadata["collection"]),
             year=int(possible_metadata["year"]),
+            cleaned_series=" ".join(self.remove_collections(series_parts)),
+            cleaned_title=" ".join(self.remove_collections(title_parts)),
         )
