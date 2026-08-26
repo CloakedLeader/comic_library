@@ -505,14 +505,30 @@ def start_api(config_manager: ConfigManager):
 
 if __name__ == "__main__":
     configure_logging(LOG_DIR)
+
+    logger = logging.getLogger(__name__)
+
+    logger.info("=== MAIN START ===")
+    logger.info("Logging handlers: %s", logging.getLogger().handlers)
+    logger.info("Root logger level: %s", logging.getLogger().level)
+
     config_manager = ConfigManager()
+    logger.info("Before config load")
     config_manager.load()
+    logger.info("After config load")
 
+    logger.info("Before startup checks")
     startup_checks(config_manager)
-    scan_and_clean(config_manager)
+    logger.info("After startup checks")
 
+    logger.info("Before cleanup")
+    scan_and_clean(config_manager)
+    logger.info("After cleanup")
+
+    logger.info("Before starting API")
     api_thread = threading.Thread(target=start_api, args=(config_manager,), daemon=True)
     api_thread.start()
+    logger.info("After starting API")
 
     qt_app = QApplication(sys.argv)
 

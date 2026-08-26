@@ -15,7 +15,7 @@ def configure_logging(log_dir: Path) -> None:
         handlers=[
             logging.FileHandler(
                 log_file,
-                mode="w",
+                mode="a",
                 encoding="utf-8",
             ),
             # logging.StreamHandler(sys.stdout),
