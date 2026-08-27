@@ -103,9 +103,6 @@ class HomePage(QMainWindow):
         self.toggle_action.triggered.connect(self.toggle_sidebar)
         self.toggle_action.setShortcut("Ctrl+B")
         self.toggle_action.setToolTip("Toggle file tree sidebar")
-        self.refresh_action = self.toolbar.addAction("Update")
-        # self.refresh_action.triggered.connect(scan_and_clean)
-        self.refresh_action.setShortcut("Ctrl + U")
         self.create_collection_button = self.toolbar.addAction("Create Collection")
         self.create_collection_button.triggered.connect(self.create_collection)
         self.create_reading_order_button = self.toolbar.addAction(
