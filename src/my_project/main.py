@@ -30,13 +30,19 @@ from qasync import QEventLoop  # type: ignore[import-untyped]
 
 from my_project.resources import resources_rc  # noqa: F401, isort: skip
 from my_project.api.main import create_app
-from my_project.classes.helper_classes import GUIComicInfo, MainViewType
+from my_project.classes.helper_classes import (
+    ComicVineIssueStruct,
+    GUIComicInfo,
+    MainViewType,
+)
+from my_project.classes.tagging_classes import Candidate
 from my_project.config.config_manager import ConfigManager
 from my_project.database.db_init import startup_checks
 from my_project.database.gui_repo_worker import RepoWorker
 from my_project.database.search import FTS5Searcher
 from my_project.tagging.comic_match_logic import ComicMatch
 from my_project.tagging.metadata_controller import run_tagger
+from my_project.tagging.requester import RequestData
 from my_project.ui.home_view import HomeView
 from my_project.ui.reader.reader_controller import ReadingController
 from my_project.ui.widgets.collections_widget import CollectionCreation
@@ -218,11 +224,11 @@ class HomePage(QMainWindow):
 
     def open_reader(self, comic: GUIComicInfo) -> None:
         """
-        Open a comic reader for the specified comic.
+        Open a comic reader window for a specific comic.
 
         Args:
-            Dictionary containing information about the comic
-            including filepath and database id.
+            comic (GUIComicInfo): Dataclass containing front-end
+            important information.
         """
         self.reader_controller.read_comic(comic)
 
@@ -281,6 +287,7 @@ class HomePage(QMainWindow):
             self.splitter.setSizes([0, total])
 
     def toggle_sidebar(self):
+        """Toggles the sidebar to be opened or closed."""
         sizes = self.splitter.sizes()
         if sizes[0] > 0:
             self.sidebar_width = sizes[0]
@@ -290,6 +297,7 @@ class HomePage(QMainWindow):
             self.splitter.setSizes([previous, sizes[1]])
 
     def collapse_sidebar(self):
+        """Closes the sidebar."""
         sizes = self.splitter.sizes()
         if sizes[0] > 0:
             self.sidebar_width = sizes[0]
@@ -298,9 +306,17 @@ class HomePage(QMainWindow):
             return
 
     def go_home(self):
+        """Displays the home page widget."""
         self.stack.setCurrentWidget(self.home_page)
 
     def search(self, text: str):
+        """
+        Submit a search via the FTS5 database and dispatch the display
+        method to the particular current screen.
+
+        Args:
+            text (str): The user-entered search query.
+        """
         if text == "" or text is None:
             return
         current = self.stack.currentWidget()
@@ -312,6 +328,13 @@ class HomePage(QMainWindow):
             self.library_search(text)
 
     def library_search(self, text: str):
+        """
+        Displays the search results in a comic grid view and removes the
+        old search results, if there are any.
+
+        Args:
+            text (str): The user-entered search query.
+        """
         if text == "":
             return
         with FTS5Searcher(config_manager) as searcher:
@@ -349,15 +372,33 @@ class HomePage(QMainWindow):
         self.metadata_popup.show()
 
     def tag_comics(self):
+        """Run the tagging process."""
         run_tagger(self, config_manager)
 
     def get_user_match(
         self,
         query_results: list[tuple[ComicMatch, int]],
-        actual_comic,
-        all_results,
+        actual_comic: RequestData,
+        all_results: list[Candidate],
         filepath: Path,
-    ):
+    ) -> Optional[ComicVineIssueStruct]:
+        """
+        Display a selection window for the user to choose the correct comic match
+        for the comic being tagged.
+
+        Args:
+            query_results (list[tuple[ComicMatch, int]]): A list of the best matches and
+                their positions in the order.
+            actual_comic (RequestData): Data struct which describes the expected data of
+                the comic.
+            all_results (list[Candidate]): A list of all the possible matches from the
+                search process.
+            filepath (Path): The filepath of the comic being tagged.
+
+        Returns:
+            Optional[ComicVineIssueStruct]: The actual issue data or None if there is no
+                match or the user cancelled the process.
+        """
         dialog = ComicMatcherUI(actual_comic, query_results, all_results, filepath)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             selected = dialog.get_selected_result()
@@ -368,6 +409,7 @@ class HomePage(QMainWindow):
         return None
 
     def create_collection(self):
+        """Open the collection creation popup window."""
         dialog = CollectionCreation(config_manager)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             logging.info(dialog.textbox.text())
